@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { setIn, updateIn, mutateIn } from './index'
+import { setIn, updateIn, mutateIn, batch } from './index'
 
 // Test data factories
 const createSimpleUser = () => ({ name: 'John', age: 30 })
@@ -386,51 +386,6 @@ describe('mutateIn', () => {
     })
   })
 
-  it('should use shallow clone when shallow option is true', () => {
-    const obj = {
-      user: {
-        profile: {
-          name: 'John',
-          settings: {
-            theme: 'dark',
-          },
-        },
-      },
-    }
-    const result = mutateIn(obj, { shallow: true }).user.profile.settings(
-      (settings) => {
-        settings.theme = settings.theme.toUpperCase()
-      },
-    )
-
-    // Only the immediate parent should be cloned
-    expect(result.user.profile.settings).not.toBe(obj.user.profile.settings)
-    expect(result.user.profile).not.toBe(obj.user.profile)
-    expect(result.user).not.toBe(obj.user)
-    expect(result.user.profile.settings.theme).toBe('DARK')
-    expectOriginalUnchanged(obj, {
-      user: {
-        profile: {
-          name: 'John',
-          settings: {
-            theme: 'dark',
-          },
-        },
-      },
-    })
-  })
-
-  it('should handle arrays with shallow cloning', () => {
-    const obj = createUserArray()
-    const result = mutateIn(obj, { shallow: true }).users[0]((person) => {
-      person.name = person.name.toUpperCase()
-    })
-
-    expect(result.users[0].name).toBe('JOHN')
-    expect(result.users).not.toBe(obj.users)
-    expectOriginalUnchanged(obj, createUserArray())
-  })
-
   it('should handle mutation that returns a new value', () => {
     const obj = createSimpleUser()
     testImmutability(
@@ -567,6 +522,348 @@ describe('mutateIn', () => {
       obj,
       createSimpleUser(),
     )
+  })
+})
+
+describe('batch', () => {
+  it('should batch multiple set operations', () => {
+    const obj = createSimpleUser()
+    testImmutability(
+      () =>
+        batch(obj, (draft) => {
+          draft.name = 'Jane'
+          draft.age = 25
+        }),
+      { name: 'Jane', age: 25 },
+      obj,
+      createSimpleUser(),
+    )
+  })
+
+  it('should batch mixed operations', () => {
+    const obj = createUserArray()
+    testImmutability(
+      () =>
+        batch(obj, (draft) => {
+          setIn(draft).users[0].name('Johnny')
+          setIn(draft).users(draft.users.filter((u) => u.age > 25))
+          updateIn(draft).users[0].age((age) => age + 5)
+        }),
+      {
+        users: [{ name: 'Johnny', age: 35 }],
+      },
+      obj,
+      createUserArray(),
+    )
+  })
+
+  it('should handle nested batch operations', () => {
+    const obj = createNestedUser()
+    testImmutability(
+      () =>
+        batch(obj, (draft) => {
+          setIn(draft).user.profile.name('Jane')
+          setIn(draft).user.profile.age(25)
+          updateIn(draft).user.profile.age((age) => age + 5)
+        }),
+      {
+        user: {
+          profile: {
+            name: 'Jane',
+            age: 30,
+          },
+        },
+      },
+      obj,
+      createNestedUser(),
+    )
+  })
+
+  it('should handle array operations in batch', () => {
+    const obj = createUserArray()
+    testImmutability(
+      () =>
+        batch(obj, (draft) => {
+          setIn(draft).users[0].name('Johnny')
+          setIn(draft).users[1].age(26)
+          updateIn(draft).users((users) => [...users, { name: 'Bob', age: 40 }])
+        }),
+      {
+        users: [
+          { name: 'Johnny', age: 30 },
+          { name: 'Jane', age: 26 },
+          { name: 'Bob', age: 40 },
+        ],
+      },
+      obj,
+      createUserArray(),
+    )
+  })
+
+  it('should handle deep nested operations in batch', () => {
+    const obj = createDeepNested()
+    testImmutability(
+      () =>
+        batch(obj, (draft) => {
+          setIn(draft).a.b.c.d.e.f.g.h.i.j('new value')
+          ;(setIn(draft).a.b.c.d.e.f.g.h.i as any).k('another value')
+        }),
+      {
+        a: {
+          b: {
+            c: {
+              d: {
+                e: {
+                  f: {
+                    g: {
+                      h: {
+                        i: {
+                          j: 'new value',
+                          k: 'another value',
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      obj,
+      createDeepNested(),
+    )
+  })
+
+  it('should handle empty batch operations', () => {
+    const obj = createSimpleUser()
+    testImmutability(
+      () =>
+        batch(obj, (draft) => {
+          // No operations
+        }),
+      { name: 'John', age: 30 },
+      obj,
+      createSimpleUser(),
+    )
+  })
+
+  it('should handle batch with direct mutations', () => {
+    const obj = createUserArray()
+    testImmutability(
+      () =>
+        batch(obj, (draft) => {
+          updateIn(draft).users((users) => [...users, { name: 'Bob', age: 40 }])
+          ;(setIn(draft) as any).filter('all')
+        }),
+      {
+        users: [
+          { name: 'John', age: 30 },
+          { name: 'Jane', age: 25 },
+          { name: 'Bob', age: 40 },
+        ],
+        filter: 'all',
+      },
+      obj,
+      createUserArray(),
+    )
+  })
+
+  it('should maintain object identity for multiple modifications to the same object', () => {
+    const obj = {
+      user: {
+        profile: {
+          name: 'John',
+          age: 30,
+        },
+        settings: {
+          theme: 'dark',
+        },
+      },
+    }
+
+    let profileRef: any = null
+    let settingsRef: any = null
+
+    const result = batch(obj, (obj) => {
+      // First modification - should clone
+      setIn(obj).user.profile.name('Jane')
+      profileRef = obj.user.profile
+
+      // Second modification - should reuse the same object
+      setIn(obj).user.profile.age(25)
+      expect(obj.user.profile).toBe(profileRef)
+
+      // Third modification - should still reuse
+      setIn(obj).user.profile.age(26)
+      expect(obj.user.profile).toBe(profileRef)
+
+      // Modify a different nested object
+      setIn(obj).user.settings.theme('light')
+      settingsRef = obj.user.settings
+
+      // Modify it again - should reuse
+      setIn(obj).user.settings.theme('auto')
+      expect(obj.user.settings).toBe(settingsRef)
+
+      // Modify the first object again - should still reuse
+      setIn(obj).user.profile.name('Johnny')
+      expect(obj.user.profile).toBe(profileRef)
+    })
+
+    expect(result).toEqual({
+      user: {
+        profile: {
+          name: 'Johnny',
+          age: 26,
+        },
+        settings: {
+          theme: 'auto',
+        },
+      },
+    })
+  })
+
+  it('should maintain array identity for multiple modifications to the same array', () => {
+    const obj = {
+      users: [
+        { name: 'John', age: 30 },
+        { name: 'Jane', age: 25 },
+      ],
+    }
+
+    let usersRef: any = null
+
+    const result = batch(obj, (obj) => {
+      // First modification - should clone
+      setIn(obj).users[0].name('Johnny')
+      usersRef = obj.users
+
+      // Second modification - should reuse the same array
+      setIn(obj).users[1].age(26)
+      expect(obj.users).toBe(usersRef)
+
+      // Third modification - should still reuse
+      mutateIn(obj).users((users) => {
+        users.push({ name: 'Bob', age: 40 })
+      })
+      expect(obj.users).toBe(usersRef)
+
+      // Fourth modification - should still reuse
+      setIn(obj).users[0].age(35)
+      expect(obj.users).toBe(usersRef)
+    })
+
+    expect(result).toEqual({
+      users: [
+        { name: 'Johnny', age: 35 },
+        { name: 'Jane', age: 26 },
+        { name: 'Bob', age: 40 },
+      ],
+    })
+  })
+
+  it('should maintain identity across different operation types on the same object', () => {
+    const obj = {
+      user: {
+        profile: {
+          name: 'John',
+          age: 30,
+        },
+      },
+    }
+
+    let profileRef: any = null
+
+    const result = batch(obj, (draft) => {
+      // Direct mutation first
+      setIn(draft).user.profile.name('Jane')
+      profileRef = draft.user.profile
+
+      // Direct mutation - should reuse
+      setIn(draft).user.profile.age(25)
+      expect(draft.user.profile).toBe(profileRef)
+
+      // Direct mutation again - should reuse
+      setIn(draft).user.profile.age(26)
+      expect(draft.user.profile).toBe(profileRef)
+
+      // Direct mutation again - should reuse
+      setIn(draft).user.profile.age(27)
+      expect(draft.user.profile).toBe(profileRef)
+    })
+
+    expect(result).toEqual({
+      user: {
+        profile: {
+          name: 'Jane',
+          age: 27,
+        },
+      },
+    })
+  })
+
+  it('should maintain identity for deeply nested objects', () => {
+    const obj = {
+      a: {
+        b: {
+          c: {
+            d: {
+              e: {
+                f: {
+                  g: {
+                    h: {
+                      i: {
+                        j: 'value',
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    }
+
+    let deepRef: any = null
+
+    const result = batch(obj, (draft) => {
+      // First modification - should clone the path
+      setIn(draft).a.b.c.d.e.f.g.h.i.j('new value')
+      deepRef = draft.a.b.c.d.e.f.g.h.i
+
+      // Second modification - should reuse the same object
+      ;(setIn(draft).a.b.c.d.e.f.g.h.i as any).k('another value')
+      expect(draft.a.b.c.d.e.f.g.h.i).toBe(deepRef)
+
+      // Third modification - should still reuse
+      setIn(draft).a.b.c.d.e.f.g.h.i.j('final value')
+      expect(draft.a.b.c.d.e.f.g.h.i).toBe(deepRef)
+    })
+
+    expect(result).toEqual({
+      a: {
+        b: {
+          c: {
+            d: {
+              e: {
+                f: {
+                  g: {
+                    h: {
+                      i: {
+                        j: 'final value',
+                        k: 'another value',
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    })
   })
 })
 

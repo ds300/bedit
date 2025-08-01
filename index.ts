@@ -19,18 +19,16 @@ type Mutatable<T, Root = T> = {
     : (mutate: Mutator<T[k]>) => Root
 } & ((mutate: Mutator<T>) => Root)
 
-function set(obj: any, key: string | number, value: any): any {
-  if (Array.isArray(obj)) {
-    const res = obj.slice(0)
-    res[key] = value
-    return res
-  }
-  return { ...obj, [key]: value }
-}
-
 const SET = 0 as const
 const UPDATE = 1 as const
 const MUTATE = 2 as const
+
+function shallowClone(obj: any) {
+  if (Array.isArray(obj)) {
+    return obj.slice()
+  }
+  return { ...obj }
+}
 
 class BeditFrame {
   constructor(
@@ -41,6 +39,7 @@ class BeditFrame {
   }
 
   release() {
+    this.clonedObjects = null
     if (!this.isEphemeral) {
       this.parent = top
       top = this
@@ -53,13 +52,40 @@ class BeditFrame {
   obj = null as any
   i = 0
   shallow = false
-  type = SET as typeof SET | typeof UPDATE | typeof MUTATE
+  type = SET as FrameType
+  clonedObjects = null as null | Set<object>
 
   resetAfterThrow() {
     this.i = 0
     this.keyPath.fill(undefined)
     this.objPath.fill(undefined)
     this.obj = null
+    this.clonedObjects = null
+    this.release()
+  }
+
+  set(obj: any, key: string | number, value: any): any {
+    const cloned = this.shallowClone(obj)
+    cloned[key] = value
+    return cloned
+  }
+
+  shallowClone(obj: any) {
+    if (this.clonedObjects?.has(obj)) {
+      return obj
+    }
+    const cloned = shallowClone(obj)
+    this.clonedObjects?.add(cloned)
+    return cloned
+  }
+
+  deepClone(obj: any) {
+    if (this.clonedObjects?.has(obj)) {
+      return obj
+    }
+    const cloned = structuredClone(obj)
+    this.clonedObjects?.add(cloned)
+    return cloned
   }
 
   $ = new Proxy(() => {}, {
@@ -95,11 +121,9 @@ class BeditFrame {
             if (this.obj == null || typeof this.obj !== 'object') {
               value = this.obj
             } else if (this.shallow) {
-              value = Array.isArray(this.obj)
-                ? this.obj.slice()
-                : { ...this.obj }
+              value = this.shallowClone(this.obj)
             } else {
-              value = structuredClone(this.obj)
+              value = this.deepClone(this.obj)
             }
             // Apply the function to the cloned value
             const res = fn(value)
@@ -110,10 +134,12 @@ class BeditFrame {
         }
         while (this.i > 0) {
           this.i--
-          value = set(this.objPath[this.i], this.keyPath[this.i], value)
+          value = this.set(this.objPath[this.i], this.keyPath[this.i], value)
           this.keyPath[this.i] = undefined
           this.objPath[this.i] = undefined
         }
+        this.obj = null
+        this.release()
         return value
       } catch (e) {
         this.resetAfterThrow()
@@ -126,41 +152,51 @@ class BeditFrame {
 let top: BeditFrame | null = new BeditFrame(
   new BeditFrame(new BeditFrame(new BeditFrame(null))),
 )
+type FrameType = typeof SET | typeof UPDATE | typeof MUTATE
 
-function getFrame(): BeditFrame {
+function getFrame(root: any, type: FrameType, shallow: boolean): BeditFrame {
   if (top == null) {
     return new BeditFrame(null, true)
   }
   const ret = top
   top = ret.parent
+  ret.type = type
+  ret.clonedObjects = batchingRoots?.get(root) ?? null
+  ret.shallow = shallow
+  ret.obj = root
   return ret
 }
 
 export function setIn<T>(t: T): Settable<T> {
-  const frame = getFrame()
-  frame.obj = t
-  frame.type = SET
-  return frame.$ as any
+  return getFrame(t, SET, false).$ as any
 }
 
 export function updateIn<T>(t: T): Updatable<T> {
-  const frame = getFrame()
-  frame.obj = t
-  frame.type = UPDATE
-  return frame.$ as any
+  return getFrame(t, UPDATE, false).$ as any
 }
 
-export function mutateIn<T>(
-  t: T,
-  options?: { shallow?: boolean },
-): Mutatable<T> {
-  const frame = getFrame()
-  frame.obj = t
-  frame.type = MUTATE
-  frame.shallow = !!options?.shallow
-  return frame.$ as any
+export function mutateIn<T>(t: T): Mutatable<T> {
+  return getFrame(t, MUTATE, false).$ as any
 }
 
 export function shallowMutateIn<T>(t: T): Mutatable<T> {
-  return mutateIn(t, { shallow: true })
+  return getFrame(t, MUTATE, true).$ as any
+}
+
+let batchingRoots = null as null | Map<object, Set<object>>
+
+export function batch<T>(t: T, fn: (t: T) => void): T {
+  const copy = shallowClone(t)
+  if (batchingRoots == null) {
+    batchingRoots = new Map()
+  }
+
+  try {
+    batchingRoots.set(copy, new Set([copy]))
+    fn(copy)
+  } finally {
+    batchingRoots.delete(copy)
+  }
+
+  return copy
 }

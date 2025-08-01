@@ -49,3 +49,13 @@ const newState3 = shallowMutateIn(appState).todos((todos) => {
   todos.pop()
 })
 ```
+
+Use `batch` to batch updates.
+
+```ts
+const newState4 = batch(appState, (draft) => {
+  setIn(draft).todos[1].completed(true)
+  setIn(draft).todos[2].completed(false)
+  setIn(draft).todos[3].completed(true)
+})
+```
