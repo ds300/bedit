@@ -23,96 +23,48 @@ function set(obj: any, key: string | number, value: any): any {
 
 const keyPath = new Array(10)
 const objPath = new Array(10)
+let obj = null as any
 let i = 0
-let id = null as null | number
-const reset = () => {
+let didFinish = true
+const SET = 0 as const
+const UPDATE = 1 as const
+let shallow = false
+let type = SET as typeof SET | typeof UPDATE
+
+const resetAfterThrow = () => {
   i = 0
-  id = null
+  didFinish = true
+  keyPath.fill(undefined)
+  objPath.fill(undefined)
+  obj = null
 }
 
-export function setIn<T>(t: T): Settable<T> {
-  let obj = t
-  let myId = (id = Math.random())
-  const $: any = new Proxy(() => {}, {
-    get(_target, prop) {
-      try {
-        if (id !== myId) {
-          throw new Error('`setIn` was called asynchronously')
-        }
-        if (obj == null || typeof obj !== 'object') {
-          throw new TypeError(
-            `Cannot read property ${JSON.stringify(String(prop))} of ${obj === null ? 'null' : typeof obj}`,
-          )
-        }
-        keyPath[i] = prop
-        objPath[i] = obj
-        obj = obj[prop]
-        i++
-        return $
-      } catch (e) {
-        reset()
-        throw e
+const $: any = new Proxy(() => {}, {
+  get(_target, prop) {
+    try {
+      if (obj == null || typeof obj !== 'object') {
+        throw new TypeError(
+          `Cannot read property ${JSON.stringify(String(prop))} of ${obj === null ? 'null' : typeof obj}`,
+        )
       }
-    },
-    apply(_target, _thisArg, [value]) {
-      try {
-        if (id !== myId) {
-          throw new Error('`setIn` was called asynchronously')
-        }
-        while (i > 0) {
-          i--
-          value = set(objPath[i], keyPath[i], value)
-          keyPath[i] = undefined
-          objPath[i] = undefined
-        }
-        id = null
-        return value
-      } catch (e) {
-        reset()
-        throw e
-      }
-    },
-  })
-  return $
-}
-
-export function updateIn<T>(
-  t: T,
-  options?: { shallow?: boolean },
-): Updatable<T> {
-  let obj = t
-  let myId = (id = Math.random())
-  const $: any = new Proxy(() => {}, {
-    get(_target, prop) {
-      try {
-        if (id !== myId) {
-          throw new Error('`updateIn` was called asynchronously')
-        }
-        if (obj == null || typeof obj !== 'object') {
-          throw new TypeError(
-            `Cannot read property ${JSON.stringify(String(prop))} of ${obj === null ? 'null' : typeof obj}`,
-          )
-        }
-        keyPath[i] = prop
-        objPath[i] = obj
-        obj = obj[prop]
-        i++
-        return $
-      } catch (e) {
-        reset()
-        throw e
-      }
-    },
-    apply(_target, _thisArg, [fn]) {
-      try {
-        if (id !== myId) {
-          throw new Error('`updateIn` was called asynchronously')
-        }
-        // Clone the value at the current path
-        let value: any = obj
+      keyPath[i] = prop
+      objPath[i] = obj
+      obj = obj[prop]
+      i++
+      return $
+    } catch (e) {
+      resetAfterThrow()
+      throw e
+    }
+  },
+  apply(_target, _thisArg, [valueOrFn]) {
+    try {
+      let value = type === SET ? valueOrFn : obj
+      if (type === UPDATE) {
+        const fn = valueOrFn
         if (value == null || typeof value !== 'object') {
           // noop
-        } else if (options?.shallow) {
+        } else if (shallow) {
           value = Array.isArray(value) ? value.slice() : { ...value }
         } else {
           value = structuredClone(value)
@@ -120,20 +72,42 @@ export function updateIn<T>(
         // Apply the function to the cloned value
         const res = fn(value)
         value = typeof res === 'undefined' ? value : res
-
-        while (i > 0) {
-          i--
-          value = set(objPath[i], keyPath[i], value)
-          keyPath[i] = undefined
-          objPath[i] = undefined
-        }
-        id = null
-        return value
-      } catch (e) {
-        reset()
-        throw e
       }
-    },
-  })
+      while (i > 0) {
+        i--
+        value = set(objPath[i], keyPath[i], value)
+        keyPath[i] = undefined
+        objPath[i] = undefined
+      }
+      didFinish = true
+      return value
+    } catch (e) {
+      resetAfterThrow()
+      throw e
+    }
+  },
+})
+
+export function setIn<T>(t: T): Settable<T> {
+  if (!didFinish) {
+    throw new Error('`setIn` was called asynchronously')
+  }
+  didFinish = false
+  obj = t
+  type = SET
+  return $
+}
+
+export function updateIn<T>(
+  t: T,
+  options?: { shallow?: boolean },
+): Updatable<T> {
+  if (!didFinish) {
+    throw new Error('`updateIn` was called asynchronously')
+  }
+  didFinish = false
+  obj = t
+  type = UPDATE
+  shallow = !!options?.shallow
   return $
 }
