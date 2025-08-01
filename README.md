@@ -1,6 +1,6 @@
 # bedit
 
-A tiny and crazy-fast immutable state update utility for TypeScript.
+A tiny and crazy-fast immutable state utility for TypeScript.
 
 ```sh
 npm install bedit
