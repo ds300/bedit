@@ -1,60 +1,51 @@
 # bedit
 
-Silly (but lowkey kinda good?) idea for a immer-like tool that is super lightweight (and probably faster?) but most importantly doesn't pollute your stack frames with Proxies.
+A tiny and crazy-fast immutable state update utility for TypeScript.
 
-## Example
+```sh
+npm install bedit
+```
+
+## Usage
+
+Use `setIn` to directly set values in nested objects and arrays.
 
 ```ts
-type Todo = {
-  id: string;
-  title: string;
-  completed: boolean;
-};
-
-type AppState = {
-  todos: Todo[];
-  filter: "all" | "active" | "completed";
-};
-
-const baseState: AppState = {
+import { setIn } from 'bedit'
+const appState = {
   todos: [
-    { id: "1", title: "Buy milk", completed: false },
-    { id: "2", title: "Clean the bath", completed: false },
+    { id: '1', title: 'Buy milk', completed: true },
+    { id: '2', title: 'Clean the bath', completed: false },
   ],
-  filter: "all",
-};
+  filter: 'all',
+}
+const newState = setIn(appState).todos[1].completed(true)
 ```
 
-### immer
+Use `updateIn` to compute new values.
 
 ```ts
-const nextState = produce(baseState, (draft) => {
-  // draft is a proxy (boo)
-  draft.todos[1].completed = true;
-});
+import { updateIn } from 'bedit'
+const newState2 = updateIn(appState).todos((todos) =>
+  todos.filter((todo) => !todo.completed),
+)
 ```
 
-### bedit
+Use `mutateIn` to clone a sub-object (with `structuredClone`) and mutate it.
 
 ```ts
-const nextState2 = edit(baseState).todos[1]((todo) => {
-  // todo is a regular ass JS object, via structuredClone
-  todo.completed = true;
-});
-
-// or just
-const nextState3 = edit(baseState).todos[1].completed(true);
-```
-
-## Drawbacks
-
-The main api issue is that it does a deep `structuredClone` on the target object by default, so if you want to do minimum copying while making multiple edits you'd need to be aware of the `shallow` option.
-
-```ts
-const nextState4 = edit(baseState, {shallow: true})(state => {
-  state.filer = 'active'
-  state.todos = edit(state.todos)[0].completed(true)
+import { mutateIn } from 'bedit'
+const newState3 = mutateIn(appState).todos[1]((todo) => {
+  // todo is a regular JavaScript object, not a Proxy
+  todo.completed = true
 })
 ```
 
-It's also just a little weird as an API, but I reckon people would get used to it pretty quickly. Plus with TS and Object.freeze at dev time I reckon it could be pretty on-rails?
+Use `shallowMutateIn` to shallowly clone a sub-object and mutate it.
+
+```ts
+import { shallowMutateIn } from 'bedit'
+const newState3 = shallowMutateIn(appState).todos((todos) => {
+  todos.pop()
+})
+```

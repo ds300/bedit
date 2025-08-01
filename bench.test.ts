@@ -1,5 +1,5 @@
-import { describe, it, expect, afterAll } from 'vitest'
-import { setIn, updateIn } from './index'
+import { describe, it, afterAll } from 'vitest'
+import { setIn, updateIn, mutateIn } from './index'
 import { produce } from 'immer'
 import { create } from 'mutative'
 import { writeFileSync } from 'fs'
@@ -7,23 +7,6 @@ import { join } from 'path'
 
 // Type declarations for Node.js globals
 declare const global: any
-
-// Test data setup
-const createDeepObject = (depth: number, width: number) => {
-  const obj: any = {}
-  const createNested = (current: any, currentDepth: number) => {
-    if (currentDepth >= depth) {
-      current.value = 'leaf'
-      return
-    }
-    for (let i = 0; i < width; i++) {
-      current[`key${i}`] = {}
-      createNested(current[`key${i}`], currentDepth + 1)
-    }
-  }
-  createNested(obj, 0)
-  return obj
-}
 
 const createArray = (size: number) => {
   return Array.from({ length: size }, (_, i) => ({
@@ -44,18 +27,40 @@ const logResult = (testName: string, data: any) => {
   results[testName] = data
 }
 
-describe('Performance Benchmarks', () => {
+describe.skipIf(!global.gc)('Performance Benchmarks', () => {
   const iterations = 10000
 
   describe('Simple Property Updates', () => {
     const baseObj = { name: 'John', age: 30, active: true }
 
     it('should benchmark simple property updates', () => {
-      const beditStart = performance.now()
+      // bedit setIn
+      const beditSetStart = performance.now()
       for (let i = 0; i < iterations; i++) {
         setIn(baseObj).name(`User${i}`)
       }
-      const beditTime = performance.now() - beditStart
+      const beditSetTime = performance.now() - beditSetStart
+
+      // bedit updateIn
+      const beditUpdateStart = performance.now()
+      for (let i = 0; i < iterations; i++) {
+        updateIn(baseObj).name(() => `User${i}`)
+      }
+      const beditUpdateTime = performance.now() - beditUpdateStart
+
+      // bedit mutateIn (deep clone)
+      const beditMutateStart = performance.now()
+      for (let i = 0; i < iterations; i++) {
+        mutateIn(baseObj).name(() => `User${i}`)
+      }
+      const beditMutateTime = performance.now() - beditMutateStart
+
+      // bedit mutateIn (shallow clone)
+      const beditMutateShallowStart = performance.now()
+      for (let i = 0; i < iterations; i++) {
+        mutateIn(baseObj, { shallow: true }).name(() => `User${i}`)
+      }
+      const beditMutateShallowTime = performance.now() - beditMutateShallowStart
 
       const immerStart = performance.now()
       for (let i = 0; i < iterations; i++) {
@@ -74,11 +79,20 @@ describe('Performance Benchmarks', () => {
       const mutativeTime = performance.now() - mutativeStart
 
       const data = {
-        bedit: beditTime,
+        beditSet: beditSetTime,
+        beditUpdate: beditUpdateTime,
+        beditMutate: beditMutateTime,
+        beditMutateShallow: beditMutateShallowTime,
         immer: immerTime,
         mutative: mutativeTime,
-        beditVsImmer: immerTime / beditTime,
-        beditVsMutative: mutativeTime / beditTime,
+        beditSetVsImmer: immerTime / beditSetTime,
+        beditUpdateVsImmer: immerTime / beditUpdateTime,
+        beditMutateVsImmer: immerTime / beditMutateTime,
+        beditMutateShallowVsImmer: immerTime / beditMutateShallowTime,
+        beditSetVsMutative: mutativeTime / beditSetTime,
+        beditUpdateVsMutative: mutativeTime / beditUpdateTime,
+        beditMutateVsMutative: mutativeTime / beditMutateTime,
+        beditMutateShallowVsMutative: mutativeTime / beditMutateShallowTime,
       }
       logResult('Simple Property Updates', data)
     })
@@ -98,11 +112,35 @@ describe('Performance Benchmarks', () => {
     }
 
     it('should benchmark nested property updates', () => {
-      const beditStart = performance.now()
+      // bedit setIn
+      const beditSetStart = performance.now()
       for (let i = 0; i < iterations; i++) {
         setIn(baseObj).user.profile.settings.theme(`theme${i}`)
       }
-      const beditTime = performance.now() - beditStart
+      const beditSetTime = performance.now() - beditSetStart
+
+      // bedit updateIn
+      const beditUpdateStart = performance.now()
+      for (let i = 0; i < iterations; i++) {
+        updateIn(baseObj).user.profile.settings.theme(() => `theme${i}`)
+      }
+      const beditUpdateTime = performance.now() - beditUpdateStart
+
+      // bedit mutateIn (deep clone)
+      const beditMutateStart = performance.now()
+      for (let i = 0; i < iterations; i++) {
+        mutateIn(baseObj).user.profile.settings.theme(() => `theme${i}`)
+      }
+      const beditMutateTime = performance.now() - beditMutateStart
+
+      // bedit mutateIn (shallow clone)
+      const beditMutateShallowStart = performance.now()
+      for (let i = 0; i < iterations; i++) {
+        mutateIn(baseObj, { shallow: true }).user.profile.settings.theme(
+          () => `theme${i}`,
+        )
+      }
+      const beditMutateShallowTime = performance.now() - beditMutateShallowStart
 
       const immerStart = performance.now()
       for (let i = 0; i < iterations; i++) {
@@ -121,11 +159,20 @@ describe('Performance Benchmarks', () => {
       const mutativeTime = performance.now() - mutativeStart
 
       const data = {
-        bedit: beditTime,
+        beditSet: beditSetTime,
+        beditUpdate: beditUpdateTime,
+        beditMutate: beditMutateTime,
+        beditMutateShallow: beditMutateShallowTime,
         immer: immerTime,
         mutative: mutativeTime,
-        beditVsImmer: immerTime / beditTime,
-        beditVsMutative: mutativeTime / beditTime,
+        beditSetVsImmer: immerTime / beditSetTime,
+        beditUpdateVsImmer: immerTime / beditUpdateTime,
+        beditMutateVsImmer: immerTime / beditMutateTime,
+        beditMutateShallowVsImmer: immerTime / beditMutateShallowTime,
+        beditSetVsMutative: mutativeTime / beditSetTime,
+        beditUpdateVsMutative: mutativeTime / beditUpdateTime,
+        beditMutateVsMutative: mutativeTime / beditMutateTime,
+        beditMutateShallowVsMutative: mutativeTime / beditMutateShallowTime,
       }
       logResult('Nested Property Updates', data)
     })
@@ -137,11 +184,33 @@ describe('Performance Benchmarks', () => {
     }
 
     it('should benchmark array element updates', () => {
-      const beditStart = performance.now()
+      // bedit setIn
+      const beditSetStart = performance.now()
       for (let i = 0; i < iterations; i++) {
         setIn(baseObj).todos[0].name(`Todo${i}`)
       }
-      const beditTime = performance.now() - beditStart
+      const beditSetTime = performance.now() - beditSetStart
+
+      // bedit updateIn
+      const beditUpdateStart = performance.now()
+      for (let i = 0; i < iterations; i++) {
+        updateIn(baseObj).todos[0].name(() => `Todo${i}`)
+      }
+      const beditUpdateTime = performance.now() - beditUpdateStart
+
+      // bedit mutateIn (deep clone)
+      const beditMutateStart = performance.now()
+      for (let i = 0; i < iterations; i++) {
+        mutateIn(baseObj).todos[0].name(() => `Todo${i}`)
+      }
+      const beditMutateTime = performance.now() - beditMutateStart
+
+      // bedit mutateIn (shallow clone)
+      const beditMutateShallowStart = performance.now()
+      for (let i = 0; i < iterations; i++) {
+        mutateIn(baseObj, { shallow: true }).todos[0].name(() => `Todo${i}`)
+      }
+      const beditMutateShallowTime = performance.now() - beditMutateShallowStart
 
       const immerStart = performance.now()
       for (let i = 0; i < iterations; i++) {
@@ -160,11 +229,20 @@ describe('Performance Benchmarks', () => {
       const mutativeTime = performance.now() - mutativeStart
 
       const data = {
-        bedit: beditTime,
+        beditSet: beditSetTime,
+        beditUpdate: beditUpdateTime,
+        beditMutate: beditMutateTime,
+        beditMutateShallow: beditMutateShallowTime,
         immer: immerTime,
         mutative: mutativeTime,
-        beditVsImmer: immerTime / beditTime,
-        beditVsMutative: mutativeTime / beditTime,
+        beditSetVsImmer: immerTime / beditSetTime,
+        beditUpdateVsImmer: immerTime / beditUpdateTime,
+        beditMutateVsImmer: immerTime / beditMutateTime,
+        beditMutateShallowVsImmer: immerTime / beditMutateShallowTime,
+        beditSetVsMutative: mutativeTime / beditSetTime,
+        beditUpdateVsMutative: mutativeTime / beditUpdateTime,
+        beditMutateVsMutative: mutativeTime / beditMutateTime,
+        beditMutateShallowVsMutative: mutativeTime / beditMutateShallowTime,
       }
       logResult('Array Element Updates', data)
     })
@@ -226,13 +304,43 @@ describe('Performance Benchmarks', () => {
     }
 
     it('should benchmark deep object updates', () => {
-      const beditStart = performance.now()
+      // bedit setIn
+      const beditSetStart = performance.now()
       for (let i = 0; i < iterations; i++) {
         setIn(baseObj).a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v.w.x.y.z(
           `value${i}`,
         )
       }
-      const beditTime = performance.now() - beditStart
+      const beditSetTime = performance.now() - beditSetStart
+
+      // bedit updateIn
+      const beditUpdateStart = performance.now()
+      for (let i = 0; i < iterations; i++) {
+        updateIn(baseObj).a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v.w.x.y.z(
+          () => `value${i}`,
+        )
+      }
+      const beditUpdateTime = performance.now() - beditUpdateStart
+
+      // bedit mutateIn (deep clone)
+      const beditMutateStart = performance.now()
+      for (let i = 0; i < iterations; i++) {
+        mutateIn(baseObj).a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v.w.x.y.z(
+          () => `value${i}`,
+        )
+      }
+      const beditMutateTime = performance.now() - beditMutateStart
+
+      // bedit mutateIn (shallow clone)
+      const beditMutateShallowStart = performance.now()
+      for (let i = 0; i < iterations; i++) {
+        mutateIn(baseObj, {
+          shallow: true,
+        }).a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v.w.x.y.z(
+          () => `value${i}`,
+        )
+      }
+      const beditMutateShallowTime = performance.now() - beditMutateShallowStart
 
       const immerStart = performance.now()
       for (let i = 0; i < iterations; i++) {
@@ -251,11 +359,20 @@ describe('Performance Benchmarks', () => {
       const mutativeTime = performance.now() - mutativeStart
 
       const data = {
-        bedit: beditTime,
+        beditSet: beditSetTime,
+        beditUpdate: beditUpdateTime,
+        beditMutate: beditMutateTime,
+        beditMutateShallow: beditMutateShallowTime,
         immer: immerTime,
         mutative: mutativeTime,
-        beditVsImmer: immerTime / beditTime,
-        beditVsMutative: mutativeTime / beditTime,
+        beditSetVsImmer: immerTime / beditSetTime,
+        beditUpdateVsImmer: immerTime / beditUpdateTime,
+        beditMutateVsImmer: immerTime / beditMutateTime,
+        beditMutateShallowVsImmer: immerTime / beditMutateShallowTime,
+        beditSetVsMutative: mutativeTime / beditSetTime,
+        beditUpdateVsMutative: mutativeTime / beditUpdateTime,
+        beditMutateVsMutative: mutativeTime / beditMutateTime,
+        beditMutateShallowVsMutative: mutativeTime / beditMutateShallowTime,
       }
       logResult('Deep Object Updates', data)
     })
@@ -272,11 +389,35 @@ describe('Performance Benchmarks', () => {
     }
 
     it('should benchmark function-based updates', () => {
-      const beditStart = performance.now()
+      // bedit setIn (direct value)
+      const beditSetStart = performance.now()
+      for (let i = 0; i < iterations; i++) {
+        setIn(baseObj).user.profile.name(`John Doe ${i}`)
+      }
+      const beditSetTime = performance.now() - beditSetStart
+
+      // bedit updateIn (function-based)
+      const beditUpdateStart = performance.now()
       for (let i = 0; i < iterations; i++) {
         updateIn(baseObj).user.profile.name((name) => `${name} ${i}`)
       }
-      const beditTime = performance.now() - beditStart
+      const beditUpdateTime = performance.now() - beditUpdateStart
+
+      // bedit mutateIn (deep clone)
+      const beditMutateStart = performance.now()
+      for (let i = 0; i < iterations; i++) {
+        mutateIn(baseObj).user.profile.name((name) => `${name} ${i}`)
+      }
+      const beditMutateTime = performance.now() - beditMutateStart
+
+      // bedit mutateIn (shallow clone)
+      const beditMutateShallowStart = performance.now()
+      for (let i = 0; i < iterations; i++) {
+        mutateIn(baseObj, { shallow: true }).user.profile.name(
+          (name) => `${name} ${i}`,
+        )
+      }
+      const beditMutateShallowTime = performance.now() - beditMutateShallowStart
 
       const immerStart = performance.now()
       for (let i = 0; i < iterations; i++) {
@@ -295,11 +436,20 @@ describe('Performance Benchmarks', () => {
       const mutativeTime = performance.now() - mutativeStart
 
       const data = {
-        bedit: beditTime,
+        beditSet: beditSetTime,
+        beditUpdate: beditUpdateTime,
+        beditMutate: beditMutateTime,
+        beditMutateShallow: beditMutateShallowTime,
         immer: immerTime,
         mutative: mutativeTime,
-        beditVsImmer: immerTime / beditTime,
-        beditVsMutative: mutativeTime / beditTime,
+        beditSetVsImmer: immerTime / beditSetTime,
+        beditUpdateVsImmer: immerTime / beditUpdateTime,
+        beditMutateVsImmer: immerTime / beditMutateTime,
+        beditMutateShallowVsImmer: immerTime / beditMutateShallowTime,
+        beditSetVsMutative: mutativeTime / beditSetTime,
+        beditUpdateVsMutative: mutativeTime / beditUpdateTime,
+        beditMutateVsMutative: mutativeTime / beditMutateTime,
+        beditMutateShallowVsMutative: mutativeTime / beditMutateShallowTime,
       }
       logResult('Function-based Updates', data)
     })
@@ -325,15 +475,47 @@ describe('Performance Benchmarks', () => {
     }
 
     it('should benchmark multiple updates in single operation', () => {
-      const beditStart = performance.now()
+      // bedit setIn (multiple separate operations)
+      const beditSetStart = performance.now()
       for (let i = 0; i < iterations; i++) {
-        // Multiple separate operations since chaining isn't supported
         setIn(baseObj).user.profile.name(`User${i}`)
         setIn(baseObj).user.profile.age(30 + i)
         setIn(baseObj).user.profile.settings.theme(`theme${i}`)
         setIn(baseObj).todos[0].name(`Todo${i}`)
       }
-      const beditTime = performance.now() - beditStart
+      const beditSetTime = performance.now() - beditSetStart
+
+      // bedit updateIn (multiple separate operations)
+      const beditUpdateStart = performance.now()
+      for (let i = 0; i < iterations; i++) {
+        updateIn(baseObj).user.profile.name(() => `User${i}`)
+        updateIn(baseObj).user.profile.age(() => 30 + i)
+        updateIn(baseObj).user.profile.settings.theme(() => `theme${i}`)
+        updateIn(baseObj).todos[0].name(() => `Todo${i}`)
+      }
+      const beditUpdateTime = performance.now() - beditUpdateStart
+
+      // bedit mutateIn (deep clone, multiple separate operations)
+      const beditMutateStart = performance.now()
+      for (let i = 0; i < iterations; i++) {
+        mutateIn(baseObj).user.profile.name(() => `User${i}`)
+        mutateIn(baseObj).user.profile.age(() => 30 + i)
+        mutateIn(baseObj).user.profile.settings.theme(() => `theme${i}`)
+        mutateIn(baseObj).todos[0].name(() => `Todo${i}`)
+      }
+      const beditMutateTime = performance.now() - beditMutateStart
+
+      // bedit mutateIn (shallow clone, multiple separate operations)
+      const beditMutateShallowStart = performance.now()
+      for (let i = 0; i < iterations; i++) {
+        mutateIn(baseObj, { shallow: true }).user.profile.name(() => `User${i}`)
+        mutateIn(baseObj, { shallow: true }).user.profile.age(() => 30 + i)
+        mutateIn(baseObj, { shallow: true }).user.profile.settings.theme(
+          () => `theme${i}`,
+        )
+        mutateIn(baseObj, { shallow: true }).todos[0].name(() => `Todo${i}`)
+      }
+      const beditMutateShallowTime = performance.now() - beditMutateShallowStart
 
       const immerStart = performance.now()
       for (let i = 0; i < iterations; i++) {
@@ -358,11 +540,20 @@ describe('Performance Benchmarks', () => {
       const mutativeTime = performance.now() - mutativeStart
 
       const data = {
-        bedit: beditTime,
+        beditSet: beditSetTime,
+        beditUpdate: beditUpdateTime,
+        beditMutate: beditMutateTime,
+        beditMutateShallow: beditMutateShallowTime,
         immer: immerTime,
         mutative: mutativeTime,
-        beditVsImmer: immerTime / beditTime,
-        beditVsMutative: mutativeTime / beditTime,
+        beditSetVsImmer: immerTime / beditSetTime,
+        beditUpdateVsImmer: immerTime / beditUpdateTime,
+        beditMutateVsImmer: immerTime / beditMutateTime,
+        beditMutateShallowVsImmer: immerTime / beditMutateShallowTime,
+        beditSetVsMutative: mutativeTime / beditSetTime,
+        beditUpdateVsMutative: mutativeTime / beditUpdateTime,
+        beditMutateVsMutative: mutativeTime / beditMutateTime,
+        beditMutateShallowVsMutative: mutativeTime / beditMutateShallowTime,
       }
       logResult('Multiple Updates in Single Operation', data)
     })
@@ -439,14 +630,54 @@ describe('Performance Benchmarks', () => {
       }
       gc()
 
-      const beditMemoryStart = process.memoryUsage().heapUsed
+      // bedit setIn memory
+      const beditSetMemoryStart = process.memoryUsage().heapUsed
       for (let i = 0; i < iterations; i++) {
         setIn(baseObj).a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v.w.x.y.z(
           `value${i}`,
         )
       }
-      const beditMemoryEnd = process.memoryUsage().heapUsed
-      const beditMemory = beditMemoryEnd - beditMemoryStart
+      const beditSetMemoryEnd = process.memoryUsage().heapUsed
+      const beditSetMemory = beditSetMemoryEnd - beditSetMemoryStart
+
+      gc()
+
+      // bedit updateIn memory
+      const beditUpdateMemoryStart = process.memoryUsage().heapUsed
+      for (let i = 0; i < iterations; i++) {
+        updateIn(baseObj).a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v.w.x.y.z(
+          () => `value${i}`,
+        )
+      }
+      const beditUpdateMemoryEnd = process.memoryUsage().heapUsed
+      const beditUpdateMemory = beditUpdateMemoryEnd - beditUpdateMemoryStart
+
+      gc()
+
+      // bedit mutateIn (deep) memory
+      const beditMutateMemoryStart = process.memoryUsage().heapUsed
+      for (let i = 0; i < iterations; i++) {
+        mutateIn(baseObj).a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v.w.x.y.z(
+          () => `value${i}`,
+        )
+      }
+      const beditMutateMemoryEnd = process.memoryUsage().heapUsed
+      const beditMutateMemory = beditMutateMemoryEnd - beditMutateMemoryStart
+
+      gc()
+
+      // bedit mutateIn (shallow) memory
+      const beditMutateShallowMemoryStart = process.memoryUsage().heapUsed
+      for (let i = 0; i < iterations; i++) {
+        mutateIn(baseObj, {
+          shallow: true,
+        }).a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v.w.x.y.z(
+          () => `value${i}`,
+        )
+      }
+      const beditMutateShallowMemoryEnd = process.memoryUsage().heapUsed
+      const beditMutateShallowMemory =
+        beditMutateShallowMemoryEnd - beditMutateShallowMemoryStart
 
       gc()
 
@@ -471,11 +702,20 @@ describe('Performance Benchmarks', () => {
       const mutativeMemory = mutativeMemoryEnd - mutativeMemoryStart
 
       const data = {
-        bedit: beditMemory / 1024 / 1024,
+        beditSet: beditSetMemory / 1024 / 1024,
+        beditUpdate: beditUpdateMemory / 1024 / 1024,
+        beditMutate: beditMutateMemory / 1024 / 1024,
+        beditMutateShallow: beditMutateShallowMemory / 1024 / 1024,
         immer: immerMemory / 1024 / 1024,
         mutative: mutativeMemory / 1024 / 1024,
-        beditVsImmer: immerMemory / beditMemory,
-        beditVsMutative: mutativeMemory / beditMemory,
+        beditSetVsImmer: immerMemory / beditSetMemory,
+        beditUpdateVsImmer: immerMemory / beditUpdateMemory,
+        beditMutateVsImmer: immerMemory / beditMutateMemory,
+        beditMutateShallowVsImmer: immerMemory / beditMutateShallowMemory,
+        beditSetVsMutative: mutativeMemory / beditSetMemory,
+        beditUpdateVsMutative: mutativeMemory / beditUpdateMemory,
+        beditMutateVsMutative: mutativeMemory / beditMutateMemory,
+        beditMutateShallowVsMutative: mutativeMemory / beditMutateShallowMemory,
       }
       logResult('Memory Usage (MB)', data)
     })
@@ -490,14 +730,40 @@ describe('Performance Benchmarks', () => {
       for (const [testName, data] of Object.entries(results)) {
         if (testName === 'Memory Usage (MB)') {
           table += `### ${testName}\n\n`
-          table += `- **bedit**: ${data.bedit.toFixed(2)}MB\n`
-          table += `- **immer**: ${data.immer.toFixed(2)}MB (${data.beditVsImmer.toFixed(2)}x ${data.beditVsImmer > 0 ? 'more' : 'less'})\n`
-          table += `- **mutative**: ${data.mutative.toFixed(2)}MB (${data.beditVsMutative.toFixed(2)}x ${data.beditVsMutative > 0 ? 'more' : 'less'})\n\n`
+          table += `- **bedit setIn**: ${data.beditSet.toFixed(2)}MB\n`
+          table += `- **bedit updateIn**: ${data.beditUpdate.toFixed(2)}MB\n`
+          table += `- **bedit mutateIn**: ${data.beditMutate.toFixed(2)}MB\n`
+          table += `- **bedit mutateIn (shallow)**: ${data.beditMutateShallow.toFixed(2)}MB\n`
+          table += `- **immer**: ${data.immer.toFixed(2)}MB\n`
+          table += `- **mutative**: ${data.mutative.toFixed(2)}MB\n\n`
+          table += `**Performance vs Immer:**\n`
+          table += `- bedit setIn: ${data.beditSetVsImmer.toFixed(2)}x ${data.beditSetVsImmer > 1 ? 'more' : 'less'} memory\n`
+          table += `- bedit updateIn: ${data.beditUpdateVsImmer.toFixed(2)}x ${data.beditUpdateVsImmer > 1 ? 'more' : 'less'} memory\n`
+          table += `- bedit mutateIn: ${data.beditMutateVsImmer.toFixed(2)}x ${data.beditMutateVsImmer > 1 ? 'more' : 'less'} memory\n`
+          table += `- bedit mutateIn (shallow): ${data.beditMutateShallowVsImmer.toFixed(2)}x ${data.beditMutateShallowVsImmer > 1 ? 'more' : 'less'} memory\n\n`
+          table += `**Performance vs Mutative:**\n`
+          table += `- bedit setIn: ${data.beditSetVsMutative.toFixed(2)}x ${data.beditSetVsMutative > 1 ? 'more' : 'less'} memory\n`
+          table += `- bedit updateIn: ${data.beditUpdateVsMutative.toFixed(2)}x ${data.beditUpdateVsMutative > 1 ? 'more' : 'less'} memory\n`
+          table += `- bedit mutateIn: ${data.beditMutateVsMutative.toFixed(2)}x ${data.beditMutateVsMutative > 1 ? 'more' : 'less'} memory\n`
+          table += `- bedit mutateIn (shallow): ${data.beditMutateShallowVsMutative.toFixed(2)}x ${data.beditMutateShallowVsMutative > 1 ? 'more' : 'less'} memory\n\n`
         } else {
           table += `### ${testName}\n\n`
-          table += `- **bedit**: ${data.bedit.toFixed(2)}ms\n`
-          table += `- **immer**: ${data.immer.toFixed(2)}ms (${data.beditVsImmer.toFixed(2)}x slower)\n`
-          table += `- **mutative**: ${data.mutative.toFixed(2)}ms (${data.beditVsMutative.toFixed(2)}x slower)\n\n`
+          table += `- **bedit setIn**: ${data.beditSet.toFixed(2)}ms\n`
+          table += `- **bedit updateIn**: ${data.beditUpdate.toFixed(2)}ms\n`
+          table += `- **bedit mutateIn**: ${data.beditMutate.toFixed(2)}ms\n`
+          table += `- **bedit mutateIn (shallow)**: ${data.beditMutateShallow.toFixed(2)}ms\n`
+          table += `- **immer**: ${data.immer.toFixed(2)}ms\n`
+          table += `- **mutative**: ${data.mutative.toFixed(2)}ms\n\n`
+          table += `**Performance vs Immer:**\n`
+          table += `- bedit setIn: ${data.beditSetVsImmer.toFixed(2)}x ${data.beditSetVsImmer > 1 ? 'slower' : 'faster'}\n`
+          table += `- bedit updateIn: ${data.beditUpdateVsImmer.toFixed(2)}x ${data.beditUpdateVsImmer > 1 ? 'slower' : 'faster'}\n`
+          table += `- bedit mutateIn: ${data.beditMutateVsImmer.toFixed(2)}x ${data.beditMutateVsImmer > 1 ? 'slower' : 'faster'}\n`
+          table += `- bedit mutateIn (shallow): ${data.beditMutateShallowVsImmer.toFixed(2)}x ${data.beditMutateShallowVsImmer > 1 ? 'slower' : 'faster'}\n\n`
+          table += `**Performance vs Mutative:**\n`
+          table += `- bedit setIn: ${data.beditSetVsMutative.toFixed(2)}x ${data.beditSetVsMutative > 1 ? 'slower' : 'faster'}\n`
+          table += `- bedit updateIn: ${data.beditUpdateVsMutative.toFixed(2)}x ${data.beditUpdateVsMutative > 1 ? 'slower' : 'faster'}\n`
+          table += `- bedit mutateIn: ${data.beditMutateVsMutative.toFixed(2)}x ${data.beditMutateVsMutative > 1 ? 'slower' : 'faster'}\n`
+          table += `- bedit mutateIn (shallow): ${data.beditMutateShallowVsMutative.toFixed(2)}x ${data.beditMutateShallowVsMutative > 1 ? 'slower' : 'faster'}\n\n`
         }
       }
       return table
