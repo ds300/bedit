@@ -1,6 +1,6 @@
 {
   "name": "bedit",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "better edit than immer",
   "main": "index.ts",
   "scripts": {
