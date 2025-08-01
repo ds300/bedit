@@ -4,7 +4,12 @@
   "description": "better edit than immer",
   "main": "index.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:ui": "vitest --ui",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "bench": "vitest run --reporter=verbose bench.test.ts"
   },
   "repository": {
     "type": "git",
@@ -18,5 +23,11 @@
   "bugs": {
     "url": "https://github.com/ds300/bedit/issues"
   },
-  "homepage": "https://github.com/ds300/bedit#readme"
+  "homepage": "https://github.com/ds300/bedit#readme",
+  "devDependencies": {
+    "immer": "^10.0.3",
+    "mutative": "^1.0.0",
+    "prettier": "^3.6.2",
+    "vitest": "^1.6.1"
+  }
 }

@@ -1,61 +1,139 @@
-type SetterOrUpdater<T> = (val: T) => void | T;
+type Updater<T> = (val: T) => void | T
 
-type Editable<T, Root = T> = {
+type Updatable<T, Root = T> = {
   [k in keyof T]: T[k] extends object
-    ? Editable<T[k], Root>
-    : (edit: T[k] | SetterOrUpdater<T[k]>) => Root;
-} & ((edit: T | SetterOrUpdater<T>) => Root);
+    ? Updatable<T[k], Root>
+    : (edit: Updater<T[k]>) => Root
+} & ((edit: Updater<T>) => Root)
 
-function getIn(obj: any, path: string[]): any {
-  let v = obj;
-  for (const p of path) {
-    if (v == null) return undefined;
-    v = v[p];
+type Settable<T, Root = T> = {
+  [k in keyof T]: T[k] extends object
+    ? Settable<T[k], Root>
+    : (val: T[k]) => Root
+} & ((val: T) => Root)
+
+function set(obj: any, key: string | number, value: any): any {
+  if (Array.isArray(obj)) {
+    const res = obj.slice(0)
+    res[key] = value
+    return res
   }
-  return v;
+  return { ...obj, [key]: value }
 }
 
-function setIn(_obj: any, path: string[], value: any): any {
-  if (path.length === 0) return value;
-  // do immutably, cloning only the object in the path
-  let obj = Array.isArray(_obj) ? [..._obj] : { ..._obj };
-  const res = obj;
-  for (let i = 0; i < path.length - 1; i++) {
-    const p = path[i];
-    obj[p] = Array.isArray(obj[p]) ? [...obj[p]] : { ...obj[p] };
-    obj = obj[p];
-  }
-  const last = path[path.length - 1];
-  obj[last] = value;
-  return res;
+const keyPath = new Array(10)
+const objPath = new Array(10)
+let i = 0
+let id = null as null | number
+const reset = () => {
+  i = 0
+  id = null
 }
 
-export function edit<T>(t: T, options?: { shallow?: boolean }): Editable<T> {
-  const path = [] as string[];
-  function doEdit(fn: (val: T) => void | T): T {
-    if (typeof fn !== "function") {
-      return setIn(t, path, fn);
-    }
-    const _v = getIn(t, path);
-    const v = options?.shallow
-      ? Array.isArray(_v)
-        ? _v.slice()
-        : { ..._v }
-      : structuredClone(_v);
-    const v2 = fn(v) ?? v;
-
-    return setIn(t, path, v2);
-  }
+export function setIn<T>(t: T): Settable<T> {
+  let obj = t
+  let myId = (id = Math.random())
   const $: any = new Proxy(() => {}, {
     get(_target, prop) {
-      path.push(prop as string);
-      return $;
+      try {
+        if (id !== myId) {
+          throw new Error('`setIn` was called asynchronously')
+        }
+        if (obj == null || typeof obj !== 'object') {
+          throw new TypeError(
+            `Cannot read property ${JSON.stringify(String(prop))} of ${obj === null ? 'null' : typeof obj}`,
+          )
+        }
+        keyPath[i] = prop
+        objPath[i] = obj
+        obj = obj[prop]
+        i++
+        return $
+      } catch (e) {
+        reset()
+        throw e
+      }
     },
-    apply(_target, _thisArg, [fn]) {
-      return doEdit(fn);
+    apply(_target, _thisArg, [value]) {
+      try {
+        if (id !== myId) {
+          throw new Error('`setIn` was called asynchronously')
+        }
+        while (i > 0) {
+          i--
+          value = set(objPath[i], keyPath[i], value)
+          keyPath[i] = undefined
+          objPath[i] = undefined
+        }
+        id = null
+        return value
+      } catch (e) {
+        reset()
+        throw e
+      }
     },
-  });
-  return $;
+  })
+  return $
 }
 
-export { edit as bedit };
+export function updateIn<T>(
+  t: T,
+  options?: { shallow?: boolean },
+): Updatable<T> {
+  let obj = t
+  let myId = (id = Math.random())
+  const $: any = new Proxy(() => {}, {
+    get(_target, prop) {
+      try {
+        if (id !== myId) {
+          throw new Error('`updateIn` was called asynchronously')
+        }
+        if (obj == null || typeof obj !== 'object') {
+          throw new TypeError(
+            `Cannot read property ${JSON.stringify(String(prop))} of ${obj === null ? 'null' : typeof obj}`,
+          )
+        }
+        keyPath[i] = prop
+        objPath[i] = obj
+        obj = obj[prop]
+        i++
+        return $
+      } catch (e) {
+        reset()
+        throw e
+      }
+    },
+    apply(_target, _thisArg, [fn]) {
+      try {
+        if (id !== myId) {
+          throw new Error('`updateIn` was called asynchronously')
+        }
+        // Clone the value at the current path
+        let value: any = obj
+        if (value == null || typeof value !== 'object') {
+          // noop
+        } else if (options?.shallow) {
+          value = Array.isArray(value) ? value.slice() : { ...value }
+        } else {
+          value = structuredClone(value)
+        }
+        // Apply the function to the cloned value
+        const res = fn(value)
+        value = typeof res === 'undefined' ? value : res
+
+        while (i > 0) {
+          i--
+          value = set(objPath[i], keyPath[i], value)
+          keyPath[i] = undefined
+          objPath[i] = undefined
+        }
+        id = null
+        return value
+      } catch (e) {
+        reset()
+        throw e
+      }
+    },
+  })
+  return $
+}
