@@ -185,7 +185,7 @@ export function shallowMutateIn<T>(t: T): Mutatable<T> {
 
 let batchingRoots = null as null | Map<object, Set<object>>
 
-export function batch<T>(t: T, fn: (t: T) => void): T {
+export function batchEdits<T>(t: T, fn: (t: T) => void): T {
   const copy = shallowClone(t)
   if (batchingRoots == null) {
     batchingRoots = new Map()

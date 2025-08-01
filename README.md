@@ -50,12 +50,15 @@ const newState3 = shallowMutateIn(appState).todos((todos) => {
 })
 ```
 
-Use `batch` to batch updates.
+Use `batchEdits` to batch updates.
 
 ```ts
-const newState4 = batch(appState, (draft) => {
-  setIn(draft).todos[1].completed(true)
-  setIn(draft).todos[2].completed(false)
-  setIn(draft).todos[3].completed(true)
+const newState4 = batchEdits(appState, (appState) => {
+  // Use the same bedit functions inside batchEdits.
+  // The only difference is that you don't need to remember the return values.
+  setIn(appState).todos[1].completed(true)
+  setIn(appState).todos[2].completed(false)
+  setIn(appState).todos[3].completed(true)
+  setIn(appState).filter('all')
 })
 ```
