@@ -1,7 +1,12 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterAll } from 'vitest'
 import { setIn, updateIn } from './index'
 import { produce } from 'immer'
 import { create } from 'mutative'
+import { writeFileSync } from 'fs'
+import { join } from 'path'
+
+// Type declarations for Node.js globals
+declare const global: any
 
 // Test data setup
 const createDeepObject = (depth: number, width: number) => {
@@ -32,8 +37,15 @@ const createArray = (size: number) => {
   }))
 }
 
+// Results collection
+const results: Record<string, any> = {}
+
+const logResult = (testName: string, data: any) => {
+  results[testName] = data
+}
+
 describe('Performance Benchmarks', () => {
-  const iterations = 1000
+  const iterations = 10000
 
   describe('Simple Property Updates', () => {
     const baseObj = { name: 'John', age: 30, active: true }
@@ -61,14 +73,14 @@ describe('Performance Benchmarks', () => {
       }
       const mutativeTime = performance.now() - mutativeStart
 
-      console.log('\n=== Simple Property Updates ===')
-      console.log(`bedit: ${beditTime.toFixed(2)}ms`)
-      console.log(`immer: ${immerTime.toFixed(2)}ms`)
-      console.log(`mutative: ${mutativeTime.toFixed(2)}ms`)
-      console.log(`bedit vs immer: ${(immerTime / beditTime).toFixed(2)}x`)
-      console.log(
-        `bedit vs mutative: ${(mutativeTime / beditTime).toFixed(2)}x`,
-      )
+      const data = {
+        bedit: beditTime,
+        immer: immerTime,
+        mutative: mutativeTime,
+        beditVsImmer: immerTime / beditTime,
+        beditVsMutative: mutativeTime / beditTime,
+      }
+      logResult('Simple Property Updates', data)
     })
   })
 
@@ -108,14 +120,14 @@ describe('Performance Benchmarks', () => {
       }
       const mutativeTime = performance.now() - mutativeStart
 
-      console.log('\n=== Nested Property Updates ===')
-      console.log(`bedit: ${beditTime.toFixed(2)}ms`)
-      console.log(`immer: ${immerTime.toFixed(2)}ms`)
-      console.log(`mutative: ${mutativeTime.toFixed(2)}ms`)
-      console.log(`bedit vs immer: ${(immerTime / beditTime).toFixed(2)}x`)
-      console.log(
-        `bedit vs mutative: ${(mutativeTime / beditTime).toFixed(2)}x`,
-      )
+      const data = {
+        bedit: beditTime,
+        immer: immerTime,
+        mutative: mutativeTime,
+        beditVsImmer: immerTime / beditTime,
+        beditVsMutative: mutativeTime / beditTime,
+      }
+      logResult('Nested Property Updates', data)
     })
   })
 
@@ -147,14 +159,14 @@ describe('Performance Benchmarks', () => {
       }
       const mutativeTime = performance.now() - mutativeStart
 
-      console.log('\n=== Array Element Updates ===')
-      console.log(`bedit: ${beditTime.toFixed(2)}ms`)
-      console.log(`immer: ${immerTime.toFixed(2)}ms`)
-      console.log(`mutative: ${mutativeTime.toFixed(2)}ms`)
-      console.log(`bedit vs immer: ${(immerTime / beditTime).toFixed(2)}x`)
-      console.log(
-        `bedit vs mutative: ${(mutativeTime / beditTime).toFixed(2)}x`,
-      )
+      const data = {
+        bedit: beditTime,
+        immer: immerTime,
+        mutative: mutativeTime,
+        beditVsImmer: immerTime / beditTime,
+        beditVsMutative: mutativeTime / beditTime,
+      }
+      logResult('Array Element Updates', data)
     })
   })
 
@@ -238,14 +250,14 @@ describe('Performance Benchmarks', () => {
       }
       const mutativeTime = performance.now() - mutativeStart
 
-      console.log('\n=== Deep Object Updates ===')
-      console.log(`bedit: ${beditTime.toFixed(2)}ms`)
-      console.log(`immer: ${immerTime.toFixed(2)}ms`)
-      console.log(`mutative: ${mutativeTime.toFixed(2)}ms`)
-      console.log(`bedit vs immer: ${(immerTime / beditTime).toFixed(2)}x`)
-      console.log(
-        `bedit vs mutative: ${(mutativeTime / beditTime).toFixed(2)}x`,
-      )
+      const data = {
+        bedit: beditTime,
+        immer: immerTime,
+        mutative: mutativeTime,
+        beditVsImmer: immerTime / beditTime,
+        beditVsMutative: mutativeTime / beditTime,
+      }
+      logResult('Deep Object Updates', data)
     })
   })
 
@@ -282,14 +294,14 @@ describe('Performance Benchmarks', () => {
       }
       const mutativeTime = performance.now() - mutativeStart
 
-      console.log('\n=== Function-based Updates ===')
-      console.log(`bedit: ${beditTime.toFixed(2)}ms`)
-      console.log(`immer: ${immerTime.toFixed(2)}ms`)
-      console.log(`mutative: ${mutativeTime.toFixed(2)}ms`)
-      console.log(`bedit vs immer: ${(immerTime / beditTime).toFixed(2)}x`)
-      console.log(
-        `bedit vs mutative: ${(mutativeTime / beditTime).toFixed(2)}x`,
-      )
+      const data = {
+        bedit: beditTime,
+        immer: immerTime,
+        mutative: mutativeTime,
+        beditVsImmer: immerTime / beditTime,
+        beditVsMutative: mutativeTime / beditTime,
+      }
+      logResult('Function-based Updates', data)
     })
   })
 
@@ -345,14 +357,14 @@ describe('Performance Benchmarks', () => {
       }
       const mutativeTime = performance.now() - mutativeStart
 
-      console.log('\n=== Multiple Updates in Single Operation ===')
-      console.log(`bedit: ${beditTime.toFixed(2)}ms`)
-      console.log(`immer: ${immerTime.toFixed(2)}ms`)
-      console.log(`mutative: ${mutativeTime.toFixed(2)}ms`)
-      console.log(`bedit vs immer: ${(immerTime / beditTime).toFixed(2)}x`)
-      console.log(
-        `bedit vs mutative: ${(mutativeTime / beditTime).toFixed(2)}x`,
-      )
+      const data = {
+        bedit: beditTime,
+        immer: immerTime,
+        mutative: mutativeTime,
+        beditVsImmer: immerTime / beditTime,
+        beditVsMutative: mutativeTime / beditTime,
+      }
+      logResult('Multiple Updates in Single Operation', data)
     })
   })
 
@@ -414,6 +426,7 @@ describe('Performance Benchmarks', () => {
     it('should measure memory usage', () => {
       const gc = () => {
         if (global.gc) {
+          console.log('GC')
           global.gc()
         }
       }
@@ -426,7 +439,6 @@ describe('Performance Benchmarks', () => {
       }
       gc()
 
-      const beditStart = performance.now()
       const beditMemoryStart = process.memoryUsage().heapUsed
       for (let i = 0; i < iterations; i++) {
         setIn(baseObj).a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v.w.x.y.z(
@@ -434,12 +446,10 @@ describe('Performance Benchmarks', () => {
         )
       }
       const beditMemoryEnd = process.memoryUsage().heapUsed
-      const beditTime = performance.now() - beditStart
       const beditMemory = beditMemoryEnd - beditMemoryStart
 
       gc()
 
-      const immerStart = performance.now()
       const immerMemoryStart = process.memoryUsage().heapUsed
       for (let i = 0; i < iterations; i++) {
         produce(baseObj, (draft) => {
@@ -447,12 +457,10 @@ describe('Performance Benchmarks', () => {
         })
       }
       const immerMemoryEnd = process.memoryUsage().heapUsed
-      const immerTime = performance.now() - immerStart
       const immerMemory = immerMemoryEnd - immerMemoryStart
 
       gc()
 
-      const mutativeStart = performance.now()
       const mutativeMemoryStart = process.memoryUsage().heapUsed
       for (let i = 0; i < iterations; i++) {
         create(baseObj, (draft) => {
@@ -460,17 +468,51 @@ describe('Performance Benchmarks', () => {
         })
       }
       const mutativeMemoryEnd = process.memoryUsage().heapUsed
-      const mutativeTime = performance.now() - mutativeStart
       const mutativeMemory = mutativeMemoryEnd - mutativeMemoryStart
 
-      console.log('\n=== Memory Usage (MB) ===')
-      console.log(`bedit: ${(beditMemory / 1024 / 1024).toFixed(2)}MB`)
-      console.log(`immer: ${(immerMemory / 1024 / 1024).toFixed(2)}MB`)
-      console.log(`mutative: ${(mutativeMemory / 1024 / 1024).toFixed(2)}MB`)
-      console.log(`bedit vs immer: ${(immerMemory / beditMemory).toFixed(2)}x`)
-      console.log(
-        `bedit vs mutative: ${(mutativeMemory / beditMemory).toFixed(2)}x`,
-      )
+      const data = {
+        bedit: beditMemory / 1024 / 1024,
+        immer: immerMemory / 1024 / 1024,
+        mutative: mutativeMemory / 1024 / 1024,
+        beditVsImmer: immerMemory / beditMemory,
+        beditVsMutative: mutativeMemory / beditMemory,
+      }
+      logResult('Memory Usage (MB)', data)
     })
+  })
+
+  // Write results to PERFORMANCE.md after all tests complete
+  afterAll(() => {
+    const filepath = join(process.cwd(), 'PERFORMANCE.md')
+
+    const generateTable = (results: Record<string, any>) => {
+      let table = ''
+      for (const [testName, data] of Object.entries(results)) {
+        if (testName === 'Memory Usage (MB)') {
+          table += `### ${testName}\n\n`
+          table += `- **bedit**: ${data.bedit.toFixed(2)}MB\n`
+          table += `- **immer**: ${data.immer.toFixed(2)}MB (${data.beditVsImmer.toFixed(2)}x ${data.beditVsImmer > 0 ? 'more' : 'less'})\n`
+          table += `- **mutative**: ${data.mutative.toFixed(2)}MB (${data.beditVsMutative.toFixed(2)}x ${data.beditVsMutative > 0 ? 'more' : 'less'})\n\n`
+        } else {
+          table += `### ${testName}\n\n`
+          table += `- **bedit**: ${data.bedit.toFixed(2)}ms\n`
+          table += `- **immer**: ${data.immer.toFixed(2)}ms (${data.beditVsImmer.toFixed(2)}x slower)\n`
+          table += `- **mutative**: ${data.mutative.toFixed(2)}ms (${data.beditVsMutative.toFixed(2)}x slower)\n\n`
+        }
+      }
+      return table
+    }
+
+    const content = `# Performance Comparison: bedit vs Immer vs Mutative
+
+All benchmarks were run with ${iterations.toLocaleString()} iterations.
+
+${generateTable(results)}
+
+*Last updated: ${new Date().toISOString()}*
+`
+
+    writeFileSync(filepath, content)
+    console.log('Performance results written to PERFORMANCE.md')
   })
 })

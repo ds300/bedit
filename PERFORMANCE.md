@@ -1,86 +1,49 @@
 # Performance Comparison: bedit vs Immer vs Mutative
 
-This document contains performance benchmarks comparing bedit against Immer and Mutative, the two most popular immutable update libraries.
-
-## Benchmark Results
-
-All benchmarks were run with 1000 iterations on a MacBook Pro with Node.js 18.
+All benchmarks were run with 10,000 iterations.
 
 ### Simple Property Updates
 
-- **bedit**: 1.05ms
-- **immer**: 7.31ms (6.93x slower)
-- **mutative**: 6.08ms (5.77x slower)
+- **bedit**: 4.39ms
+- **immer**: 29.02ms (6.62x slower)
+- **mutative**: 26.32ms (6.00x slower)
 
 ### Nested Property Updates
 
-- **bedit**: 1.81ms
-- **immer**: 13.81ms (7.63x slower)
-- **mutative**: 13.48ms (7.44x slower)
+- **bedit**: 8.79ms
+- **immer**: 60.62ms (6.90x slower)
+- **mutative**: 45.97ms (5.23x slower)
 
 ### Array Element Updates
 
-- **bedit**: 2.93ms
-- **immer**: 36.81ms (12.55x slower)
-- **mutative**: 9.79ms (3.34x slower)
+- **bedit**: 8.95ms
+- **immer**: 279.95ms (31.29x slower)
+- **mutative**: 38.66ms (4.32x slower)
 
-### Deep Object Updates (26 levels deep)
+### Deep Object Updates
 
-- **bedit**: 5.55ms
-- **immer**: 34.19ms (6.16x slower)
-- **mutative**: 31.05ms (5.59x slower)
+- **bedit**: 41.61ms
+- **immer**: 316.19ms (7.60x slower)
+- **mutative**: 223.91ms (5.38x slower)
 
 ### Function-based Updates
 
-- **bedit**: 1.66ms
-- **immer**: 4.43ms (2.68x slower)
-- **mutative**: 5.07ms (3.06x slower)
+- **bedit**: 8.87ms
+- **immer**: 43.67ms (4.92x slower)
+- **mutative**: 33.00ms (3.72x slower)
 
 ### Multiple Updates in Single Operation
 
-- **bedit**: 3.00ms
-- **immer**: 14.80ms (4.93x slower)
-- **mutative**: 14.37ms (4.78x slower)
+- **bedit**: 27.10ms
+- **immer**: 132.04ms (4.87x slower)
+- **mutative**: 82.92ms (3.06x slower)
 
-### Memory Usage
+### Memory Usage (MB)
 
-- **bedit**: 1.19MB
-- **immer**: -0.72MB (negative due to garbage collection)
-- **mutative**: 2.36MB (1.99x more memory)
+- **bedit**: 1.36MB
+- **immer**: 1.00MB (0.74x more)
+- **mutative**: 7.84MB (5.77x more)
 
-## Key Findings
 
-1. **bedit is significantly faster** than both Immer and Mutative across all scenarios
-2. **Array operations** show the biggest performance difference - bedit is 12.55x faster than Immer
-3. **Deep object updates** are 5-6x faster with bedit
-4. **Memory usage** is reasonable, though Immer shows negative memory usage due to aggressive garbage collection
-5. **Function-based updates** are 2.5-3x faster with bedit
 
-## Why bedit is faster
-
-1. **No Proxy overhead**: bedit doesn't use JavaScript Proxies, which have significant performance costs
-2. **Direct structuredClone**: Uses the native `structuredClone` API for deep cloning
-3. **Simpler implementation**: Less abstraction layers and fewer function calls
-4. **No draft state management**: Unlike Immer, bedit doesn't need to track draft state
-
-## Trade-offs
-
-### bedit advantages:
-
-- Much faster performance
-- No Proxy pollution in stack traces
-- Simpler mental model
-- Smaller bundle size
-
-### bedit disadvantages:
-
-- Less intuitive API (chaining not supported)
-- Requires manual shallow option for performance optimization
-- Less mature ecosystem
-- No built-in support for complex transformations
-
-## Conclusion
-
-bedit shows impressive performance gains over both Immer and Mutative, particularly for array operations and deep object updates. The performance improvements come at the cost of a less intuitive API, but for performance-critical applications, bedit could be an excellent choice.
-
-The benchmarks show that bedit is consistently 2.5-12x faster than the competition, making it a compelling alternative for applications where performance is a priority.
+*Last updated: 2025-08-01T10:42:59.273Z*

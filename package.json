@@ -9,7 +9,7 @@
     "test:ui": "vitest --ui",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "bench": "vitest run --reporter=verbose bench.test.ts"
+    "bench": "node --expose-gc ./node_modules/.bin/vitest run --reporter=verbose bench.test.ts"
   },
   "repository": {
     "type": "git",
@@ -25,6 +25,7 @@
   },
   "homepage": "https://github.com/ds300/bedit#readme",
   "devDependencies": {
+    "@types/node": "^24.1.0",
     "immer": "^10.0.3",
     "mutative": "^1.0.0",
     "prettier": "^3.6.2",
