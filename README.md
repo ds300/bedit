@@ -1,6 +1,13 @@
 # bedit
 
-A tiny and crazy-fast immutable state utility for TypeScript.
+A weird (but cool) immutable state utility for TypeScript.
+
+It's like `immer` but:
+
+- 📈 A billion times faster (slight exaggeration but effectively true)
+- 📉 A fraction of the size (1.9kB vs 13.8kB)
+- 🕵️‍♀️ No Proxy getting in the way when you're trying to debug state changes.
+- 💅 A more idiosyncratic API (peers will respect your 'unique' style).
 
 ```sh
 npm install bedit
@@ -22,7 +29,7 @@ const state = {
 const nextState = setIn(state).todos[1].completed(true)
 ```
 
-Use `updateIn` to compute new values.
+Use `updateIn` to compute new values based on the current state.
 
 ```ts
 import { updateIn } from 'bedit'
@@ -36,7 +43,7 @@ Use `mutateIn` to deeply clone a sub-object (with `structuredClone`) and mutate 
 ```ts
 import { mutateIn } from 'bedit'
 const nextState = mutateIn(state).todos[1]((todo) => {
-  // todo is a normal JavaScript object, not a Proxy.
+  // `todo` is a normal JavaScript object, not a Proxy.
   todo.completed = true
 })
 ```
@@ -55,12 +62,8 @@ Use `batchEdits` to group updates with minimal cloning.
 ```ts
 const nextState = batchEdits(state, (state) => {
   // `state` is a normal JavaScript object, not a Proxy
-  console.log('Last todo', state.todos.at(-1))
-  // => { id: '3', title: 'Buy bread', completed: false }
-  setIn(state).filter('all')
-
-  // For nested updates, use the normal bedit functions.
-  // The only difference is that you don't need to keep track of the return values.
+  // To apply updates, use the normal bedit functions.
+  // No need to keep track of the return values though.
   setIn(state).todos[1].completed(true)
   setIn(state).todos[2].completed(false)
   setIn(state).todos[3].completed(true)
