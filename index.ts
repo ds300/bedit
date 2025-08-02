@@ -88,7 +88,7 @@ interface Frame {
    */
   p: Frame | null
   /**
-   * The root object
+   * The reset function used when acquiring a frame
    */
   r: (root: any, type: FrameType, shallow: boolean) => void
 }
