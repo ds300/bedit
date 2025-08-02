@@ -1,0 +1,5 @@
+---
+description: use the --run flag when running tests, otherwise they will run in watch mode
+globs:
+alwaysApply: true
+---

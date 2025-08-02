@@ -71,173 +71,179 @@ function freezeObject(obj: any): any {
   }
 }
 
-function shallowClone(obj: any) {
+function _shallowClone(obj: any) {
   if (Array.isArray(obj)) {
     return obj.slice()
   }
   return { ...obj }
 }
 
-class BeditFrame {
-  constructor(
-    parent: BeditFrame | null,
-    private isEphemeral: boolean = false,
-  ) {
-    this.parent = parent
-  }
+interface Frame {
+  /**
+   * The proxy that is used to record paths
+   */
+  $: any
+  /**
+   * The parent frame (for the initial stack)
+   */
+  p: Frame | null
+  /**
+   * The root object
+   */
+  r: (root: any, type: FrameType, shallow: boolean) => void
+}
 
-  release() {
-    this.clonedObjects = null
-    if (!this.isEphemeral) {
-      this.parent = top
-      top = this
+function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
+  const keyPath = new Array(8)
+  const objPath = new Array(8)
+  let obj = null as any
+  let i = 0
+  let shallow = false
+  let type = SET as FrameType
+  let clonedObjects = null as null | Set<object>
+
+  function release() {
+    clonedObjects = null
+    if (!isEphemeral) {
+      result.p = top
+      top = result
     }
   }
 
-  parent: BeditFrame | null
-  keyPath = new Array(8)
-  objPath = new Array(8)
-  obj = null as any
-  i = 0
-  shallow = false
-  type = SET as FrameType
-  clonedObjects = null as null | Set<object>
-
-  resetAfterThrow() {
-    this.i = 0
-    this.keyPath.fill(undefined)
-    this.objPath.fill(undefined)
-    this.obj = null
-    this.clonedObjects = null
-    this.release()
+  function resetAfterThrow() {
+    i = 0
+    keyPath.fill(undefined)
+    objPath.fill(undefined)
+    obj = null
+    clonedObjects = null
+    release()
   }
 
-  set(obj: any, key: string | number, value: any): any {
-    const cloned = this.shallowClone(obj)
+  function shallowClone(obj: any) {
+    if (clonedObjects?.has(obj)) {
+      return obj
+    }
+    const cloned = _shallowClone(obj)
+    clonedObjects?.add(cloned)
+    return cloned
+  }
+
+  function deepClone(obj: any) {
+    if (clonedObjects?.has(obj)) {
+      return obj
+    }
+    const cloned = structuredClone(obj)
+    clonedObjects?.add(cloned)
+    return cloned
+  }
+
+  function set(obj: any, key: string | number, value: any): any {
+    const cloned = shallowClone(obj)
     cloned[key] = value
-    if (devMode && !this.clonedObjects) {
+    if (devMode && !clonedObjects) {
       freezeObject(cloned)
     }
     return cloned
   }
-
-  shallowClone(obj: any) {
-    if (this.clonedObjects?.has(obj)) {
-      return obj
-    }
-    const cloned = shallowClone(obj)
-    this.clonedObjects?.add(cloned)
-    return cloned
-  }
-
-  deepClone(obj: any) {
-    if (this.clonedObjects?.has(obj)) {
-      return obj
-    }
-    const cloned = structuredClone(obj)
-    this.clonedObjects?.add(cloned)
-    return cloned
-  }
-
-  $ = new Proxy(() => {}, {
-    get: (_target, prop) => {
-      try {
-        if (this.obj == null || typeof this.obj !== 'object') {
-          throw new TypeError(
-            `Cannot read property ${JSON.stringify(String(prop))} of ${this.obj === null ? 'null' : typeof this.obj}`,
-          )
-        }
-        this.keyPath[this.i] = prop
-        this.objPath[this.i] = this.obj
-        this.obj = this.obj[prop]
-        this.i++
-        return this.$
-      } catch (e) {
-        this.resetAfterThrow()
-        throw e
-      }
+  const result = {
+    p: parent,
+    r: (root, _type, _shallow) => {
+      type = _type
+      clonedObjects = batchingRoots?.get(root) ?? null
+      shallow = _shallow
+      obj = root
     },
-    apply: (_target, _thisArg, [valueOrFn]) => {
-      try {
-        let value: any
-        switch (this.type) {
-          case SET:
-            value = valueOrFn
-            break
-          case UPDATE:
-            value = valueOrFn(this.obj)
-            break
-          case MUTATE:
-            const fn = valueOrFn
-            if (this.obj == null || typeof this.obj !== 'object') {
-              value = this.obj
-            } else if (this.shallow) {
-              value = this.shallowClone(this.obj)
-            } else {
-              value = this.deepClone(this.obj)
-            }
-            // Apply the function to the cloned value
-            const res = fn(value)
-            value = typeof res === 'undefined' ? value : res
-            break
-          default:
-            throw new Error('Invalid type')
+    $: new Proxy(() => {}, {
+      get(_target, prop) {
+        try {
+          if (obj == null || typeof obj !== 'object') {
+            throw new TypeError(
+              `Cannot read property ${JSON.stringify(String(prop))} of ${obj === null ? 'null' : typeof obj}`,
+            )
+          }
+          keyPath[i] = prop
+          objPath[i] = obj
+          obj = obj[prop]
+          i++
+          return result.$
+        } catch (e) {
+          resetAfterThrow()
+          throw e
         }
-        while (this.i > 0) {
-          this.i--
-          value = this.set(this.objPath[this.i], this.keyPath[this.i], value)
-          this.keyPath[this.i] = undefined
-          this.objPath[this.i] = undefined
+      },
+      apply(_target, _thisArg, [valueOrFn]) {
+        try {
+          let value: any
+          switch (type) {
+            case SET:
+              value = valueOrFn
+              break
+            case UPDATE:
+              value = valueOrFn(obj)
+              break
+            case MUTATE:
+              const fn = valueOrFn
+              if (obj == null || typeof obj !== 'object') {
+                value = obj
+              } else if (shallow) {
+                value = shallowClone(obj)
+              } else {
+                value = deepClone(obj)
+              }
+              // Apply the function to the cloned value
+              const res = fn(value)
+              value = typeof res === 'undefined' ? value : res
+              break
+            default:
+              throw new Error('Invalid type')
+          }
+          while (i > 0) {
+            i--
+            value = set(objPath[i], keyPath[i], value)
+            keyPath[i] = undefined
+            objPath[i] = undefined
+          }
+          obj = null
+          release()
+          return value
+        } catch (e) {
+          resetAfterThrow()
+          throw e
         }
-        this.obj = null
-        this.release()
-        return value
-      } catch (e) {
-        this.resetAfterThrow()
-        throw e
-      }
-    },
-  })
+      },
+    }),
+  }
+  return result
 }
 
-let top: BeditFrame | null = new BeditFrame(
-  new BeditFrame(new BeditFrame(new BeditFrame(null))),
-)
+// set up a tiny pool of four frames. we only need one frame per level
+// of nested setIn/updateIn/mutateIn calls.
+let top: Frame | null = frame(frame(frame(frame(null))))
 type FrameType = typeof SET | typeof UPDATE | typeof MUTATE
 
-function getFrame(root: any, type: FrameType, shallow: boolean): BeditFrame {
+function getFrame(root: any, type: FrameType, shallow: boolean): Frame {
   if (top == null) {
-    return new BeditFrame(null, true)
+    return frame(null, true)
   }
   const ret = top
-  top = ret.parent
-  ret.type = type
-  ret.clonedObjects = batchingRoots?.get(root) ?? null
-  ret.shallow = shallow
-  ret.obj = root
+  top = ret.p
+  ret.r(root, type, shallow)
   return ret
 }
 
-export function setIn<T>(t: T): Settable<T> {
-  return getFrame(t, SET, false).$ as any
-}
+export const setIn = <T>(t: T): Settable<T> => getFrame(t, SET, false).$
 
-export function updateIn<T>(t: T): Updatable<T> {
-  return getFrame(t, UPDATE, false).$ as any
-}
+export const updateIn = <T>(t: T): Updatable<T> => getFrame(t, UPDATE, false).$
 
-export function mutateIn<T>(t: T): Mutatable<T> {
-  return getFrame(t, MUTATE, false).$ as any
-}
+export const mutateIn = <T>(t: T): Mutatable<T> => getFrame(t, MUTATE, false).$
 
-export function shallowMutateIn<T>(t: T): Mutatable<T> {
-  return getFrame(t, MUTATE, true).$ as any
-}
+export const shallowMutateIn = <T>(t: T): Mutatable<T> =>
+  getFrame(t, MUTATE, true).$
 
 let batchingRoots = null as null | Map<object, Set<object>>
 
 export function batchEdits<T>(t: T, fn: (t: T) => void): T {
-  const copy = shallowClone(t)
+  const copy = _shallowClone(t)
   if (batchingRoots == null) {
     batchingRoots = new Map()
   }
