@@ -23,6 +23,54 @@ const SET = 0 as const
 const UPDATE = 1 as const
 const MUTATE = 2 as const
 
+// Dev mode configuration
+let devMode = false
+
+export function enableDevMode() {
+  devMode = true
+}
+
+export function disableDevMode() {
+  devMode = false
+}
+
+export function isDevModeEnabled(): boolean {
+  return devMode
+}
+
+const frozenObjects = new WeakSet<object>()
+
+function freezeObject(obj: any): any {
+  if (!devMode || !obj || typeof obj !== 'object') {
+    return
+  }
+
+  if (frozenObjects.has(obj)) {
+    return
+  }
+
+  Object.freeze(obj)
+  frozenObjects.add(obj)
+
+  // Recursively freeze nested objects
+  if (Array.isArray(obj)) {
+    for (const item of obj) {
+      if (item && typeof item === 'object') {
+        freezeObject(item)
+      }
+    }
+  } else {
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        const value = obj[key]
+        if (value && typeof value === 'object') {
+          freezeObject(value)
+        }
+      }
+    }
+  }
+}
+
 function shallowClone(obj: any) {
   if (Array.isArray(obj)) {
     return obj.slice()
@@ -67,6 +115,9 @@ class BeditFrame {
   set(obj: any, key: string | number, value: any): any {
     const cloned = this.shallowClone(obj)
     cloned[key] = value
+    if (devMode && !this.clonedObjects) {
+      freezeObject(cloned)
+    }
     return cloned
   }
 
@@ -192,8 +243,14 @@ export function batchEdits<T>(t: T, fn: (t: T) => void): T {
   }
 
   try {
-    batchingRoots.set(copy, new Set([copy]))
+    const clonedObjects = new Set([copy])
+    batchingRoots.set(copy, clonedObjects)
     fn(copy)
+    if (devMode) {
+      for (const obj of clonedObjects) {
+        freezeObject(obj)
+      }
+    }
   } finally {
     batchingRoots.delete(copy)
   }

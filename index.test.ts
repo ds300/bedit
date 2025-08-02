@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { setIn, updateIn, mutateIn, batch } from './index'
+import { setIn, updateIn, mutateIn, batchEdits } from './index'
 
 // Test data factories
 const createSimpleUser = () => ({ name: 'John', age: 30 })
@@ -530,7 +530,7 @@ describe('batch', () => {
     const obj = createSimpleUser()
     testImmutability(
       () =>
-        batch(obj, (draft) => {
+        batchEdits(obj, (draft) => {
           draft.name = 'Jane'
           draft.age = 25
         }),
@@ -544,7 +544,7 @@ describe('batch', () => {
     const obj = createUserArray()
     testImmutability(
       () =>
-        batch(obj, (draft) => {
+        batchEdits(obj, (draft) => {
           setIn(draft).users[0].name('Johnny')
           setIn(draft).users(draft.users.filter((u) => u.age > 25))
           updateIn(draft).users[0].age((age) => age + 5)
@@ -561,7 +561,7 @@ describe('batch', () => {
     const obj = createNestedUser()
     testImmutability(
       () =>
-        batch(obj, (draft) => {
+        batchEdits(obj, (draft) => {
           setIn(draft).user.profile.name('Jane')
           setIn(draft).user.profile.age(25)
           updateIn(draft).user.profile.age((age) => age + 5)
@@ -583,7 +583,7 @@ describe('batch', () => {
     const obj = createUserArray()
     testImmutability(
       () =>
-        batch(obj, (draft) => {
+        batchEdits(obj, (draft) => {
           setIn(draft).users[0].name('Johnny')
           setIn(draft).users[1].age(26)
           updateIn(draft).users((users) => [...users, { name: 'Bob', age: 40 }])
@@ -604,7 +604,7 @@ describe('batch', () => {
     const obj = createDeepNested()
     testImmutability(
       () =>
-        batch(obj, (draft) => {
+        batchEdits(obj, (draft) => {
           setIn(draft).a.b.c.d.e.f.g.h.i.j('new value')
           ;(setIn(draft).a.b.c.d.e.f.g.h.i as any).k('another value')
         }),
@@ -639,7 +639,7 @@ describe('batch', () => {
     const obj = createSimpleUser()
     testImmutability(
       () =>
-        batch(obj, (draft) => {
+        batchEdits(obj, (draft) => {
           // No operations
         }),
       { name: 'John', age: 30 },
@@ -652,7 +652,7 @@ describe('batch', () => {
     const obj = createUserArray()
     testImmutability(
       () =>
-        batch(obj, (draft) => {
+        batchEdits(obj, (draft) => {
           updateIn(draft).users((users) => [...users, { name: 'Bob', age: 40 }])
           ;(setIn(draft) as any).filter('all')
         }),
@@ -685,7 +685,7 @@ describe('batch', () => {
     let profileRef: any = null
     let settingsRef: any = null
 
-    const result = batch(obj, (obj) => {
+    const result = batchEdits(obj, (obj) => {
       // First modification - should clone
       setIn(obj).user.profile.name('Jane')
       profileRef = obj.user.profile
@@ -734,7 +734,7 @@ describe('batch', () => {
 
     let usersRef: any = null
 
-    const result = batch(obj, (obj) => {
+    const result = batchEdits(obj, (obj) => {
       // First modification - should clone
       setIn(obj).users[0].name('Johnny')
       usersRef = obj.users
@@ -775,7 +775,7 @@ describe('batch', () => {
 
     let profileRef: any = null
 
-    const result = batch(obj, (draft) => {
+    const result = batchEdits(obj, (draft) => {
       // Direct mutation first
       setIn(draft).user.profile.name('Jane')
       profileRef = draft.user.profile
@@ -828,7 +828,7 @@ describe('batch', () => {
 
     let deepRef: any = null
 
-    const result = batch(obj, (draft) => {
+    const result = batchEdits(obj, (draft) => {
       // First modification - should clone the path
       setIn(draft).a.b.c.d.e.f.g.h.i.j('new value')
       deepRef = draft.a.b.c.d.e.f.g.h.i
