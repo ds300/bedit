@@ -4,7 +4,7 @@ A weird (but cool) immutable state utility for TypeScript.
 
 It's like `immer` but:
 
-- 📈 A billion times faster (slight exaggeration but effectively true)
+- 📈 A billion times faster (slight exaggeration but spiritually true)
 - 📉 A fraction of the size (1.9kB vs 13.8kB)
 - 🕵️‍♀️ No Proxy getting in the way when you're trying to debug state changes.
 - 💅 A more idiosyncratic API (peers will respect your 'unique' style).
