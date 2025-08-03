@@ -1,27 +1,40 @@
 type Updater<T> = (val: T) => T
 type Mutator<T> = (val: T) => void | T
 
-type Updatable<T, Root = T> = {
-  [k in keyof T]: T[k] extends object
-    ? Updatable<T[k], Root>
-    : (update: Updater<T[k]>) => Root
-} & ((update: Updater<T>) => Root)
+type Updatable<T, Root = T> = (T extends Map<infer K, infer V>
+  ? { key: (k: K) => Updatable<V, Root> }
+  : {
+      [k in keyof T]: T[k] extends object
+        ? Updatable<T[k], Root>
+        : (update: Updater<T[k]>) => Root
+    }) &
+  ((update: Updater<T>) => Root)
 
-type Settable<T, Root = T> = {
-  [k in keyof T]: T[k] extends object
-    ? Settable<T[k], Root>
-    : (val: T[k]) => Root
-} & ((val: T) => Root)
+type Settable<T, Root = T> = (T extends Map<infer K, infer V>
+  ? { key: (k: K) => Settable<V, Root> }
+  : {
+      [k in keyof T]: T[k] extends object
+        ? Settable<T[k], Root>
+        : (val: T[k]) => Root
+    }) &
+  ((val: T) => Root)
 
-type Mutatable<T, Root = T> = {
-  [k in keyof T]: T[k] extends object
-    ? Mutatable<T[k], Root>
-    : (mutate: Mutator<T[k]>) => Root
-} & ((mutate: Mutator<T>) => Root)
+type Mutatable<T, Root = T> = (T extends Map<infer K, infer V>
+  ? { key: (k: K) => Mutatable<V, Root> }
+  : {
+      [k in keyof T]: T[k] extends object
+        ? Mutatable<T[k], Root>
+        : (mutate: Mutator<T[k]>) => Root
+    }) &
+  ((mutate: Mutator<T>) => Root)
 
-type Deletable<T, Root = T> = {
-  [k in keyof T]: T[k] extends object ? Deletable<T[k], Root> : () => Root
-} & (() => Root)
+type Deletable<T, Root = T> = (T extends Map<infer K, infer V>
+  ? { key: (k: K) => Deletable<V, Root> }
+  : {
+      [k in keyof T]: T[k] extends object ? Deletable<T[k], Root> : () => Root
+    }) &
+  (() => Root)
+
 const SET = 0 as const
 const UPDATE = 1 as const
 const MUTATE = 2 as const
@@ -162,11 +175,17 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
     if (value === DELETE_VALUE) {
       if (Array.isArray(cloned)) {
         cloned.splice(Number(key), 1)
+      } else if (cloned instanceof Map) {
+        cloned.delete(key)
       } else {
         delete cloned[key]
       }
     } else {
-      cloned[key] = value
+      if (cloned instanceof Map) {
+        cloned.set(key, value)
+      } else {
+        cloned[key] = value
+      }
     }
     if (devMode && !clonedObjects) {
       freezeObject(cloned)
@@ -175,7 +194,7 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
   }
   const result = {
     p: parent,
-    r: (root, _type, _shallow) => {
+    r: (root: any, _type: FrameType, _shallow: boolean) => {
       type = _type
       clonedObjects = batchingRoots?.get(root) ?? null
       shallow = _shallow
@@ -189,6 +208,21 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
               `Cannot read property ${JSON.stringify(String(prop))} of ${obj === null ? 'null' : typeof obj}`,
             )
           }
+          if (obj instanceof Map) {
+            if (prop !== 'key') {
+              throw new TypeError(
+                `Cannot edit property ${JSON.stringify(String(prop))} of Map. Use .key() instead.`,
+              )
+            }
+            return (k: any) => {
+              keyPath[i] = k
+              objPath[i] = obj
+              obj = obj.get(k)
+              i++
+              return result.$
+            }
+          }
+
           keyPath[i] = prop
           objPath[i] = obj
           obj = obj[prop]
