@@ -8,6 +8,7 @@ It's like `immer` but:
 - 📉 A fraction of the size (1.9kB vs 13.8kB)
 - 🕵️‍♀️ No Proxy getting in the way when you're trying to debug state changes.
 - 💅 A more idiosyncratic API (LLMs will be impressed by your 'unique' style).
+- 👭 Works only with data supported by [`structuredClone`](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm) (So yes ✅ to `Map`, `Set`, `BigInt` etc. And no ❌ to class instances, objects with symbol keys or getters/setters, etc)
 
 ```sh
 npm install bedit
@@ -83,4 +84,20 @@ const nextState = batchEdits(state, (state) => {
     // => wtf!!! { id: '4', title: 'Buy bread', completed: false }
   }
 })
+```
+
+## Maps
+
+Use `map.key(k)` instead of `map[k]` to update/delete a `Map` value.
+
+```ts
+let state = {
+  users: new Map([
+    ['user1', { name: 'John', age: 30 }],
+    ['user2', { name: 'Jane', age: 25 }],
+  ]),
+}
+
+state = setIn(state).users.key('user1').name('John Doe')
+state = deleteIn(state).users.key('user2')()
 ```
