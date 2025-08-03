@@ -15,9 +15,9 @@
     "outDir": "./dist",
     "rootDir": "./",
     "removeComments": false,
-    "noEmit": true,
+    "noEmit": false,
     "types": ["vitest/globals"]
   },
-  "include": ["*.ts", "*.js"],
+  "include": ["*.ts", "*.js", "bedit.mts"],
   "exclude": ["node_modules", "dist"]
 }

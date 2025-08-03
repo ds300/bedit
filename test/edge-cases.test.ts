@@ -1,5 +1,5 @@
 import { describe, it, expect } from './test-utils'
-import { setIn } from '../index'
+import { setIn } from '../bedit.mts'
 
 describe('edge cases', () => {
   it('should handle empty objects', () => {

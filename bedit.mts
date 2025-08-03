@@ -288,15 +288,15 @@ function getFrame(root: any, type: FrameType, shallow?: boolean): Frame {
   return ret
 }
 
-export const setIn = <T>(t: T): Settable<T> => getFrame(t, SET).$
+export const setIn = <T,>(t: T): Settable<T> => getFrame(t, SET).$
 
-export const updateIn = <T>(t: T): Updatable<T> => getFrame(t, UPDATE).$
+export const updateIn = <T,>(t: T): Updatable<T> => getFrame(t, UPDATE).$
 
-export const mutateIn = <T>(t: T): Mutatable<T> => getFrame(t, MUTATE).$
+export const mutateIn = <T,>(t: T): Mutatable<T> => getFrame(t, MUTATE).$
 
-export const deleteIn = <T>(t: T): Deletable<T> => getFrame(t, DELETE).$
+export const deleteIn = <T,>(t: T): Deletable<T> => getFrame(t, DELETE).$
 
-export const shallowMutateIn = <T>(t: T): Mutatable<T> =>
+export const shallowMutateIn = <T,>(t: T): Mutatable<T> =>
   getFrame(t, MUTATE, true).$
 
 let batchingRoots = null as null | Map<object, Map<object, CloneType>>

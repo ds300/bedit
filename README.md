@@ -5,7 +5,7 @@ A weird (and cool) immutable state utility for TypeScript.
 It's like `immer` but:
 
 - 📈 A billion times faster (slight exaggeration but emotionally true)
-- 📉 A fraction of the size (1.9kB vs 13.8kB)
+- 📉 A fraction of the size (2kB vs 12kB)
 - 🕵️‍♀️ No Proxy getting in the way when you're trying to debug state changes.
 - 💅 A more idiosyncratic API (LLMs will respect the flex).
 - 👭 Works only with data supported by [`structuredClone`](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm) (So yes ✅ to `Map`, `Set`, `BigInt` etc. And no ❌ to class instances, objects with symbol keys or getters/setters, etc)

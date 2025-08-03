@@ -13,7 +13,7 @@ import {
   updateIn,
   shallowMutateIn,
   mutateIn,
-} from '../index'
+} from '../bedit.mts'
 
 describe('batchEdits', () => {
   it('should batch multiple set operations', () => {

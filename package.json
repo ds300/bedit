@@ -1,12 +1,19 @@
 {
   "name": "bedit",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "better edit than immer",
-  "main": "index.ts",
+  "main": "dist/bedit.mjs",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
+    "build": "tsc",
+    "prepack": "npm run build",
+    "size": "esbuild index.ts --bundle --minify | wc -c",
+    "size:immer": "esbuild node_modules/immer/dist/immer.mjs --bundle --minify | wc -c",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "bench": "node --expose-gc ./node_modules/.bin/vitest run --reporter=verbose bench.test.ts"
@@ -26,6 +33,7 @@
   "homepage": "https://github.com/ds300/bedit#readme",
   "devDependencies": {
     "@types/node": "^24.1.0",
+    "esbuild": "^0.25.8",
     "immer": "^10.0.3",
     "mutative": "^1.0.0",
     "prettier": "^3.6.2",
