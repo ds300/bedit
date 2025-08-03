@@ -4,7 +4,7 @@ A weird (and cool) immutable state utility for TypeScript.
 
 It's like `immer` but:
 
-- 📈 A billion times faster (slight exaggeration but emotionally true)
+- 📈 A billion times faster (exaggeration but emotionally true)
 - 📉 Tiny (2kB minified)
 - 🕵️‍♀️ No Proxy instances getting in the way when you're trying to debug stuff.
 - 💅 An innovative and idiosyncratic API (your LLM agent will respect the flex).
@@ -24,9 +24,10 @@ Use `setIn` to immutably assign values within deeply-nested objects and arrays.
 ```ts
 import { setIn } from 'bedit'
 const state = {
+  user: { name: 'Nick Cave', preferences: { theme: 'dark' } },
   todos: [
     { id: '1', title: 'Buy milk', completed: true },
-    { id: '2', title: 'Clean the bath', completed: false },
+    { id: '2', title: 'Write a song', completed: false },
   ],
   filter: 'all',
 }
@@ -46,10 +47,11 @@ Use `mutateIn` to shallowly clone a sub-object and mutate it.
 
 ```ts
 import { mutateIn } from 'bedit'
-const nextState = mutateIn(state).todos((todos) => {
-  todos.pop()
-  // ❌ Type error: `todos[0].completed` is readonly
-  todos[0].completed = true
+const nextState = mutateIn(state).user((user) => {
+  user.name = 'Nicholas Cage'
+
+  // ❌ Type error: `theme` is readonly
+  user.preferences.theme = 'light'
 })
 ```
 
@@ -57,10 +59,11 @@ Use `deepMutateIn` to fully clone a sub-object (with `structuredClone`) and muta
 
 ```ts
 import { deepMutateIn } from 'bedit'
-const nextState = deepMutateIn(state).todos((todos) => {
-  todos.pop()
-  // ✅ No type error: items in `todos` are safe to mutate
-  todos[0].completed = true
+const nextState = deepMutateIn(state).user((user) => {
+  user.name = 'Nicholas Cage'
+
+  // ✅ `theme` is safe to mutate
+  user.preferences.theme = 'light'
 })
 ```
 
