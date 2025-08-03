@@ -1,19 +1,27 @@
 {
   "name": "bedit",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "better edit than immer",
   "main": "dist/bedit.mjs",
   "files": [
     "dist",
-    "bedit.mts"
+    "bedit.mts",
+    "bedit.production.mts"
   ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "production": "./dist/bedit.production.mjs",
+      "default": "./dist/bedit.mjs"
+    }
+  },
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "build": "tsc",
+    "build": "node scripts/build.mjs",
     "prepack": "npm run build",
-    "size": "esbuild index.ts --bundle --minify | wc -c",
+    "size": "npm run build && esbuild dist/bedit.production.mjs --bundle --minify | wc -c",
     "size:immer": "esbuild node_modules/immer/dist/immer.mjs --bundle --minify | wc -c",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -37,6 +45,7 @@
     "esbuild": "^0.25.8",
     "immer": "^10.0.3",
     "mutative": "^1.0.0",
+    "preprocess": "^3.2.0",
     "prettier": "^3.6.2",
     "typescript": "^5.9.2",
     "vitest": "^1.6.1"

@@ -18,6 +18,6 @@
     "noEmit": false,
     "types": ["vitest/globals"]
   },
-  "include": ["*.ts", "*.js", "bedit.mts"],
+  "include": ["bedit.mts", "bedit.production.mts"],
   "exclude": ["node_modules", "dist"]
 }

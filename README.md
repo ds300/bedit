@@ -11,6 +11,8 @@ It's like `immer` but:
 - 👭 Works only with data supported by [`structuredClone`](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm) (So yes ✅ to `Map`, `Set`, `BigInt` etc. And no ❌ to class instances, objects with symbol keys or getters/setters, etc)
 - 🩹 No support for patch generation/application.
 
+## Installation
+
 ```sh
 npm install bedit
 ```
@@ -55,7 +57,9 @@ Use `shallowMutateIn` to shallowly clone a sub-object and mutate it.
 ```ts
 import { shallowMutateIn } from 'bedit'
 const nextState = shallowMutateIn(state).todos((todos) => {
-  todos.pop()
+  const todo = todos.pop()
+  // ❌ Type error: `todo.completed` is readonly
+  todo.completed = true
 })
 ```
 
@@ -106,7 +110,9 @@ state = deleteIn(state).users.key('user2')()
 
 ## Freezing objects at development time
 
-To help prevent accidental unsafe mutation on data referenced by bedit's return values, call `setDevMode(true)` early in your application's boot process to freeze objects at development time.
+TypeScript should cover most of the situations were you might accidentally mutate data within bedit's mutator functions. However we don't control whether the types you pass in are deeply readonly or not. And you might write type-unsafe code!
+
+To help prevent accidental unsafe mutation, call `setDevMode(true)` early in your application's boot process to freeze objects at development time.
 
 This will cause errors to be thrown when you try to mutate an object that is supposed to be immutable.
 

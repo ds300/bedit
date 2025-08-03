@@ -1,16 +1,57 @@
+export type DeepReadonly<T> =
+  T extends ReadonlyArray<infer U>
+    ? ReadonlyArray<DeepReadonly<U>>
+    : T extends ReadonlyMap<infer K, infer V>
+      ? ReadonlyMap<K, DeepReadonly<V>>
+      : T extends ReadonlySet<infer U>
+        ? ReadonlySet<U>
+        : T extends object
+          ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
+          : T
+export type DeepMutable<T> =
+  T extends ReadonlyArray<infer U>
+    ? Array<DeepMutable<U>>
+    : T extends ReadonlyMap<infer K, infer V>
+      ? Map<K, DeepMutable<V>>
+      : T extends ReadonlySet<infer U>
+        ? Set<DeepMutable<U>>
+        : T extends object
+          ? { -readonly [K in keyof T]: DeepMutable<T[K]> }
+          : T
+
+/**
+ * ShallowMutable<T> makes the top-level properties of T mutable,
+ * but all child properties (or elements, for arrays/maps/sets) are readonly.
+ */
+export type ShallowMutable<T> =
+  // Arrays: mutable array, but elements are readonly
+  T extends ReadonlyArray<infer U>
+    ? Array<DeepReadonly<U>>
+    : // Map: mutable map, but values are readonly
+      T extends ReadonlyMap<infer K, infer V>
+      ? Map<K, DeepReadonly<V>>
+      : // Set: mutable set, but elements are readonly
+        T extends ReadonlySet<infer U>
+        ? Set<DeepReadonly<U>>
+        : // Object: mutable top-level, but child properties are readonly
+          T extends object
+          ? { -readonly [K in keyof T]: DeepReadonly<T[K]> }
+          : // Primitives: just T
+            T
+
 type Updater<T> = (val: T) => T
 type Mutator<T> = (val: T) => void | T
 
-type Updatable<T, Root = T> = (T extends Map<infer K, infer V>
+type Updatable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
   ? { key: (k: K) => Updatable<V, Root> }
   : {
       [k in keyof T]: T[k] extends object
         ? Updatable<T[k], Root>
-        : (update: Updater<T[k]>) => Root
+        : (update: Updater<DeepReadonly<T[k]>>) => Root
     }) &
-  ((update: Updater<T>) => Root)
+  ((update: Updater<DeepReadonly<T>>) => Root)
 
-type Settable<T, Root = T> = (T extends Map<infer K, infer V>
+type Settable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
   ? { key: (k: K) => Settable<V, Root> }
   : {
       [k in keyof T]: T[k] extends object
@@ -19,16 +60,25 @@ type Settable<T, Root = T> = (T extends Map<infer K, infer V>
     }) &
   ((val: T) => Root)
 
-type Mutatable<T, Root = T> = (T extends Map<infer K, infer V>
+type Mutatable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
   ? { key: (k: K) => Mutatable<V, Root> }
   : {
       [k in keyof T]: T[k] extends object
         ? Mutatable<T[k], Root>
-        : (mutate: Mutator<T[k]>) => Root
+        : (mutate: Mutator<DeepMutable<T[k]>>) => Root
     }) &
-  ((mutate: Mutator<T>) => Root)
+  ((mutate: Mutator<DeepMutable<T>>) => Root)
 
-type Deletable<T, Root = T> = (T extends Map<infer K, infer V>
+type ShallowMutatable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
+  ? { key: (k: K) => ShallowMutatable<V, Root> }
+  : {
+      [k in keyof T]: T[k] extends object
+        ? ShallowMutatable<T[k], Root>
+        : (mutate: Mutator<ShallowMutable<T[k]>>) => Root
+    }) &
+  ((mutate: Mutator<ShallowMutable<T>>) => Root)
+
+type Deletable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
   ? { key: (k: K) => Deletable<V, Root> }
   : {
       [k in keyof T]: T[k] extends object ? Deletable<T[k], Root> : () => Root
@@ -47,16 +97,43 @@ const DELETE_VALUE = {}
 
 type CloneType = typeof SHALLOW_CLONE | typeof DEEP_CLONE
 
+/**
+ * Enables or disables development mode for the bedit library.
+ *
+ * When development mode is enabled, objects are automatically frozen after mutations
+ * to help detect accidental mutations of immutable objects. This is useful during
+ * development and testing to catch bugs early.
+ *
+ * @note This function is only available in development mode.
+ *
+ * @param enabled - Whether to enable (true) or disable (false) development mode
+ *
+ * @example
+ * ```typescript
+ * // Enable development mode
+ * setDevMode(true)
+ *
+ * // Disable development mode
+ * setDevMode(false)
+ *
+ * // Check if development mode is enabled
+ * if (isDevModeEnabled()) {
+ *   console.log('Development mode is active')
+ * }
+ * ```
+ */
+export function setDevMode(enabled: boolean) {
+  // @ifndef PRODUCTION
+  devMode = enabled
+  // @endif
+  // @if PRODUCTION
+  // @echo DEV_MODE_ERROR
+  // @endif
+}
+
+// @ifndef PRODUCTION
 // Dev mode configuration
 let devMode = false
-
-export function setDevMode(enabled: boolean) {
-  devMode = enabled
-}
-
-export function isDevModeEnabled(): boolean {
-  return devMode
-}
 
 const frozenObjects = new WeakSet<object>()
 
@@ -77,16 +154,24 @@ function freezeObject(obj: any): any {
 
   return obj
 }
+// @endif
 
 function updateChildren(obj: any, fn: (child: any) => any) {
-  if (Array.isArray(obj)) {
-    for (let i = 0; i < obj.length; i++) {
-      obj[i] = fn(obj[i])
-    }
-  } else {
+  if (isPlainObject(obj)) {
     for (const key in obj) {
       if (obj.hasOwnProperty(key)) {
         obj[key] = fn(obj[key])
+      }
+    }
+  } else if (Array.isArray(obj)) {
+    for (let i = 0; i < obj.length; i++) {
+      obj[i] = fn(obj[i])
+    }
+  } else if (obj instanceof Map) {
+    for (const [key, value] of obj) {
+      const nextValue = fn(value)
+      if (nextValue !== value) {
+        obj.set(key, nextValue)
       }
     }
   }
@@ -187,9 +272,11 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
         cloned[key] = value
       }
     }
+    // @ifndef PRODUCTION
     if (devMode && !clonedObjects) {
       freezeObject(cloned)
     }
+    // @endif
     return cloned
   }
   const result = {
@@ -253,6 +340,11 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
             const res = fn(value)
             value = typeof res === 'undefined' ? value : res
           }
+          // @ifndef PRODUCTION
+          if (devMode && !clonedObjects) {
+            freezeObject(value)
+          }
+          // @endif
 
           while (i > 0) {
             i--
@@ -287,21 +379,268 @@ function getFrame(root: any, type: FrameType, shallow?: boolean): Frame {
   ret.r(root, type, !!shallow)
   return ret
 }
-
-export const setIn = <T,>(t: T): Settable<T> => getFrame(t, SET).$
-
-export const updateIn = <T,>(t: T): Updatable<T> => getFrame(t, UPDATE).$
-
-export const mutateIn = <T,>(t: T): Mutatable<T> => getFrame(t, MUTATE).$
-
-export const deleteIn = <T,>(t: T): Deletable<T> => getFrame(t, DELETE).$
-
-export const shallowMutateIn = <T,>(t: T): Mutatable<T> =>
-  getFrame(t, MUTATE, true).$
-
 let batchingRoots = null as null | Map<object, Map<object, CloneType>>
 
-export function batchEdits<T>(t: T, fn: (t: T) => void): T {
+/**
+ * Allows immutably setting properties at any depth in a value.
+ *
+ * @template T - The type of the input value
+ * @param t - The value to create a setter for
+ * @returns A setter object that allows setting properties at any depth
+ *
+ * @example
+ * ```typescript
+ * const user = { name: 'John', age: 30 }
+ * const newUser = setIn(user).name('Jane')
+ * // Result: { name: 'Jane', age: 30 }
+ * // Original user is unchanged
+ *
+ * // Nested objects
+ * const state = { user: { profile: { name: 'John' } } }
+ * const newState = setIn(state).user.profile.name('Jane')
+ * // Result: { user: { profile: { name: 'Jane' } } }
+ *
+ * // Arrays
+ * const users = [{ name: 'John' }, { name: 'Jane' }]
+ * const newUsers = setIn(users)[0].name('Bob')
+ * // Result: [{ name: 'Bob' }, { name: 'Jane' }]
+ *
+ * // Maps
+ * const config = new Map([['theme', 'dark']])
+ * const newConfig = setIn(config).key('theme')('light')
+ * // Result: Map([['theme', 'light']])
+ * ```
+ */
+export const setIn = <T,>(t: T): Settable<T> => getFrame(t, SET).$
+
+/**
+ * Allows immutably updating properties at any depth in a value using functions.
+ *
+ * @template T - The type of the input value
+ * @param t - The value to create an updater for
+ * @returns An updater object that allows updating properties at any depth using functions
+ *
+ * @example
+ * ```typescript
+ * const user = { name: 'John', age: 30 }
+ * const newUser = updateIn(user).name(name => name.toUpperCase())
+ * // Result: { name: 'JOHN', age: 30 }
+ *
+ * // Nested objects with complex transformations
+ * const state = { user: { profile: { name: 'John Doe' } } }
+ * const newState = updateIn(state).user.profile.name(name => {
+ *   const [firstName, lastName] = name.split(' ')
+ *   return `${lastName}, ${firstName}`
+ * })
+ * // Result: { user: { profile: { name: 'Doe, John' } } }
+ *
+ * // Arrays with transformations
+ * const users = [{ name: 'John', age: 30 }]
+ * const newUsers = updateIn(users)[0].age(age => age + 1)
+ * // Result: [{ name: 'John', age: 31 }]
+ *
+ * // Maps with transformations
+ * const config = new Map([['theme', 'dark']])
+ * const newConfig = updateIn(config).key('theme')(theme => theme.toUpperCase())
+ * // Result: Map([['theme', 'DARK']])
+ * ```
+ */
+export const updateIn = <T,>(t: T): Updatable<T> => getFrame(t, UPDATE).$
+
+/**
+ * Allows immutably mutating properties at any depth in a value using functions.
+ * The function can either mutate the value directly or return a new value.
+ *
+ * @template T - The type of the input value
+ * @param t - The value to create a mutator for
+ * @returns A mutator object that allows mutating properties at any depth using functions
+ *
+ * @example
+ * ```typescript
+ * const user = { name: 'John', age: 30 }
+ *
+ * // Direct mutation
+ * const newUser = mutateIn(user)(user => {
+ *   user.name = user.name.toUpperCase()
+ *   user.age += 1
+ * })
+ * // Result: { name: 'JOHN', age: 31 }
+ *
+ * // Return new value
+ * const newUser2 = mutateIn(user).name(name => name.toUpperCase())
+ * // Result: { name: 'JOHN', age: 30 }
+ *
+ * // Nested objects with complex mutations
+ * const state = { user: { profile: { name: 'John', age: 30 } } }
+ * const newState = mutateIn(state).user.profile(profile => {
+ *   profile.name = profile.name.toUpperCase()
+ *   profile.age += 5
+ *   profile.hobbies = ['reading', 'gaming']
+ * })
+ * // Result: { user: { profile: { name: 'JOHN', age: 35, hobbies: ['reading', 'gaming'] } } }
+ *
+ * // Maps with mutations
+ * const config = new Map([['theme', 'dark']])
+ * const newConfig = mutateIn(config).key('theme')(theme => theme.toUpperCase())
+ * // Result: Map([['theme', 'DARK']])
+ * ```
+ */
+export const mutateIn = <T,>(t: T): Mutatable<T> => getFrame(t, MUTATE).$
+
+/**
+ * Allows immutably deleting properties at any depth in a value.
+ *
+ * @template T - The type of the input value
+ * @param t - The value to create a deleter for
+ * @returns A deleter object that allows deleting properties at any depth
+ *
+ * @example
+ * ```typescript
+ * const user = { name: 'John', age: 30, email: 'john@example.com' }
+ * const newUser = deleteIn(user).email()
+ * // Result: { name: 'John', age: 30 }
+ *
+ * // Nested objects
+ * const state = { user: { profile: { name: 'John', email: 'john@example.com' } } }
+ * const newState = deleteIn(state).user.profile.email()
+ * // Result: { user: { profile: { name: 'John' } } }
+ *
+ * // Arrays
+ * const users = [{ name: 'John' }, { name: 'Jane' }, { name: 'Bob' }]
+ * const newUsers = deleteIn(users)[1]()
+ * // Result: [{ name: 'John' }, { name: 'Bob' }]
+ *
+ * // Maps
+ * const config = new Map([['theme', 'dark'], ['debug', true]])
+ * const newConfig = deleteIn(config).key('debug')()
+ * // Result: Map([['theme', 'dark']])
+ *
+ * // Nested maps
+ * const data = new Map([['users', new Map([['user1', { name: 'John' }]])]])
+ * const newData = deleteIn(data).key('users').key('user1')()
+ * // Result: Map([['users', new Map([])]])
+ * ```
+ */
+export const deleteIn = <T,>(t: T): Deletable<T> => getFrame(t, DELETE).$
+
+/**
+ * Allows immutably updating a value via a shallow clone.
+ *
+ * This can be useful for large objects when you only need to modify top-level properties.
+ *
+ * @template T - The type of the input value
+ * @param t - The value to create a shallow mutator for
+ * @returns A mutator object that allows shallow mutating properties at any depth
+ *
+ * @example
+ * ```typescript
+ * const state = { user: { name: 'John', profile: { age: 30, city: 'NYC' } } }
+ *
+ * // Shallow mutation - only the top-level object is cloned
+ * const newState = shallowMutateIn(state).user(user => {
+ *   user.name = 'Jane'
+ *   // ❌ don't mutate nested objects! This would throw an error at dev time.
+ *   // user.profile.age = 31
+ * })
+ * // Result: { name: 'Jane', profile: { age: 30, city: 'NYC' } }
+ * // Original user.profile.age is still 30 (shared reference)
+ *
+ * // For nested mutations, use regular mutateIn instead
+ * const safeState = mutateIn(state).user(user => {
+ *   user.profile.age = 31 // This only affects the new object
+ * })
+ * // Original user.profile.age remains 30
+ *
+ * // Arrays with shallow mutation
+ * const state = { users: [{ name: 'John', details: { age: 30 } }] }
+ * const newState = shallowMutateIn(state).users(users => {
+ *   const user = users.pop()
+ *   // Only the array itself is cloned, not the nested objects.
+ *   // ❌ This would throw an error at dev time.
+ *   // user.details.age = 31
+ * })
+ *
+ * // Maps with shallow mutation
+ * const config = { preferences: new Map([['theme', 'dark']]) }
+ * const newConfig = shallowMutateIn(config).preferences(prefs => {
+ *   prefs.set('theme', 'light')
+ * })
+ * // Result: { preferences: Map([['theme', 'light']]) }
+ * ```
+ */
+export const shallowMutateIn = <T,>(t: T): ShallowMutatable<T> =>
+  getFrame(t, MUTATE, true).$
+
+/**
+ * Allows performing multiple mutations on a value at once while minimizing the
+ * number of clone operations that need to be performed under the hood.
+ *
+ * @template T - The type of the input value
+ * @param t - The value to perform batch edits on
+ * @param fn - A function that receives the cloned value and performs the desired mutations
+ * @returns A new value with all the batch edits applied
+ *
+ * @example
+ * ```typescript
+ * const user = { name: 'John', age: 30, profile: { city: 'NYC' } }
+ *
+ * // Multiple mutations in a single batch
+ * const newUser = batchEdits(user, (user) => {
+ *   user.name = 'Jane'
+ *   user.age = 31
+ *   user.profile.city = 'LA'
+ *   user.profile.country = 'USA'
+ * })
+ * // Result: { name: 'Jane', age: 31, profile: { city: 'LA', country: 'USA' } }
+ * // Original user remains unchanged
+ *
+ * // Complex batch operations
+ * const state = { users: [{ name: 'John' }, { name: 'Jane' }] }
+ * const newState = batchEdits(state, (state) => {
+ *   // Add a new user
+ *   state.users.push({ name: 'Bob' })
+ *
+ *   // Update existing users
+ *   state.users[0].name = 'John Doe'
+ *   state.users[1].age = 25
+ *
+ *   // Add metadata
+ *   state.lastUpdated = new Date()
+ *   state.version = 2
+ * })
+ *
+ * // Maps with batch edits
+ * const config = new Map([['theme', 'dark'], ['debug', false]])
+ * const newConfig = batchEdits(config, (config) => {
+ *   config.set('theme', 'light')
+ *   config.set('debug', true)
+ *   config.set('version', '1.0.0')
+ * })
+ *
+ * // Arrays with batch edits
+ * const numbers = [1, 2, 3, 4, 5]
+ * const newNumbers = batchEdits(numbers, (numbers) => {
+ *   numbers.push(6, 7, 8)
+ *   numbers[0] = 0
+ *   numbers.splice(2, 1) // Remove element at index 2
+ * })
+ * // Result: [0, 2, 4, 5, 6, 7, 8]
+ *
+ * // Performance comparison
+ * // Less efficient: multiple copies
+ * const user1 = setIn(user).name('Jane')
+ * const user2 = setIn(user1).age(31)
+ * const user3 = setIn(user2).profile.city('LA')
+ *
+ * // More efficient: single copy with batch edits
+ * const userBatch = batchEdits(user, (user) => {
+ *   user.name = 'Jane'
+ *   user.age = 31
+ *   user.profile.city = 'LA'
+ * })
+ * ```
+ */
+export function batchEdits<T>(t: T, fn: (t: ShallowMutable<T>) => void): T {
   const copy = _shallowClone(t)
   if (batchingRoots == null) {
     batchingRoots = new Map()
@@ -311,11 +650,13 @@ export function batchEdits<T>(t: T, fn: (t: T) => void): T {
     const clonedObjects = new Map([[copy, SHALLOW_CLONE]])
     batchingRoots.set(copy, clonedObjects)
     fn(copy)
+    // @ifndef PRODUCTION
     if (devMode) {
       for (const obj of clonedObjects.keys()) {
         freezeObject(obj)
       }
     }
+    // @endif
   } finally {
     batchingRoots.delete(copy)
   }

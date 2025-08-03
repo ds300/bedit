@@ -7,7 +7,7 @@ import {
   createUserArray,
   createDeepNested,
 } from './test-utils'
-import { setIn } from '../index'
+import { setIn } from '../bedit.mjs'
 
 describe('setIn', () => {
   it('should set a top-level property', () => {

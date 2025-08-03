@@ -6,18 +6,7 @@ import {
   shallowMutateIn,
   batchEdits,
   setDevMode,
-  isDevModeEnabled,
-} from './index'
-
-test('dev mode should be disabled by default', () => {
-  expect(isDevModeEnabled()).toBe(false)
-
-  setDevMode(true)
-  expect(isDevModeEnabled()).toBe(true)
-
-  setDevMode(false)
-  expect(isDevModeEnabled()).toBe(false)
-})
+} from '../bedit.mts'
 
 describe('Dev Mode', () => {
   beforeEach(() => {
@@ -117,5 +106,98 @@ describe('Dev Mode', () => {
     expect(result[0]).toBe(10)
     expect(result[1]).toBe(2)
     expect(result[2].a).toBe(3)
+  })
+
+  test('should freeze Map keys and values in dev mode', () => {
+    const map = new Map([
+      ['key1', { value: 1 }],
+      ['key2', { value: 2 }],
+    ])
+
+    const result = setIn(map).key('key1')({ value: 3 })
+
+    expect(Object.isFrozen(result)).toBe(true)
+    // Check that Map keys are frozen
+    for (const [key, value] of result) {
+      expect(Object.isFrozen(key)).toBe(true)
+      expect(Object.isFrozen(value)).toBe(true)
+    }
+    expect(result.get('key1')).toEqual({ value: 3 })
+  })
+
+  test('should freeze nested Maps in dev mode', () => {
+    const obj = {
+      config: new Map([
+        ['theme', { color: 'dark' }],
+        ['debug', { enabled: true }],
+      ]),
+    }
+
+    const result = setIn(obj).config.key('theme')({ color: 'light' })
+
+    expect(Object.isFrozen(result)).toBe(true)
+    expect(Object.isFrozen(result.config)).toBe(true)
+
+    // Check that Map keys and values are frozen
+    for (const [key, value] of result.config) {
+      expect(Object.isFrozen(key)).toBe(true)
+      expect(Object.isFrozen(value)).toBe(true)
+    }
+  })
+
+  test('should handle Map and Set updates in dev mode', () => {
+    const obj = {
+      config: new Map([
+        ['theme', 'dark'],
+        ['debug', 'false'],
+      ]),
+      tags: new Set(['react', 'typescript']),
+    }
+
+    const result = updateIn(obj).config.key('theme')((theme) =>
+      theme.toUpperCase(),
+    )
+
+    expect(Object.isFrozen(result)).toBe(true)
+    expect(Object.isFrozen(result.config)).toBe(true)
+    expect(Object.isFrozen(result.tags)).toBe(true)
+
+    // Check Map keys and values are frozen
+    for (const [key, value] of result.config) {
+      expect(Object.isFrozen(key)).toBe(true)
+      expect(Object.isFrozen(value)).toBe(true)
+    }
+
+    // Check Set values are frozen
+    for (const value of result.tags) {
+      expect(Object.isFrozen(value)).toBe(true)
+    }
+  })
+
+  test('should handle Map and Set mutations in dev mode', () => {
+    const obj = {
+      config: new Map([['theme', { color: 'dark' }]]),
+      tags: new Set(['react']),
+    }
+
+    const result = mutateIn(obj)((draft) => {
+      draft.config.set('debug', { color: 'light' })
+      draft.tags.add('typescript')
+    })
+
+    expect(Object.isFrozen(result)).toBe(true)
+    expect(Object.isFrozen(result.config)).toBe(true)
+    expect(Object.isFrozen(result.tags)).toBe(true)
+
+    // Check that all Map keys and values are frozen
+    for (const [key, value] of result.config) {
+      expect(Object.isFrozen(key)).toBe(true)
+      expect(Object.isFrozen(value)).toBe(true)
+    }
+
+    // Check that all Set values are frozen
+    for (const value of result.tags) {
+      expect(Object.isFrozen(value)).toBe(true)
+    }
   })
 })

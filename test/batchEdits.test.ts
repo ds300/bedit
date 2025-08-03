@@ -13,6 +13,7 @@ import {
   updateIn,
   shallowMutateIn,
   mutateIn,
+  deleteIn,
 } from '../bedit.mts'
 
 describe('batchEdits', () => {
@@ -100,6 +101,71 @@ describe('batchEdits', () => {
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
+  })
+
+  it('should properly clone Map values during batch operations', () => {
+    const obj = {
+      config: new Map<string, { color?: string; enabled?: boolean }>([
+        ['theme', { color: 'dark' }],
+        ['debug', { enabled: false }],
+      ]),
+    }
+    const backup = structuredClone(obj)
+    const mutable = structuredClone(obj)
+    mutable.config.set('theme', { color: 'light' })
+    mutable.config.get('debug')!.enabled = true
+
+    const result = batchEdits(obj, (draft) => {
+      shallowMutateIn(draft).config((config) => {
+        config.set('theme', { color: 'light' })
+      })
+      mutateIn(draft).config((config) => {
+        config.get('debug')!.enabled = true
+      })
+    })
+
+    expect(result).toEqual(mutable)
+    expect(obj).toEqual(backup)
+
+    // Verify that the original Map is unchanged
+    expect(obj.config.get('theme')).toEqual({ color: 'dark' })
+    expect(obj.config.has('version')).toBe(false)
+    expect(obj.config.get('debug')).toEqual({ enabled: false })
+
+    // Verify that the result Map has the expected values
+    expect(result.config.get('theme')).toEqual({ color: 'light' })
+    expect(result.config.get('debug')).toEqual({ enabled: true })
+  })
+
+  it('should handle nested Map and Set operations in batch', () => {
+    const obj = {
+      data: {
+        config: new Map([['theme', { color: 'dark' }]]),
+        tags: new Set(['react']),
+      },
+    }
+    const backup = structuredClone(obj)
+    const mutable = structuredClone(obj)
+    mutable.data.config.set('debug', { color: 'light' })
+    mutable.data.tags.add('typescript')
+
+    const result = batchEdits(obj, (draft) => {
+      setIn(draft).data.config.key('debug')({ color: 'light' })
+      shallowMutateIn(draft).data.tags((tags) => {
+        tags.add('typescript')
+      })
+    })
+
+    expect(result).toEqual(mutable)
+    expect(obj).toEqual(backup)
+
+    // Verify original is unchanged
+    expect(obj.data.config.has('debug')).toBe(false)
+    expect(obj.data.tags.has('typescript')).toBe(false)
+
+    // Verify result has expected values
+    expect(result.data.config.get('debug')).toEqual({ color: 'light' })
+    expect(result.data.tags.has('typescript')).toBe(true)
   })
 
   it('should handle empty batch operations', () => {

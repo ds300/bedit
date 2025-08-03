@@ -1,5 +1,5 @@
 import { describe, it, afterAll } from 'vitest'
-import { setIn, updateIn, mutateIn } from './index'
+import { setIn, updateIn, mutateIn, shallowMutateIn } from '../bedit.mjs'
 import { produce } from 'immer'
 import { create } from 'mutative'
 import { writeFileSync } from 'fs'
@@ -31,7 +31,13 @@ describe.skipIf(!global.gc)('Performance Benchmarks', () => {
   const iterations = 10000
 
   describe('Simple Property Updates', () => {
-    const baseObj = { name: 'John', age: 30, active: true }
+    const baseObj = {
+      name: 'John',
+      age: 30,
+      active: true,
+      profile: { theme: 'dark', notifications: true },
+      tags: ['user', 'active'],
+    }
 
     it('should benchmark simple property updates', () => {
       // bedit setIn
@@ -55,10 +61,13 @@ describe.skipIf(!global.gc)('Performance Benchmarks', () => {
       }
       const beditMutateTime = performance.now() - beditMutateStart
 
-      // bedit mutateIn (shallow clone)
+      // bedit mutateIn (shallow clone) - updating object property
       const beditMutateShallowStart = performance.now()
       for (let i = 0; i < iterations; i++) {
-        mutateIn(baseObj, { shallow: true }).name(() => `User${i}`)
+        shallowMutateIn(baseObj).profile(() => ({
+          theme: `theme${i}`,
+          notifications: i % 2 === 0,
+        }))
       }
       const beditMutateShallowTime = performance.now() - beditMutateShallowStart
 
@@ -133,12 +142,13 @@ describe.skipIf(!global.gc)('Performance Benchmarks', () => {
       }
       const beditMutateTime = performance.now() - beditMutateStart
 
-      // bedit mutateIn (shallow clone)
+      // bedit mutateIn (shallow clone) - replacing entire settings object
       const beditMutateShallowStart = performance.now()
       for (let i = 0; i < iterations; i++) {
-        mutateIn(baseObj, { shallow: true }).user.profile.settings.theme(
-          () => `theme${i}`,
-        )
+        shallowMutateIn(baseObj).user.profile.settings(() => ({
+          theme: `theme${i}`,
+          notifications: i % 2 === 0,
+        }))
       }
       const beditMutateShallowTime = performance.now() - beditMutateShallowStart
 
@@ -205,10 +215,18 @@ describe.skipIf(!global.gc)('Performance Benchmarks', () => {
       }
       const beditMutateTime = performance.now() - beditMutateStart
 
-      // bedit mutateIn (shallow clone)
+      // bedit mutateIn (shallow clone) - replacing entire todo object
       const beditMutateShallowStart = performance.now()
       for (let i = 0; i < iterations; i++) {
-        mutateIn(baseObj, { shallow: true }).todos[0].name(() => `Todo${i}`)
+        shallowMutateIn(baseObj).todos[0](() => ({
+          id: i,
+          name: `Todo${i}`,
+          completed: i % 2 === 0,
+          metadata: {
+            createdAt: new Date(i * 1000),
+            tags: [`tag${i}`, `tag${i + 1}`],
+          },
+        }))
       }
       const beditMutateShallowTime = performance.now() - beditMutateShallowStart
 
@@ -331,14 +349,15 @@ describe.skipIf(!global.gc)('Performance Benchmarks', () => {
       }
       const beditMutateTime = performance.now() - beditMutateStart
 
-      // bedit mutateIn (shallow clone)
+      // bedit mutateIn (shallow clone) - replacing deep object
       const beditMutateShallowStart = performance.now()
       for (let i = 0; i < iterations; i++) {
-        mutateIn(baseObj, {
-          shallow: true,
-        }).a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v.w.x.y.z(
-          () => `value${i}`,
-        )
+        shallowMutateIn(
+          baseObj,
+        ).a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v.w.x.y(() => ({
+          z: `value${i}`,
+          metadata: { updated: i, timestamp: Date.now() },
+        }))
       }
       const beditMutateShallowTime = performance.now() - beditMutateShallowStart
 
@@ -410,12 +429,14 @@ describe.skipIf(!global.gc)('Performance Benchmarks', () => {
       }
       const beditMutateTime = performance.now() - beditMutateStart
 
-      // bedit mutateIn (shallow clone)
+      // bedit mutateIn (shallow clone) - updating profile object
       const beditMutateShallowStart = performance.now()
       for (let i = 0; i < iterations; i++) {
-        mutateIn(baseObj, { shallow: true }).user.profile.name(
-          (name) => `${name} ${i}`,
-        )
+        shallowMutateIn(baseObj).user.profile((profile) => ({
+          ...profile,
+          name: `${profile.name} ${i}`,
+          age: profile.age + i,
+        }))
       }
       const beditMutateShallowTime = performance.now() - beditMutateShallowStart
 
@@ -508,12 +529,17 @@ describe.skipIf(!global.gc)('Performance Benchmarks', () => {
       // bedit mutateIn (shallow clone, multiple separate operations)
       const beditMutateShallowStart = performance.now()
       for (let i = 0; i < iterations; i++) {
-        mutateIn(baseObj, { shallow: true }).user.profile.name(() => `User${i}`)
-        mutateIn(baseObj, { shallow: true }).user.profile.age(() => 30 + i)
-        mutateIn(baseObj, { shallow: true }).user.profile.settings.theme(
-          () => `theme${i}`,
-        )
-        mutateIn(baseObj, { shallow: true }).todos[0].name(() => `Todo${i}`)
+        shallowMutateIn(baseObj).user.profile(() => ({
+          name: `User${i}`,
+          age: 30 + i,
+          settings: { theme: `theme${i}`, notifications: i % 2 === 0 },
+        }))
+        shallowMutateIn(baseObj).todos[0](() => ({
+          id: i,
+          name: `Todo${i}`,
+          completed: i % 2 === 0,
+          metadata: { createdAt: new Date(i * 1000), tags: [`tag${i}`] },
+        }))
       }
       const beditMutateShallowTime = performance.now() - beditMutateShallowStart
 
@@ -556,6 +582,137 @@ describe.skipIf(!global.gc)('Performance Benchmarks', () => {
         beditMutateShallowVsMutative: mutativeTime / beditMutateShallowTime,
       }
       logResult('Multiple Updates in Single Operation', data)
+    })
+  })
+
+  describe('Shallow Mutations (Objects and Arrays)', () => {
+    const baseObj = {
+      user: {
+        profile: {
+          name: 'John',
+          settings: {
+            theme: 'dark',
+            notifications: true,
+          },
+        },
+        preferences: {
+          language: 'en',
+          timezone: 'UTC',
+        },
+      },
+      todos: createArray(50),
+      metadata: {
+        lastUpdated: new Date(),
+        version: '1.0.0',
+      },
+    }
+
+    it('should benchmark shallow mutations on objects and arrays', () => {
+      // bedit shallowMutateIn - updating object properties
+      const beditShallowObjectStart = performance.now()
+      for (let i = 0; i < iterations; i++) {
+        shallowMutateIn(baseObj).user.profile.settings(() => ({
+          theme: `theme${i}`,
+          notifications: i % 2 === 0,
+        }))
+      }
+      const beditShallowObjectTime = performance.now() - beditShallowObjectStart
+
+      // bedit shallowMutateIn - updating array elements
+      const beditShallowArrayStart = performance.now()
+      for (let i = 0; i < iterations; i++) {
+        shallowMutateIn(baseObj).todos[0](() => ({
+          id: i,
+          name: `Todo ${i}`,
+          completed: i % 2 === 0,
+          metadata: {
+            createdAt: new Date(i * 1000),
+            tags: [`tag${i}`, `tag${i + 1}`],
+          },
+        }))
+      }
+      const beditShallowArrayTime = performance.now() - beditShallowArrayStart
+
+      // bedit shallowMutateIn - replacing entire objects
+      const beditShallowReplaceStart = performance.now()
+      for (let i = 0; i < iterations; i++) {
+        shallowMutateIn(baseObj).user(() => ({
+          profile: {
+            name: `User${i}`,
+            settings: {
+              theme: `theme${i}`,
+              notifications: i % 2 === 0,
+            },
+          },
+          preferences: {
+            language: 'en',
+            timezone: 'UTC',
+          },
+        }))
+      }
+      const beditShallowReplaceTime =
+        performance.now() - beditShallowReplaceStart
+
+      // bedit mutateIn (deep clone) - for comparison
+      const beditDeepObjectStart = performance.now()
+      for (let i = 0; i < iterations; i++) {
+        mutateIn(baseObj).user.profile.settings(() => ({
+          theme: `theme${i}`,
+          notifications: i % 2 === 0,
+        }))
+      }
+      const beditDeepObjectTime = performance.now() - beditDeepObjectStart
+
+      const beditDeepArrayStart = performance.now()
+      for (let i = 0; i < iterations; i++) {
+        mutateIn(baseObj).todos[0](() => ({
+          id: i,
+          name: `Todo ${i}`,
+          completed: i % 2 === 0,
+          metadata: {
+            createdAt: new Date(i * 1000),
+            tags: [`tag${i}`, `tag${i + 1}`],
+          },
+        }))
+      }
+      const beditDeepArrayTime = performance.now() - beditDeepArrayStart
+
+      const immerStart = performance.now()
+      for (let i = 0; i < iterations; i++) {
+        produce(baseObj, (draft) => {
+          draft.user.profile.settings = {
+            theme: `theme${i}`,
+            notifications: i % 2 === 0,
+          }
+        })
+      }
+      const immerTime = performance.now() - immerStart
+
+      const mutativeStart = performance.now()
+      for (let i = 0; i < iterations; i++) {
+        create(baseObj, (draft) => {
+          draft.user.profile.settings = {
+            theme: `theme${i}`,
+            notifications: i % 2 === 0,
+          }
+        })
+      }
+      const mutativeTime = performance.now() - mutativeStart
+
+      const data = {
+        beditShallowObject: beditShallowObjectTime,
+        beditShallowArray: beditShallowArrayTime,
+        beditShallowReplace: beditShallowReplaceTime,
+        beditDeepObject: beditDeepObjectTime,
+        beditDeepArray: beditDeepArrayTime,
+        immer: immerTime,
+        mutative: mutativeTime,
+        shallowVsDeepObject: beditDeepObjectTime / beditShallowObjectTime,
+        shallowVsDeepArray: beditDeepArrayTime / beditShallowArrayTime,
+        shallowVsImmer: immerTime / beditShallowObjectTime,
+        shallowVsMutative: mutativeTime / beditShallowObjectTime,
+      }
+      logResult('Shallow Mutations (Objects and Arrays)', data)
     })
   })
 
@@ -669,11 +826,12 @@ describe.skipIf(!global.gc)('Performance Benchmarks', () => {
       // bedit mutateIn (shallow) memory
       const beditMutateShallowMemoryStart = process.memoryUsage().heapUsed
       for (let i = 0; i < iterations; i++) {
-        mutateIn(baseObj, {
-          shallow: true,
-        }).a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v.w.x.y.z(
-          () => `value${i}`,
-        )
+        shallowMutateIn(
+          baseObj,
+        ).a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v.w.x.y(() => ({
+          z: `value${i}`,
+          metadata: { updated: i, timestamp: Date.now() },
+        }))
       }
       const beditMutateShallowMemoryEnd = process.memoryUsage().heapUsed
       const beditMutateShallowMemory =

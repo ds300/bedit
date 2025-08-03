@@ -6,7 +6,7 @@ import {
   createNestedUser,
   createNestedArray,
 } from './test-utils'
-import { updateIn, setIn } from '../index'
+import { updateIn, setIn } from '../bedit.mjs'
 
 describe('updateIn', () => {
   it('should update a top-level property with function', () => {

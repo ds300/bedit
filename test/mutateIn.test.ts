@@ -7,7 +7,7 @@ import {
   createUserArray,
   createNestedArray,
 } from './test-utils'
-import { mutateIn } from '../index'
+import { mutateIn } from '../bedit.mjs'
 
 describe('mutateIn', () => {
   it('should mutate a top-level property with function that returns value', () => {
