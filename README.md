@@ -5,10 +5,11 @@ A weird (and cool) immutable state utility for TypeScript.
 It's like `immer` but:
 
 - 📈 A billion times faster (slight exaggeration but emotionally true)
-- 📉 A fraction of the size (2kB vs 12kB)
-- 🕵️‍♀️ No Proxy getting in the way when you're trying to debug state changes.
-- 💅 A more idiosyncratic API (LLMs will respect the flex).
+- 📉 Tiny (2kB minified)
+- 🕵️‍♀️ No Proxy instances getting in the way when you're trying to debug stuff.
+- 💅 An innovative and idiosyncratic API (your LLM agent will respect the flex).
 - 👭 Works only with data supported by [`structuredClone`](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm) (So yes ✅ to `Map`, `Set`, `BigInt` etc. And no ❌ to class instances, objects with symbol keys or getters/setters, etc)
+- 🩹 No support for patch generation/application.
 
 ```sh
 npm install bedit
@@ -67,20 +68,21 @@ import { deleteIn } from 'bedit'
 const nextState = deleteIn(state).todos[0]()
 ```
 
-Use `batchEdits` to combine multiple updates, avoiding unnecessary object cloning.
+Use `batchEdits` to keep allocations minimal across multiple updates.
 
 ```ts
-const nextState = batchEdits(state, (state) => {
+const nextState = batchEdits(state, (draft) => {
   // To apply batched edits, use the normal bedit functions.
-  setIn(state).todos[1].completed(true)
-  // The `todos` array was cloned by the setIn call, so this mutateIn will reuse the clone.
-  mutateIn(state).todos((todos) => {
+  setIn(draft).todos[1].completed(true)
+  // The `todos` array was already cloned shallowly by the `setIn` call, so this `shallowMutateIn` call will reuse the existing clone.
+  shallowMutateIn(draft).todos((todos) => {
     todos.push({ id: '4', title: 'Buy bread', completed: false })
   })
 
-  // `state` is a normal JavaScript object, and always up to date.
-  if (state.todos.length > 3) {
-    console.log('wtf!!!', state.todos[3])
+  // `draft` is a normal JavaScript object, and always up to date.
+  // It's even safe to retain references as long as you treat them as immutable.
+  if (draft.todos.length > 3) {
+    console.log('wtf!!!', draft.todos[3])
     // => wtf!!! { id: '4', title: 'Buy bread', completed: false }
   }
 })

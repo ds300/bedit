@@ -1,10 +1,11 @@
 {
   "name": "bedit",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "better edit than immer",
   "main": "dist/bedit.mjs",
   "files": [
-    "dist"
+    "dist",
+    "bedit.mts"
   ],
   "scripts": {
     "test": "vitest run",
