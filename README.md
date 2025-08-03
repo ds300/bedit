@@ -8,7 +8,7 @@ It's like `immer` but:
 - 📉 Tiny (2kB minified)
 - 🕵️‍♀️ No Proxy instances getting in the way when you're trying to debug stuff.
 - 💅 An innovative and idiosyncratic API (your LLM agent will respect the flex).
-- 👭 Works only with data supported by [`structuredClone`](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm) (So yes ✅ to `Map`, `Set`, `BigInt` etc. And no ❌ to class instances, objects with symbol keys or getters/setters, etc)
+- 👭 Works only with data supported by [`structuredClone`](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm) (So yes ✅ to `Map`, `Set`, `BigInt` etc. And no ❌ to custom classes, objects with symbol keys or getters/setters, etc)
 - 🩹 No support for patch generation/application.
 
 ## Installation
