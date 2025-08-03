@@ -42,24 +42,25 @@ const nextState = updateIn(state).todos((todos) =>
 )
 ```
 
-Use `mutateIn` to clone a sub-object (with `structuredClone`) and mutate it.
+Use `mutateIn` to shallowly clone a sub-object and mutate it.
 
 ```ts
 import { mutateIn } from 'bedit'
-const nextState = mutateIn(state).todos[1]((todo) => {
-  // `todo` is a normal JavaScript object, not a Proxy.
-  todo.completed = true
+const nextState = mutateIn(state).todos((todos) => {
+  todos.pop()
+  // ❌ Type error: `todos[0].completed` is readonly
+  todos[0].completed = true
 })
 ```
 
-Use `shallowMutateIn` to shallowly clone a sub-object and mutate it.
+Use `deepMutateIn` to fully clone a sub-object (with `structuredClone`) and mutate it.
 
 ```ts
-import { shallowMutateIn } from 'bedit'
-const nextState = shallowMutateIn(state).todos((todos) => {
-  const todo = todos.pop()
-  // ❌ Type error: `todo.completed` is readonly
-  todo.completed = true
+import { deepMutateIn } from 'bedit'
+const nextState = deepMutateIn(state).todos((todos) => {
+  todos.pop()
+  // ✅ No type error: items in `todos` are safe to mutate
+  todos[0].completed = true
 })
 ```
 
@@ -78,8 +79,8 @@ Use `batchEdits` to keep allocations minimal across multiple updates.
 const nextState = batchEdits(state, (draft) => {
   // To apply batched edits, use the normal bedit functions.
   setIn(draft).todos[1].completed(true)
-  // The `todos` array was already cloned shallowly by the `setIn` call, so this `shallowMutateIn` call will reuse the existing clone.
-  shallowMutateIn(draft).todos((todos) => {
+  // The `todos` array was already cloned shallowly by the `setIn` call, so this `mutateIn` call will reuse the existing clone.
+  mutateIn(draft).todos((todos) => {
     todos.push({ id: '4', title: 'Buy bread', completed: false })
   })
 
@@ -110,7 +111,7 @@ state = deleteIn(state).users.key('user2')()
 
 ## Freezing objects at development time
 
-TypeScript should cover most of the situations were you might accidentally mutate data within bedit's mutator functions. However we don't control whether the types you pass in are deeply readonly or not. And you might write type-unsafe code!
+TypeScript should catch most of the situations were you might accidentally mutate data within bedit's mutator functions. However we don't control whether the types you pass in are deeply readonly or not. And you might write type-unsafe code!
 
 To help prevent accidental unsafe mutation, call `setDevMode(true)` early in your application's boot process to freeze objects at development time.
 

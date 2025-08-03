@@ -11,9 +11,8 @@ import {
   batchEdits,
   setIn,
   updateIn,
-  shallowMutateIn,
   mutateIn,
-  deleteIn,
+  deepMutateIn,
 } from '../bedit.mts'
 
 describe('batchEdits', () => {
@@ -116,10 +115,10 @@ describe('batchEdits', () => {
     mutable.config.get('debug')!.enabled = true
 
     const result = batchEdits(obj, (draft) => {
-      shallowMutateIn(draft).config((config) => {
+      mutateIn(draft).config((config) => {
         config.set('theme', { color: 'light' })
       })
-      mutateIn(draft).config((config) => {
+      deepMutateIn(draft).config((config) => {
         config.get('debug')!.enabled = true
       })
     })
@@ -151,7 +150,7 @@ describe('batchEdits', () => {
 
     const result = batchEdits(obj, (draft) => {
       setIn(draft).data.config.key('debug')({ color: 'light' })
-      shallowMutateIn(draft).data.tags((tags) => {
+      mutateIn(draft).data.tags((tags) => {
         tags.add('typescript')
       })
     })
@@ -272,7 +271,7 @@ describe('batchEdits', () => {
       expect(obj.users).toBe(usersRef)
 
       // Third modification - should still reuse
-      shallowMutateIn(obj).users((users) => {
+      mutateIn(obj).users((users) => {
         users.push({ name: 'Bob', age: 40 })
       })
       expect(obj.users).toBe(usersRef)
@@ -410,7 +409,7 @@ describe('batchEdits', () => {
       setIn(draft).a.foo('baz')
       let shallowA = draft.a
       expect(draft.a.b).toBe(obj.a.b)
-      mutateIn(draft).a((a) => {
+      deepMutateIn(draft).a((a) => {
         a.b.c.d = 'new value'
       })
       // a should not have been recloned

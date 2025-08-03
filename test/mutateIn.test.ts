@@ -1,316 +1,322 @@
-import {
-  describe,
-  it,
-  expect,
-  createSimpleUser,
-  createNestedUser,
-  createUserArray,
-  createNestedArray,
-} from './test-utils'
+import { describe, it, expect } from 'vitest'
 import { mutateIn } from '../bedit.mjs'
 
 describe('mutateIn', () => {
-  it('should mutate a top-level property with function that returns value', () => {
-    const obj = createSimpleUser()
-    const backup = structuredClone(obj)
-    const mutable = structuredClone(obj)
-    mutable.name = mutable.name.toUpperCase()
-
-    const result = mutateIn(obj).name((name) => name.toUpperCase())
-
-    expect(result).toEqual(mutable)
-    expect(obj).toEqual(backup)
-  })
-
-  it('should mutate a top-level property with function that returns undefined', () => {
-    const obj = createSimpleUser()
-    const backup = structuredClone(obj)
-    const mutable = structuredClone(obj)
-    mutable.name = mutable.name.toUpperCase()
-
-    const result = mutateIn(obj)((person) => {
-      person.name = person.name.toUpperCase()
-    })
-
-    expect(result).toEqual(mutable)
-    expect(obj).toEqual(backup)
-  })
-
-  it('should mutate a nested property with function', () => {
-    const obj = createNestedUser()
-    const backup = structuredClone(obj)
-    const mutable = structuredClone(obj)
-    mutable.user.profile.name = mutable.user.profile.name.toUpperCase()
-
-    const result = mutateIn(obj).user.profile.name((name) => name.toUpperCase())
-
-    expect(result).toEqual(mutable)
-    expect(obj).toEqual(backup)
-  })
-
-  it('should use deep clone by default', () => {
-    const obj = {
-      user: {
-        profile: {
+  describe('Object mutations', () => {
+    it('should allow mutations on object properties', () => {
+      const baseObj = {
+        user: {
           name: 'John',
+          age: 30,
           settings: {
             theme: 'dark',
+            notifications: true,
           },
         },
-      },
-    }
-    const backup = structuredClone(obj)
-    const mutable = structuredClone(obj)
-    mutable.user.profile.settings.theme =
-      mutable.user.profile.settings.theme.toUpperCase()
+      }
 
-    const result = mutateIn(obj).user.profile.settings((settings) => {
-      settings.theme = settings.theme.toUpperCase()
+      const result = mutateIn(baseObj).user((user) => {
+        // Can mutate top-level properties of user
+        user.name = 'Jane'
+        user.age = 25
+        // Cannot mutate nested properties - they are readonly
+        function _() {
+          // @ts-expect-error
+          user.settings.theme = 'light'
+        }
+      })
+
+      // Should create new objects only at the mutation path
+      expect(result).not.toBe(baseObj)
+      expect(result.user).not.toBe(baseObj.user)
+
+      // Should preserve references to unchanged objects
+      expect(result.user.settings).toBe(baseObj.user.settings)
+
+      // Should have the new values
+      expect(result.user.name).toBe('Jane')
+      expect(result.user.age).toBe(25)
     })
 
-    // The nested object should be deeply cloned
-    expect(result.user.profile.settings).not.toBe(obj.user.profile.settings)
-    expect(result.user.profile).not.toBe(obj.user.profile)
-    expect(result.user).not.toBe(obj.user)
-    expect(result).toEqual(mutable)
-    expect(obj).toEqual(backup)
-  })
-
-  it('should handle mutation that returns a new value', () => {
-    const obj = createSimpleUser()
-    const backup = structuredClone(obj)
-    const mutable = structuredClone(obj)
-    mutable.name = mutable.name.toUpperCase() + ' DOE'
-
-    const result = mutateIn(obj).name((name) => name.toUpperCase() + ' DOE')
-
-    expect(result).toEqual(mutable)
-    expect(obj).toEqual(backup)
-  })
-
-  it('should handle mutation that returns undefined', () => {
-    const obj = createSimpleUser()
-    const backup = structuredClone(obj)
-    const mutable = structuredClone(obj)
-    mutable.name = mutable.name.toUpperCase()
-
-    const result = mutateIn(obj)((person) => {
-      person.name = person.name.toUpperCase()
-      return undefined
-    })
-
-    expect(result).toEqual(mutable)
-    expect(obj).toEqual(backup)
-  })
-
-  it('should handle mutation that returns null', () => {
-    const obj = createSimpleUser()
-    const backup = structuredClone(obj)
-    const mutable = structuredClone(obj)
-    mutable.name = null as any
-
-    const result = mutateIn(obj).name(() => null as any)
-
-    expect(result).toEqual(mutable)
-    expect(obj).toEqual(backup)
-  })
-
-  it('should handle nested arrays', () => {
-    const obj = createNestedArray()
-    const backup = structuredClone(obj)
-    const mutable = structuredClone(obj)
-    mutable.data[0][1].value = mutable.data[0][1].value.toUpperCase()
-
-    const result = mutateIn(obj).data[0][1]((item) => {
-      item.value = item.value.toUpperCase()
-    })
-
-    expect(result).toEqual(mutable)
-    expect(obj).toEqual(backup)
-  })
-
-  it('should handle complex object mutations', () => {
-    const obj = {
-      user: {
-        profile: {
-          name: 'John Doe',
-          age: 30,
-          hobbies: ['reading', 'gaming'],
+    it('should replace entire objects at any level', () => {
+      const baseObj = {
+        user: {
+          profile: {
+            name: 'John',
+            age: 30,
+          },
+          preferences: {
+            language: 'en',
+          },
         },
-      },
-    }
-    const backup = structuredClone(obj)
-    const mutable = structuredClone(obj)
-    mutable.user.profile.name = mutable.user.profile.name.toUpperCase()
-    mutable.user.profile.age += 1
-    mutable.user.profile.hobbies.push('coding')
+      }
 
-    const result = mutateIn(obj).user.profile((profile) => {
-      profile.name = profile.name.toUpperCase()
-      profile.age += 1
-      profile.hobbies.push('coding')
+      const result = mutateIn(baseObj).user((user) => {
+        // Can replace entire objects
+        user.profile = {
+          name: 'Jane',
+          age: 25,
+        }
+        user.preferences = {
+          language: 'de',
+        }
+      })
+
+      expect(result).not.toBe(baseObj)
+      expect(result.user).not.toBe(baseObj.user)
+      expect(result.user.profile.name).toBe('Jane')
+      expect(result.user.profile.age).toBe(25)
     })
-
-    expect(result).toEqual(mutable)
-    expect(obj).toEqual(backup)
   })
 
-  it('should throw error when accessing property of null/undefined', () => {
-    const obj = { user: null }
-    const backup = structuredClone(obj)
-
-    expect(() => {
-      // @ts-expect-error
-      mutateIn(obj).user.name((name) => name.toUpperCase())
-    }).toThrow('Cannot read property "name" of null')
-    expect(obj).toEqual(backup)
-  })
-
-  it('should handle concurrent calls', () => {
-    const obj = createSimpleUser()
-    const backup = structuredClone(obj)
-    const mutable1 = structuredClone(obj)
-    const mutable2 = structuredClone(obj)
-    mutable1.name = mutable1.name.toUpperCase()
-    mutable2.name = mutable2.name.toLowerCase()
-
-    const result1 = mutateIn(obj).name((name) => name.toUpperCase())
-    const result2 = mutateIn(obj).name((name) => name.toLowerCase())
-
-    expect(result1).toEqual(mutable1)
-    expect(result2).toEqual(mutable2)
-    expect(obj).toEqual(backup)
-  })
-
-  it('should handle mutation of array elements', () => {
-    const obj = createUserArray()
-    const backup = structuredClone(obj)
-    const mutable = structuredClone(obj)
-    mutable.users[0].name = mutable.users[0].name.toUpperCase()
-    mutable.users[0].age += 5
-
-    const result = mutateIn(obj).users[0]((user) => {
-      user.name = user.name.toUpperCase()
-      user.age += 5
-    })
-
-    expect(result).toEqual(mutable)
-    expect(obj).toEqual(backup)
-  })
-
-  it('should handle mutation with return value overriding mutation', () => {
-    const obj = createSimpleUser()
-    const backup = structuredClone(obj)
-    const mutable = structuredClone(obj)
-    mutable.name = 'OVERRIDE'
-
-    const result = mutateIn(obj).name((name) => {
-      name = name.toUpperCase()
-      return 'OVERRIDE'
-    })
-
-    expect(result).toEqual(mutable)
-    expect(obj).toEqual(backup)
-  })
-
-  it('should handle maps with mutations', () => {
-    const obj = { foo: new Map([['bar', 'baz']]) }
-    const backup = structuredClone(obj)
-    const mutable = structuredClone(obj)
-    mutable.foo.set('bar', 'BAZ')
-
-    const result = mutateIn(obj).foo.key('bar')((value) => value.toUpperCase())
-
-    expect(result).toEqual(mutable)
-    expect(obj).toEqual(backup)
-  })
-
-  it('should handle nested maps with mutations', () => {
-    const obj = {
-      data: new Map([
-        ['users', new Map([['user1', { name: 'John', age: 30 }]])],
-      ]),
-    }
-    const backup = structuredClone(obj)
-    const mutable = structuredClone(obj)
-    const user = mutable.data.get('users')!.get('user1')!
-    user.name = user.name.toUpperCase()
-    user.age += 5
-
-    const result = mutateIn(obj).data.key('users').key('user1')((user) => {
-      user.name = user.name.toUpperCase()
-      user.age += 5
-    })
-
-    expect(result).toEqual(mutable)
-    expect(obj).toEqual(backup)
-  })
-
-  it('should handle maps within arrays with mutations', () => {
-    const obj = [{ bar: new Map([['foo', 'old value']]) }]
-    const backup = structuredClone(obj)
-    const mutable = structuredClone(obj)
-    mutable[0].bar.set('foo', 'OLD VALUE')
-
-    const result = mutateIn(obj)[0].bar.key('foo')((value) =>
-      value.toUpperCase(),
-    )
-
-    expect(result).toEqual(mutable)
-    expect(obj).toEqual(backup)
-  })
-
-  it('should handle complex map mutations', () => {
-    const obj = {
-      config: new Map([
-        [
-          'settings',
-          new Map([
-            [
-              'features',
-              new Map([
-                ['feature1', { enabled: true, count: 1, items: ['a', 'b'] }],
-              ]),
-            ],
-          ]),
+  describe('Array mutations', () => {
+    it('should allow mutations on array elements', () => {
+      const baseObj = {
+        todos: [
+          { id: 1, name: 'Todo 1', completed: false },
+          { id: 2, name: 'Todo 2', completed: true },
         ],
-      ]),
-    }
-    const backup = structuredClone(obj)
-    const mutable = structuredClone(obj)
-    const feature = mutable.config
-      .get('settings')!
-      .get('features')!
-      .get('feature1')!
-    feature.enabled = !feature.enabled
-    feature.count *= 2
-    feature.items.push('c')
+      }
 
-    const result = mutateIn(obj)
-      .config.key('settings')
-      .key('features')
-      .key('feature1')((feature) => {
-      feature.enabled = !feature.enabled
-      feature.count *= 2
-      feature.items.push('c')
+      const result = mutateIn(baseObj).todos((todos) => {
+        // Can replace array elements
+        todos[0] = {
+          id: 1,
+          name: 'Updated Todo 1',
+          completed: true,
+        }
+        // Cannot mutate nested properties of array elements
+        function _() {
+          // @ts-expect-error
+          todos[1].name = 'Updated Todo 2' // error: readonly
+        }
+      })
+
+      expect(result).not.toBe(baseObj)
+      expect(result.todos).not.toBe(baseObj.todos)
+      expect(result.todos[0]).not.toBe(baseObj.todos[0])
+      expect(result.todos[1]).toBe(baseObj.todos[1]) // Unchanged element should have same reference
+
+      expect(result.todos[0].name).toBe('Updated Todo 1')
+      expect(result.todos[0].completed).toBe(true)
     })
 
-    expect(result).toEqual(mutable)
-    expect(obj).toEqual(backup)
+    it('should replace entire arrays', () => {
+      const baseObj = {
+        items: [
+          { id: 1, name: 'Item 1' },
+          { id: 2, name: 'Item 2' },
+        ],
+      }
+
+      const result = mutateIn(baseObj).items((items) => {
+        // Can mutate array methods
+        items.length = 0 // Clear array
+        items.push(
+          { id: 3, name: 'New Item 1' },
+          { id: 4, name: 'New Item 2' },
+          { id: 5, name: 'New Item 3' },
+        )
+      })
+
+      expect(result.items).not.toBe(baseObj.items)
+      expect(result.items).toHaveLength(3)
+      expect(result.items[0].name).toBe('New Item 1')
+    })
+
+    it('should handle nested arrays', () => {
+      const baseObj = {
+        categories: [
+          {
+            name: 'Work',
+            tasks: [
+              { id: 1, name: 'Task 1' },
+              { id: 2, name: 'Task 2' },
+            ],
+          },
+        ],
+      }
+
+      const result = mutateIn(baseObj).categories[0].tasks((tasks) => {
+        // Can mutate array methods
+        tasks.length = 0
+        tasks.push({ id: 3, name: 'New Task 1' }, { id: 4, name: 'New Task 2' })
+      })
+
+      expect(result.categories[0].tasks).not.toBe(baseObj.categories[0].tasks)
+      expect(result.categories[0].tasks).toHaveLength(2)
+      expect(result.categories[0].tasks[0].name).toBe('New Task 1')
+    })
   })
 
-  it('should handle maps with mutation that returns value', () => {
-    const obj = { foo: new Map([['bar', 'baz']]) }
-    const backup = structuredClone(obj)
-    const mutable = structuredClone(obj)
-    mutable.foo.set('bar', 'OVERRIDE')
+  describe('Mixed object and array mutations', () => {
+    it('should handle complex nested structures', () => {
+      const baseObj = {
+        user: {
+          profile: {
+            name: 'John',
+            preferences: {
+              themes: ['dark', 'light'],
+              settings: {
+                notifications: true,
+              },
+            },
+          },
+        },
+      }
 
-    const result = mutateIn(obj).foo.key('bar')((value) => {
-      value = value.toUpperCase()
-      return 'OVERRIDE'
+      const result = mutateIn(baseObj).user.profile.preferences(
+        (preferences) => {
+          // Can replace entire objects
+          preferences.themes = ['light', 'dark', 'auto']
+          preferences.settings = {
+            notifications: false,
+          }
+        },
+      )
+
+      // Check that the mutations worked
+      expect(result.user.profile.preferences.themes).toEqual([
+        'light',
+        'dark',
+        'auto',
+      ])
+      expect(result.user.profile.preferences.settings.notifications).toBe(false)
+
+      // Check that unchanged elements maintain references
+      expect(result.user.profile.name).toBe('John')
+    })
+  })
+
+  describe('Function-based mutations', () => {
+    it('should support direct mutations with access to current value', () => {
+      const baseObj = {
+        counter: { value: 5, history: [1, 2, 3] },
+      }
+
+      const result = mutateIn(baseObj).counter((counter) => {
+        // Can mutate top-level properties
+        counter.value += 1
+        counter.history = [...counter.history, counter.value - 1]
+      })
+
+      expect(result.counter.value).toBe(6)
+      expect(result.counter.history).toEqual([1, 2, 3, 5])
     })
 
-    expect(result).toEqual(mutable)
-    expect(obj).toEqual(backup)
+    it('should support complex mutations', () => {
+      const baseObj = {
+        user: {
+          profile: {
+            name: 'John',
+            settings: { theme: 'dark', notifications: true },
+          },
+        },
+      }
+
+      const result = mutateIn(baseObj).user.profile((profile) => {
+        // Can mutate top-level properties
+        profile.name = profile.name.toUpperCase()
+        profile.settings = {
+          theme: profile.settings.theme === 'dark' ? 'light' : 'dark',
+          notifications: profile.settings.notifications,
+        }
+      })
+
+      expect(result.user.profile.name).toBe('JOHN')
+      expect(result.user.profile.settings.theme).toBe('light')
+      expect(result.user.profile.settings.notifications).toBe(true)
+    })
+  })
+
+  describe('Edge cases', () => {
+    it('should handle deep nested mutations', () => {
+      const baseObj = {
+        a: {
+          b: {
+            c: {
+              d: {
+                e: {
+                  f: {
+                    g: {
+                      h: {
+                        i: {
+                          j: {
+                            value: 'deep',
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      }
+
+      const result = mutateIn(baseObj).a.b.c.d.e.f.g.h.i.j((j) => {
+        j.value = 'updated'
+      })
+
+      expect(result.a.b.c.d.e.f.g.h.i.j.value).toBe('updated')
+    })
+  })
+
+  describe('Performance characteristics', () => {
+    it('should perform shallow cloning (not deep cloning)', () => {
+      const baseObj = {
+        user: {
+          profile: {
+            name: 'John',
+            settings: { theme: 'dark' },
+          },
+          todos: [
+            { id: 1, name: 'Todo 1' },
+            { id: 2, name: 'Todo 2' },
+          ],
+        },
+      }
+
+      const result = mutateIn(baseObj).user.profile.settings((settings) => {
+        settings.theme = 'light'
+      })
+
+      // The result should be a new object
+      expect(result).not.toBe(baseObj)
+      expect(result.user).not.toBe(baseObj.user)
+      expect(result.user.profile).not.toBe(baseObj.user.profile)
+      expect(result.user.profile.settings).not.toBe(
+        baseObj.user.profile.settings,
+      )
+
+      // But unchanged nested objects should maintain their references
+      // This is the key difference from deep cloning
+      expect(result.user.todos).toBe(baseObj.user.todos)
+      expect(result.user.todos[0]).toBe(baseObj.user.todos[0])
+      expect(result.user.todos[1]).toBe(baseObj.user.todos[1])
+    })
+
+    it('should only clone the specific object being mutated', () => {
+      const baseObj = {
+        user: {
+          profile: { name: 'John' },
+          settings: { theme: 'dark' },
+        },
+        other: { data: 'unchanged' },
+      }
+
+      const result = mutateIn(baseObj).user.profile((profile) => {
+        profile.name = 'Jane'
+      })
+
+      // Only the mutation path should be cloned
+      expect(result.user).not.toBe(baseObj.user)
+      expect(result.user.profile).not.toBe(baseObj.user.profile)
+
+      // Other objects should maintain references
+      expect(result.user.settings).toBe(baseObj.user.settings)
+      expect(result.other).toBe(baseObj.other)
+    })
   })
 })

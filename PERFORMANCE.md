@@ -4,151 +4,153 @@ All benchmarks were run with 10,000 iterations.
 
 ### Simple Property Updates
 
-- **bedit setIn**: 5.97ms
-- **bedit updateIn**: 8.64ms
-- **bedit mutateIn**: 9.23ms
-- **bedit mutateIn (shallow)**: 5.38ms
-- **immer**: 28.33ms
+- **bedit setIn**: 6.48ms
+- **bedit updateIn**: 5.96ms
+- **bedit mutateIn**: 5.61ms
+- **bedit mutateIn (shallow)**: 7.02ms
+- **immer**: 34.91ms
 - **mutative**: 27.63ms
 
 **Performance vs Immer:**
-- bedit setIn: 4.74x slower
-- bedit updateIn: 3.28x slower
-- bedit mutateIn: 3.07x slower
-- bedit mutateIn (shallow): 5.26x slower
+- bedit setIn: 5.39x slower
+- bedit updateIn: 5.86x slower
+- bedit mutateIn: 6.22x slower
+- bedit mutateIn (shallow): 4.97x slower
 
 **Performance vs Mutative:**
-- bedit setIn: 4.62x slower
-- bedit updateIn: 3.20x slower
-- bedit mutateIn: 2.99x slower
-- bedit mutateIn (shallow): 5.13x slower
+- bedit setIn: 4.26x slower
+- bedit updateIn: 4.64x slower
+- bedit mutateIn: 4.92x slower
+- bedit mutateIn (shallow): 3.94x slower
 
 ### Nested Property Updates
 
-- **bedit setIn**: 7.84ms
-- **bedit updateIn**: 8.23ms
-- **bedit mutateIn**: 6.52ms
-- **bedit mutateIn (shallow)**: 5.39ms
-- **immer**: 61.40ms
-- **mutative**: 48.39ms
+- **bedit setIn**: 5.97ms
+- **bedit updateIn**: 13.19ms
+- **bedit mutateIn**: 19.00ms
+- **bedit mutateIn (shallow)**: 28.72ms
+- **immer**: 65.84ms
+- **mutative**: 47.87ms
 
 **Performance vs Immer:**
-- bedit setIn: 7.83x slower
-- bedit updateIn: 7.46x slower
-- bedit mutateIn: 9.42x slower
-- bedit mutateIn (shallow): 11.38x slower
+- bedit setIn: 11.03x slower
+- bedit updateIn: 4.99x slower
+- bedit mutateIn: 3.46x slower
+- bedit mutateIn (shallow): 2.29x slower
 
 **Performance vs Mutative:**
-- bedit setIn: 6.17x slower
-- bedit updateIn: 5.88x slower
-- bedit mutateIn: 7.43x slower
-- bedit mutateIn (shallow): 8.97x slower
+- bedit setIn: 8.02x slower
+- bedit updateIn: 3.63x slower
+- bedit mutateIn: 2.52x slower
+- bedit mutateIn (shallow): 1.67x slower
 
 ### Array Element Updates
 
-- **bedit setIn**: 8.31ms
-- **bedit updateIn**: 7.23ms
-- **bedit mutateIn**: 6.64ms
-- **bedit mutateIn (shallow)**: 6.38ms
-- **immer**: 283.71ms
-- **mutative**: 38.78ms
+- **bedit setIn**: 10.47ms
+- **bedit updateIn**: 7.05ms
+- **bedit mutateIn**: 7.17ms
+- **bedit mutateIn (shallow)**: 6.98ms
+- **immer**: 277.31ms
+- **mutative**: 37.78ms
 
 **Performance vs Immer:**
-- bedit setIn: 34.14x slower
-- bedit updateIn: 39.25x slower
-- bedit mutateIn: 42.76x slower
-- bedit mutateIn (shallow): 44.49x slower
+- bedit setIn: 26.48x slower
+- bedit updateIn: 39.32x slower
+- bedit mutateIn: 38.68x slower
+- bedit mutateIn (shallow): 39.74x slower
 
 **Performance vs Mutative:**
-- bedit setIn: 4.67x slower
+- bedit setIn: 3.61x slower
 - bedit updateIn: 5.36x slower
-- bedit mutateIn: 5.84x slower
-- bedit mutateIn (shallow): 6.08x slower
+- bedit mutateIn: 5.27x slower
+- bedit mutateIn (shallow): 5.41x slower
 
 ### Deep Object Updates
 
-- **bedit setIn**: 25.79ms
-- **bedit updateIn**: 25.27ms
-- **bedit mutateIn**: 24.89ms
-- **bedit mutateIn (shallow)**: 24.57ms
-- **immer**: 319.69ms
-- **mutative**: 229.95ms
+- **bedit setIn**: 33.35ms
+- **bedit updateIn**: 32.84ms
+- **bedit mutateIn**: 31.83ms
+- **bedit mutateIn (shallow)**: 32.19ms
+- **immer**: 312.69ms
+- **mutative**: 228.27ms
 
 **Performance vs Immer:**
-- bedit setIn: 12.40x slower
-- bedit updateIn: 12.65x slower
-- bedit mutateIn: 12.84x slower
-- bedit mutateIn (shallow): 13.01x slower
+- bedit setIn: 9.38x slower
+- bedit updateIn: 9.52x slower
+- bedit mutateIn: 9.82x slower
+- bedit mutateIn (shallow): 9.71x slower
 
 **Performance vs Mutative:**
-- bedit setIn: 8.92x slower
-- bedit updateIn: 9.10x slower
-- bedit mutateIn: 9.24x slower
-- bedit mutateIn (shallow): 9.36x slower
+- bedit setIn: 6.84x slower
+- bedit updateIn: 6.95x slower
+- bedit mutateIn: 7.17x slower
+- bedit mutateIn (shallow): 7.09x slower
 
 ### Function-based Updates
 
-- **bedit setIn**: 4.47ms
-- **bedit updateIn**: 6.40ms
-- **bedit mutateIn**: 5.69ms
-- **bedit mutateIn (shallow)**: 5.12ms
-- **immer**: 44.14ms
-- **mutative**: 33.35ms
+- **bedit setIn**: 5.21ms
+- **bedit updateIn**: 7.26ms
+- **bedit mutateIn**: 5.99ms
+- **bedit mutateIn (shallow)**: 5.08ms
+- **immer**: 43.96ms
+- **mutative**: 36.00ms
 
 **Performance vs Immer:**
-- bedit setIn: 9.88x slower
-- bedit updateIn: 6.90x slower
-- bedit mutateIn: 7.76x slower
-- bedit mutateIn (shallow): 8.62x slower
+- bedit setIn: 8.44x slower
+- bedit updateIn: 6.06x slower
+- bedit mutateIn: 7.34x slower
+- bedit mutateIn (shallow): 8.66x slower
 
 **Performance vs Mutative:**
-- bedit setIn: 7.46x slower
-- bedit updateIn: 5.21x slower
-- bedit mutateIn: 5.86x slower
-- bedit mutateIn (shallow): 6.52x slower
+- bedit setIn: 6.91x slower
+- bedit updateIn: 4.96x slower
+- bedit mutateIn: 6.01x slower
+- bedit mutateIn (shallow): 7.09x slower
 
 ### Multiple Updates in Single Operation
 
-- **bedit setIn**: 20.27ms
-- **bedit updateIn**: 21.78ms
-- **bedit mutateIn**: 20.39ms
-- **bedit mutateIn (shallow)**: 20.77ms
-- **immer**: 136.68ms
-- **mutative**: 84.22ms
+- **bedit setIn**: 24.01ms
+- **bedit updateIn**: 24.86ms
+- **bedit mutateIn**: 23.87ms
+- **bedit mutateIn (shallow)**: 11.64ms
+- **immer**: 133.50ms
+- **mutative**: 86.93ms
 
 **Performance vs Immer:**
-- bedit setIn: 6.74x slower
-- bedit updateIn: 6.28x slower
-- bedit mutateIn: 6.70x slower
-- bedit mutateIn (shallow): 6.58x slower
+- bedit setIn: 5.56x slower
+- bedit updateIn: 5.37x slower
+- bedit mutateIn: 5.59x slower
+- bedit mutateIn (shallow): 11.47x slower
 
 **Performance vs Mutative:**
-- bedit setIn: 4.16x slower
-- bedit updateIn: 3.87x slower
-- bedit mutateIn: 4.13x slower
-- bedit mutateIn (shallow): 4.05x slower
+- bedit setIn: 3.62x slower
+- bedit updateIn: 3.50x slower
+- bedit mutateIn: 3.64x slower
+- bedit mutateIn (shallow): 7.47x slower
 
-### Memory Usage (MB)
+### Shallow Mutations (Objects and Arrays)
+
+- beditShallowObject6.79- beditShallowArray8.47- beditShallowReplace4.75- beditDeepObject16.81- beditDeepArray22.14- immer58.10- mutative44.01- shallowVsDeepObject2.47- shallowVsDeepArray2.61- shallowVsImmer8.55- shallowVsMutative6.48### Memory Usage (MB)
 
 - **bedit setIn**: 1.36MB
 - **bedit updateIn**: 2.23MB
 - **bedit mutateIn**: 2.24MB
-- **bedit mutateIn (shallow)**: 2.37MB
-- **immer**: 0.95MB
-- **mutative**: 7.86MB
+- **bedit mutateIn (shallow)**: 3.41MB
+- **immer**: 0.93MB
+- **mutative**: 7.87MB
 
 **Performance vs Immer:**
-- bedit setIn: 0.70x less memory
-- bedit updateIn: 0.43x less memory
+- bedit setIn: 0.68x less memory
+- bedit updateIn: 0.42x less memory
 - bedit mutateIn: 0.42x less memory
-- bedit mutateIn (shallow): 0.40x less memory
+- bedit mutateIn (shallow): 0.27x less memory
 
 **Performance vs Mutative:**
-- bedit setIn: 5.78x more memory
+- bedit setIn: 5.79x more memory
 - bedit updateIn: 3.53x more memory
 - bedit mutateIn: 3.52x more memory
-- bedit mutateIn (shallow): 3.32x more memory
+- bedit mutateIn (shallow): 2.30x more memory
 
 
 
-*Last updated: 2025-08-02T18:20:22.212Z*
+*Last updated: 2025-08-03T21:11:45.416Z*

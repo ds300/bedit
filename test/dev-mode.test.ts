@@ -2,8 +2,8 @@ import { describe, beforeEach, afterEach, test, expect } from 'vitest'
 import {
   setIn,
   updateIn,
+  deepMutateIn,
   mutateIn,
-  shallowMutateIn,
   batchEdits,
   setDevMode,
 } from '../bedit.mts'
@@ -51,17 +51,17 @@ describe('Dev Mode', () => {
   test('should freeze objects after mutateIn when dev mode is enabled', () => {
     const obj = { a: 1, b: { c: 2 } }
 
-    const result = mutateIn(obj).a((x) => 3)
+    const result = deepMutateIn(obj).a((x) => 3)
 
     expect(Object.isFrozen(result)).toBe(true)
     expect(Object.isFrozen(result.b)).toBe(true)
     expect(result.a).toBe(3)
   })
 
-  test('should freeze objects after shallowMutateIn when dev mode is enabled', () => {
+  test('should freeze objects after mutateIn when dev mode is enabled', () => {
     const obj = { a: 1, b: { c: 2 } }
 
-    const result = shallowMutateIn(obj).a((x) => {
+    const result = mutateIn(obj).a((x) => {
       return 3
     })
 
@@ -180,7 +180,7 @@ describe('Dev Mode', () => {
       tags: new Set(['react']),
     }
 
-    const result = mutateIn(obj)((draft) => {
+    const result = deepMutateIn(obj)((draft) => {
       draft.config.set('debug', { color: 'light' })
       draft.tags.add('typescript')
     })

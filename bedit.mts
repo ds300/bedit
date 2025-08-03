@@ -450,6 +450,7 @@ export const updateIn = <T,>(t: T): Updatable<T> => getFrame(t, UPDATE).$
 /**
  * Allows immutably mutating properties at any depth in a value using functions.
  * The function can either mutate the value directly or return a new value.
+ * This performs deep cloning using `structuredClone` for complete isolation.
  *
  * @template T - The type of the input value
  * @param t - The value to create a mutator for
@@ -460,19 +461,19 @@ export const updateIn = <T,>(t: T): Updatable<T> => getFrame(t, UPDATE).$
  * const user = { name: 'John', age: 30 }
  *
  * // Direct mutation
- * const newUser = mutateIn(user)(user => {
+ * const newUser = deepMutateIn(user)(user => {
  *   user.name = user.name.toUpperCase()
  *   user.age += 1
  * })
  * // Result: { name: 'JOHN', age: 31 }
  *
  * // Return new value
- * const newUser2 = mutateIn(user).name(name => name.toUpperCase())
+ * const newUser2 = deepMutateIn(user).name(name => name.toUpperCase())
  * // Result: { name: 'JOHN', age: 30 }
  *
  * // Nested objects with complex mutations
  * const state = { user: { profile: { name: 'John', age: 30 } } }
- * const newState = mutateIn(state).user.profile(profile => {
+ * const newState = deepMutateIn(state).user.profile(profile => {
  *   profile.name = profile.name.toUpperCase()
  *   profile.age += 5
  *   profile.hobbies = ['reading', 'gaming']
@@ -481,11 +482,11 @@ export const updateIn = <T,>(t: T): Updatable<T> => getFrame(t, UPDATE).$
  *
  * // Maps with mutations
  * const config = new Map([['theme', 'dark']])
- * const newConfig = mutateIn(config).key('theme')(theme => theme.toUpperCase())
+ * const newConfig = deepMutateIn(config).key('theme')(theme => theme.toUpperCase())
  * // Result: Map([['theme', 'DARK']])
  * ```
  */
-export const mutateIn = <T,>(t: T): Mutatable<T> => getFrame(t, MUTATE).$
+export const deepMutateIn = <T,>(t: T): Mutatable<T> => getFrame(t, MUTATE).$
 
 /**
  * Allows immutably deleting properties at any depth in a value.
@@ -524,20 +525,20 @@ export const mutateIn = <T,>(t: T): Mutatable<T> => getFrame(t, MUTATE).$
 export const deleteIn = <T,>(t: T): Deletable<T> => getFrame(t, DELETE).$
 
 /**
- * Allows immutably updating a value via a shallow clone.
- *
- * This can be useful for large objects when you only need to modify top-level properties.
+ * Allows immutably mutating properties at any depth in a value using functions.
+ * This performs shallow cloning for better performance - only the target object is cloned,
+ * while nested objects maintain their references.
  *
  * @template T - The type of the input value
- * @param t - The value to create a shallow mutator for
- * @returns A mutator object that allows shallow mutating properties at any depth
+ * @param t - The value to create a mutator for
+ * @returns A mutator object that allows mutating properties at any depth using functions
  *
  * @example
  * ```typescript
  * const state = { user: { name: 'John', profile: { age: 30, city: 'NYC' } } }
  *
  * // Shallow mutation - only the top-level object is cloned
- * const newState = shallowMutateIn(state).user(user => {
+ * const newState = mutateIn(state).user(user => {
  *   user.name = 'Jane'
  *   // ❌ don't mutate nested objects! This would throw an error at dev time.
  *   // user.profile.age = 31
@@ -545,15 +546,15 @@ export const deleteIn = <T,>(t: T): Deletable<T> => getFrame(t, DELETE).$
  * // Result: { name: 'Jane', profile: { age: 30, city: 'NYC' } }
  * // Original user.profile.age is still 30 (shared reference)
  *
- * // For nested mutations, use regular mutateIn instead
- * const safeState = mutateIn(state).user(user => {
+ * // For nested mutations, use deepMutateIn instead
+ * const safeState = deepMutateIn(state).user(user => {
  *   user.profile.age = 31 // This only affects the new object
  * })
  * // Original user.profile.age remains 30
  *
  * // Arrays with shallow mutation
  * const state = { users: [{ name: 'John', details: { age: 30 } }] }
- * const newState = shallowMutateIn(state).users(users => {
+ * const newState = mutateIn(state).users(users => {
  *   const user = users.pop()
  *   // Only the array itself is cloned, not the nested objects.
  *   // ❌ This would throw an error at dev time.
@@ -562,13 +563,13 @@ export const deleteIn = <T,>(t: T): Deletable<T> => getFrame(t, DELETE).$
  *
  * // Maps with shallow mutation
  * const config = { preferences: new Map([['theme', 'dark']]) }
- * const newConfig = shallowMutateIn(config).preferences(prefs => {
+ * const newConfig = mutateIn(config).preferences(prefs => {
  *   prefs.set('theme', 'light')
  * })
  * // Result: { preferences: Map([['theme', 'light']]) }
  * ```
  */
-export const shallowMutateIn = <T,>(t: T): ShallowMutatable<T> =>
+export const mutateIn = <T,>(t: T): ShallowMutatable<T> =>
   getFrame(t, MUTATE, true).$
 
 /**
