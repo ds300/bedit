@@ -57,6 +57,15 @@ const nextState = shallowMutateIn(state).todos((todos) => {
 })
 ```
 
+Use `deleteIn` to immutably delete properties from objects or remove elements from arrays.
+
+```ts
+import { deleteIn } from 'bedit'
+// For arrays, it uses .splice(index, 1) instead of the `delete` operator,
+// to avoid leaving a hole in the array.
+const nextState = deleteIn(state).todos[0]()
+```
+
 Use `batchEdits` to combine multiple updates, avoiding unnecessary object cloning.
 
 ```ts

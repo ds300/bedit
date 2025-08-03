@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { setIn, updateIn, mutateIn, shallowMutateIn, batchEdits } from './index'
+import {
+  setIn,
+  updateIn,
+  mutateIn,
+  shallowMutateIn,
+  batchEdits,
+  deleteIn,
+} from './index'
 
 // Test data factories
 const createSimpleUser = () => ({ name: 'John', age: 30 })
@@ -913,6 +920,301 @@ describe('batch', () => {
         foo: 'baz',
       },
     })
+  })
+})
+
+describe('deleteIn', () => {
+  it('should delete a top-level property', () => {
+    const obj = { name: 'John', age: 30, city: 'NYC' }
+    testImmutability(
+      () => deleteIn(obj).age(),
+      { name: 'John', city: 'NYC' },
+      obj,
+      { name: 'John', age: 30, city: 'NYC' },
+    )
+  })
+
+  it('should delete a nested property', () => {
+    const obj = {
+      user: {
+        profile: {
+          name: 'John',
+          age: 30,
+          email: 'john@example.com',
+        },
+      },
+    }
+    testImmutability(
+      () => deleteIn(obj).user.profile.email(),
+      {
+        user: {
+          profile: {
+            name: 'John',
+            age: 30,
+          },
+        },
+      },
+      obj,
+      {
+        user: {
+          profile: {
+            name: 'John',
+            age: 30,
+            email: 'john@example.com',
+          },
+        },
+      },
+    )
+  })
+
+  it('should delete array elements', () => {
+    const obj = {
+      users: [
+        { name: 'John', age: 30 },
+        { name: 'Jane', age: 25 },
+        { name: 'Bob', age: 35 },
+      ],
+    }
+    testImmutability(
+      () => deleteIn(obj).users[1](),
+      {
+        users: [
+          { name: 'John', age: 30 },
+          { name: 'Bob', age: 35 },
+        ],
+      },
+      obj,
+      {
+        users: [
+          { name: 'John', age: 30 },
+          { name: 'Jane', age: 25 },
+          { name: 'Bob', age: 35 },
+        ],
+      },
+    )
+  })
+
+  it('should delete deeply nested properties', () => {
+    const obj = createDeepNested()
+    const result = deleteIn(obj).a.b.c.d.e.f.g.h.i.j()
+
+    expect(result.a.b.c.d.e.f.g.h.i).toEqual({})
+    expectOriginalUnchanged(obj, createDeepNested())
+  })
+
+  it('should delete multiple properties in the same object', () => {
+    const obj = {
+      user: {
+        profile: {
+          name: 'John',
+          age: 30,
+          email: 'john@example.com',
+          phone: '123-456-7890',
+        },
+      },
+    }
+    testImmutability(
+      () => {
+        let result = deleteIn(obj).user.profile.email()
+        result = deleteIn(result).user.profile.phone()
+        return result
+      },
+      {
+        user: {
+          profile: {
+            name: 'John',
+            age: 30,
+          },
+        },
+      },
+      obj,
+      {
+        user: {
+          profile: {
+            name: 'John',
+            age: 30,
+            email: 'john@example.com',
+            phone: '123-456-7890',
+          },
+        },
+      },
+    )
+  })
+
+  it('should handle deleting from arrays with nested objects', () => {
+    const obj = {
+      data: [
+        { id: 1, value: 'a', extra: 'x' },
+        { id: 2, value: 'b', extra: 'y' },
+        { id: 3, value: 'c', extra: 'z' },
+      ],
+    }
+    testImmutability(
+      () => deleteIn(obj).data[1].extra(),
+      {
+        data: [
+          { id: 1, value: 'a', extra: 'x' },
+          { id: 2, value: 'b' },
+          { id: 3, value: 'c', extra: 'z' },
+        ],
+      },
+      obj,
+      {
+        data: [
+          { id: 1, value: 'a', extra: 'x' },
+          { id: 2, value: 'b', extra: 'y' },
+          { id: 3, value: 'c', extra: 'z' },
+        ],
+      },
+    )
+  })
+
+  it('should handle deleting from nested arrays', () => {
+    const obj = createNestedArray()
+    testImmutability(
+      () => deleteIn(obj).data[0][1].value(),
+      {
+        data: [[{ id: 1, value: 'a' }, { id: 2 }], [{ id: 3, value: 'c' }]],
+      },
+      obj,
+      createNestedArray(),
+    )
+  })
+
+  it('should handle deleting from empty arrays', () => {
+    const obj = { items: [] as string[] }
+    testImmutability(() => deleteIn(obj).items[0](), { items: [] }, obj, {
+      items: [],
+    })
+  })
+
+  it('should handle concurrent delete operations', () => {
+    const obj = {
+      user: {
+        profile: {
+          name: 'John',
+          age: 30,
+          email: 'john@example.com',
+        },
+      },
+    }
+    const result1 = deleteIn(obj).user.profile.name()
+    const result2 = deleteIn(obj).user.profile.email()
+
+    expect(result1).toEqual({
+      user: {
+        profile: {
+          age: 30,
+          email: 'john@example.com',
+        },
+      },
+    })
+    expect(result2).toEqual({
+      user: {
+        profile: {
+          name: 'John',
+          age: 30,
+        },
+      },
+    })
+    expectOriginalUnchanged(obj, {
+      user: {
+        profile: {
+          name: 'John',
+          age: 30,
+          email: 'john@example.com',
+        },
+      },
+    })
+  })
+
+  it('should throw error when accessing property of null/undefined', () => {
+    const obj = { user: null }
+    testErrorCase(
+      () => {
+        // @ts-expect-error
+        deleteIn(obj).user.name()
+      },
+      'Cannot read property "name" of null',
+      obj,
+    )
+  })
+
+  it('should handle deleting from objects with mixed types', () => {
+    const obj = {
+      data: {
+        string: 'value',
+        number: 42,
+        boolean: true,
+        null: null,
+        undefined: undefined,
+        array: [1, 2, 3],
+        object: { nested: 'value' },
+      },
+    }
+    testImmutability(
+      () => deleteIn(obj).data.null(),
+      {
+        data: {
+          string: 'value',
+          number: 42,
+          boolean: true,
+          undefined: undefined,
+          array: [1, 2, 3],
+          object: { nested: 'value' },
+        },
+      },
+      obj,
+      {
+        data: {
+          string: 'value',
+          number: 42,
+          boolean: true,
+          null: null,
+          undefined: undefined,
+          array: [1, 2, 3],
+          object: { nested: 'value' },
+        },
+      },
+    )
+  })
+
+  it('should handle deleting from objects with symbols as keys', () => {
+    const symbolKey = Symbol('test')
+    const obj = {
+      [symbolKey]: 'symbol value',
+      regular: 'regular value',
+    }
+    testImmutability(
+      () => deleteIn(obj)[symbolKey](),
+      { regular: 'regular value' },
+      obj,
+      {
+        [symbolKey]: 'symbol value',
+        regular: 'regular value',
+      },
+    )
+  })
+
+  it('should handle deleting from objects with numeric string keys', () => {
+    const obj = {
+      '0': 'zero',
+      '1': 'one',
+      '2': 'two',
+    }
+    testImmutability(
+      () => deleteIn(obj)['1'](),
+      {
+        '0': 'zero',
+        '2': 'two',
+      },
+      obj,
+      {
+        '0': 'zero',
+        '1': 'one',
+        '2': 'two',
+      },
+    )
   })
 })
 

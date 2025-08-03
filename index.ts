@@ -19,12 +19,18 @@ type Mutatable<T, Root = T> = {
     : (mutate: Mutator<T[k]>) => Root
 } & ((mutate: Mutator<T>) => Root)
 
+type Deletable<T, Root = T> = {
+  [k in keyof T]: T[k] extends object ? Deletable<T[k], Root> : () => Root
+} & (() => Root)
 const SET = 0 as const
 const UPDATE = 1 as const
 const MUTATE = 2 as const
+const DELETE = 3 as const
 
 const SHALLOW_CLONE = 0 as const
 const DEEP_CLONE = 1 as const
+
+const DELETE_VALUE = {}
 
 type CloneType = typeof SHALLOW_CLONE | typeof DEEP_CLONE
 
@@ -153,7 +159,15 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
 
   function set(obj: any, key: string | number, value: any): any {
     const cloned = clone(obj, SHALLOW_CLONE)
-    cloned[key] = value
+    if (value === DELETE_VALUE) {
+      if (Array.isArray(cloned)) {
+        cloned.splice(Number(key), 1)
+      } else {
+        delete cloned[key]
+      }
+    } else {
+      cloned[key] = value
+    }
     if (devMode && !clonedObjects) {
       freezeObject(cloned)
     }
@@ -187,7 +201,7 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
       },
       apply(_target, _thisArg, [valueOrFn]) {
         try {
-          let value: any
+          let value: any = DELETE_VALUE
           if (type === SET) {
             value = valueOrFn
           } else if (type === UPDATE) {
@@ -228,23 +242,25 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
 // set up a tiny pool of four frames. we only need one frame per level
 // of nested setIn/updateIn/mutateIn calls.
 let top: Frame | null = frame(frame(frame(frame(null))))
-type FrameType = typeof SET | typeof UPDATE | typeof MUTATE
+type FrameType = typeof SET | typeof UPDATE | typeof MUTATE | typeof DELETE
 
-function getFrame(root: any, type: FrameType, shallow: boolean): Frame {
+function getFrame(root: any, type: FrameType, shallow?: boolean): Frame {
   if (top == null) {
     return frame(null, true)
   }
   const ret = top
   top = ret.p
-  ret.r(root, type, shallow)
+  ret.r(root, type, !!shallow)
   return ret
 }
 
-export const setIn = <T>(t: T): Settable<T> => getFrame(t, SET, false).$
+export const setIn = <T>(t: T): Settable<T> => getFrame(t, SET).$
 
-export const updateIn = <T>(t: T): Updatable<T> => getFrame(t, UPDATE, false).$
+export const updateIn = <T>(t: T): Updatable<T> => getFrame(t, UPDATE).$
 
-export const mutateIn = <T>(t: T): Mutatable<T> => getFrame(t, MUTATE, false).$
+export const mutateIn = <T>(t: T): Mutatable<T> => getFrame(t, MUTATE).$
+
+export const deleteIn = <T>(t: T): Deletable<T> => getFrame(t, DELETE).$
 
 export const shallowMutateIn = <T>(t: T): Mutatable<T> =>
   getFrame(t, MUTATE, true).$
