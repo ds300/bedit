@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { setIn, updateIn, mutateIn, batchEdits } from './index'
+import { setIn, updateIn, mutateIn, shallowMutateIn, batchEdits } from './index'
 
 // Test data factories
 const createSimpleUser = () => ({ name: 'John', age: 30 })
@@ -744,7 +744,7 @@ describe('batch', () => {
       expect(obj.users).toBe(usersRef)
 
       // Third modification - should still reuse
-      mutateIn(obj).users((users) => {
+      shallowMutateIn(obj).users((users) => {
         users.push({ name: 'Bob', age: 40 })
       })
       expect(obj.users).toBe(usersRef)
@@ -862,6 +862,55 @@ describe('batch', () => {
             },
           },
         },
+      },
+    })
+  })
+
+  it('should deeply clone an object that was previously shallowly cloned', () => {
+    const obj = {
+      a: {
+        b: {
+          c: {
+            d: 'value',
+          },
+        },
+        foo: 'bar',
+      },
+    }
+
+    const result = batchEdits(obj, (draft) => {
+      setIn(draft).a.foo('baz')
+      let shallowA = draft.a
+      expect(draft.a.b).toBe(obj.a.b)
+      mutateIn(draft).a((a) => {
+        a.b.c.d = 'new value'
+      })
+      // a should not have been recloned
+      expect(draft.a).toBe(shallowA)
+      // b should have been cloned
+      expect(draft.a.b).not.toBe(obj.a.b)
+      // obj should not have been changed
+      expect(obj).toEqual({
+        a: {
+          b: {
+            c: {
+              d: 'value',
+            },
+          },
+          foo: 'bar',
+        },
+      })
+      expect(draft.a.b.c.d).toBe('new value')
+    })
+
+    expect(result).toEqual({
+      a: {
+        b: {
+          c: {
+            d: 'new value',
+          },
+        },
+        foo: 'baz',
       },
     })
   })

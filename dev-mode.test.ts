@@ -5,34 +5,32 @@ import {
   mutateIn,
   shallowMutateIn,
   batchEdits,
-  enableDevMode,
-  disableDevMode,
+  setDevMode,
   isDevModeEnabled,
 } from './index'
 
+test('dev mode should be disabled by default', () => {
+  expect(isDevModeEnabled()).toBe(false)
+
+  setDevMode(true)
+  expect(isDevModeEnabled()).toBe(true)
+
+  setDevMode(false)
+  expect(isDevModeEnabled()).toBe(false)
+})
+
 describe('Dev Mode', () => {
   beforeEach(() => {
-    disableDevMode()
+    setDevMode(true)
   })
 
   afterEach(() => {
-    disableDevMode()
-  })
-
-  test('should enable and disable dev mode', () => {
-    expect(isDevModeEnabled()).toBe(false)
-
-    enableDevMode()
-    expect(isDevModeEnabled()).toBe(true)
-
-    disableDevMode()
-    expect(isDevModeEnabled()).toBe(false)
+    setDevMode(false)
   })
 
   test('should freeze objects after setIn when dev mode is enabled', () => {
     const obj = { a: 1, b: { c: 2 } }
 
-    enableDevMode()
     const result = setIn(obj).a(3)
 
     expect(Object.isFrozen(result)).toBe(true)
@@ -43,7 +41,7 @@ describe('Dev Mode', () => {
   test('should not freeze objects when dev mode is disabled', () => {
     const obj = { a: 1, b: { c: 2 } }
 
-    disableDevMode()
+    setDevMode(false)
     const result = setIn(obj).a(3)
 
     expect(Object.isFrozen(result)).toBe(false)
@@ -54,7 +52,6 @@ describe('Dev Mode', () => {
   test('should freeze objects after updateIn when dev mode is enabled', () => {
     const obj = { a: 1, b: { c: 2 } }
 
-    enableDevMode()
     const result = updateIn(obj).a((x) => x + 1)
 
     expect(Object.isFrozen(result)).toBe(true)
@@ -65,7 +62,6 @@ describe('Dev Mode', () => {
   test('should freeze objects after mutateIn when dev mode is enabled', () => {
     const obj = { a: 1, b: { c: 2 } }
 
-    enableDevMode()
     const result = mutateIn(obj).a((x) => 3)
 
     expect(Object.isFrozen(result)).toBe(true)
@@ -76,7 +72,6 @@ describe('Dev Mode', () => {
   test('should freeze objects after shallowMutateIn when dev mode is enabled', () => {
     const obj = { a: 1, b: { c: 2 } }
 
-    enableDevMode()
     const result = shallowMutateIn(obj).a((x) => {
       return 3
     })
@@ -89,7 +84,6 @@ describe('Dev Mode', () => {
   test('should freeze objects after batchEdits when dev mode is enabled', () => {
     const obj = { a: 1, b: { c: 2 } }
 
-    enableDevMode()
     const result = batchEdits(obj, (draft) => {
       setIn(draft).a(3)
       setIn(draft).b.c(4)
@@ -104,7 +98,6 @@ describe('Dev Mode', () => {
   test('should not freeze non-objects', () => {
     const obj = { a: 1, b: 'string', c: 42, d: null, e: undefined }
 
-    enableDevMode()
     const result = setIn(obj).a(3)
 
     expect(Object.isFrozen(result)).toBe(true)
@@ -117,7 +110,6 @@ describe('Dev Mode', () => {
   test('should handle arrays correctly', () => {
     const arr = [1 as number, 2, { a: 3 }] as const
 
-    enableDevMode()
     const result = setIn(arr)[0](10)
 
     expect(Object.isFrozen(result)).toBe(true)

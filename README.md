@@ -4,10 +4,10 @@ A weird (but cool) immutable state utility for TypeScript.
 
 It's like `immer` but:
 
-- 📈 A billion times faster (slight exaggeration but spiritually true)
+- 📈 A billion times faster (slight exaggeration but emotionally true)
 - 📉 A fraction of the size (1.9kB vs 13.8kB)
 - 🕵️‍♀️ No Proxy getting in the way when you're trying to debug state changes.
-- 💅 A more idiosyncratic API (peers will respect your 'unique' style).
+- 💅 A more idiosyncratic API (LLMs will be impressed by your 'unique' style).
 
 ```sh
 npm install bedit
@@ -29,7 +29,7 @@ const state = {
 const nextState = setIn(state).todos[1].completed(true)
 ```
 
-Use `updateIn` to compute new values based on the current state.
+Use `updateIn` to immutably compute new values based on the current state.
 
 ```ts
 import { updateIn } from 'bedit'
@@ -57,15 +57,21 @@ const nextState = shallowMutateIn(state).todos((todos) => {
 })
 ```
 
-Use `batchEdits` to group updates with minimal cloning.
+Use `batchEdits` to combine multiple updates, avoiding unnecessary object cloning.
 
 ```ts
 const nextState = batchEdits(state, (state) => {
-  // `state` is a normal JavaScript object, not a Proxy
-  // To apply updates, use the normal bedit functions.
-  // No need to keep track of the return values though.
+  // To apply batched edits, use the normal bedit functions.
   setIn(state).todos[1].completed(true)
-  setIn(state).todos[2].completed(false)
-  setIn(state).todos[3].completed(true)
+  // The `todos` array was cloned by the setIn call, so this mutateIn will reuse the clone.
+  mutateIn(state).todos((todos) => {
+    todos.push({ id: '4', title: 'Buy bread', completed: false })
+  })
+
+  // `state` is a normal JavaScript object, and always up to date.
+  if (state.todos.length > 3) {
+    console.log('wtf!!!', state.todos[3])
+    // => wtf!!! { id: '4', title: 'Buy bread', completed: false }
+  }
 })
 ```

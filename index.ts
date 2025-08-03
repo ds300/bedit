@@ -23,15 +23,16 @@ const SET = 0 as const
 const UPDATE = 1 as const
 const MUTATE = 2 as const
 
+const SHALLOW_CLONE = 0 as const
+const DEEP_CLONE = 1 as const
+
+type CloneType = typeof SHALLOW_CLONE | typeof DEEP_CLONE
+
 // Dev mode configuration
 let devMode = false
 
-export function enableDevMode() {
-  devMode = true
-}
-
-export function disableDevMode() {
-  devMode = false
+export function setDevMode(enabled: boolean) {
+  devMode = enabled
 }
 
 export function isDevModeEnabled(): boolean {
@@ -42,40 +43,35 @@ const frozenObjects = new WeakSet<object>()
 
 function freezeObject(obj: any): any {
   if (!devMode || !obj || typeof obj !== 'object') {
-    return
+    return obj
   }
 
   if (frozenObjects.has(obj)) {
-    return
+    return obj
   }
+
+  // Recursively freeze nested objects
+  updateChildren(obj, freezeObject)
 
   Object.freeze(obj)
   frozenObjects.add(obj)
 
-  // Recursively freeze nested objects
+  return obj
+}
+
+function updateChildren(obj: any, fn: (child: any) => any) {
   if (Array.isArray(obj)) {
-    for (const item of obj) {
-      if (item && typeof item === 'object') {
-        freezeObject(item)
-      }
+    for (let i = 0; i < obj.length; i++) {
+      obj[i] = fn(obj[i])
     }
   } else {
     for (const key in obj) {
       if (obj.hasOwnProperty(key)) {
-        const value = obj[key]
-        if (value && typeof value === 'object') {
-          freezeObject(value)
-        }
+        obj[key] = fn(obj[key])
       }
     }
   }
-}
-
-function _shallowClone(obj: any) {
-  if (Array.isArray(obj)) {
-    return obj.slice()
-  }
-  return { ...obj }
+  return obj
 }
 
 interface Frame {
@@ -92,6 +88,24 @@ interface Frame {
    */
   r: (root: any, type: FrameType, shallow: boolean) => void
 }
+const isPlainObject = (obj: any) => {
+  if (obj == null || typeof obj !== 'object') {
+    return false
+  }
+  const proto = Object.getPrototypeOf(obj)
+  return proto === Object.prototype || proto === null
+}
+
+const _shallowClone = (obj: any) =>
+  isPlainObject(obj)
+    ? { ...obj }
+    : Array.isArray(obj)
+      ? obj.slice()
+      : obj instanceof Map
+        ? new Map(obj)
+        : obj instanceof Set
+          ? new Set(obj)
+          : structuredClone(obj)
 
 function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
   const keyPath = new Array(8)
@@ -100,7 +114,7 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
   let i = 0
   let shallow = false
   let type = SET as FrameType
-  let clonedObjects = null as null | Set<object>
+  let clonedObjects = null as null | Map<object, CloneType>
 
   function release() {
     clonedObjects = null
@@ -119,26 +133,26 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
     release()
   }
 
-  function shallowClone(obj: any) {
-    if (clonedObjects?.has(obj)) {
+  function clone(obj: any, type: CloneType) {
+    const existing = clonedObjects?.get(obj)
+    if (existing === SHALLOW_CLONE) {
+      if (type === DEEP_CLONE) {
+        updateChildren(obj, (child) => clone(child, DEEP_CLONE))
+        clonedObjects?.set(obj, DEEP_CLONE)
+      }
       return obj
-    }
-    const cloned = _shallowClone(obj)
-    clonedObjects?.add(cloned)
-    return cloned
-  }
-
-  function deepClone(obj: any) {
-    if (clonedObjects?.has(obj)) {
+    } else if (existing === DEEP_CLONE) {
       return obj
+    } else {
+      const res =
+        type === DEEP_CLONE ? structuredClone(obj) : _shallowClone(obj)
+      clonedObjects?.set(res, type)
+      return res
     }
-    const cloned = structuredClone(obj)
-    clonedObjects?.add(cloned)
-    return cloned
   }
 
   function set(obj: any, key: string | number, value: any): any {
-    const cloned = shallowClone(obj)
+    const cloned = clone(obj, SHALLOW_CLONE)
     cloned[key] = value
     if (devMode && !clonedObjects) {
       freezeObject(cloned)
@@ -174,29 +188,24 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
       apply(_target, _thisArg, [valueOrFn]) {
         try {
           let value: any
-          switch (type) {
-            case SET:
-              value = valueOrFn
-              break
-            case UPDATE:
-              value = valueOrFn(obj)
-              break
-            case MUTATE:
-              const fn = valueOrFn
-              if (obj == null || typeof obj !== 'object') {
-                value = obj
-              } else if (shallow) {
-                value = shallowClone(obj)
-              } else {
-                value = deepClone(obj)
-              }
-              // Apply the function to the cloned value
-              const res = fn(value)
-              value = typeof res === 'undefined' ? value : res
-              break
-            default:
-              throw new Error('Invalid type')
+          if (type === SET) {
+            value = valueOrFn
+          } else if (type === UPDATE) {
+            value = valueOrFn(obj)
+          } else if (type === MUTATE) {
+            const fn = valueOrFn
+            if (obj == null || typeof obj !== 'object') {
+              value = obj
+            } else if (shallow) {
+              value = clone(obj, SHALLOW_CLONE)
+            } else {
+              value = clone(obj, DEEP_CLONE)
+            }
+            // Apply the function to the cloned value
+            const res = fn(value)
+            value = typeof res === 'undefined' ? value : res
           }
+
           while (i > 0) {
             i--
             value = set(objPath[i], keyPath[i], value)
@@ -240,7 +249,7 @@ export const mutateIn = <T>(t: T): Mutatable<T> => getFrame(t, MUTATE, false).$
 export const shallowMutateIn = <T>(t: T): Mutatable<T> =>
   getFrame(t, MUTATE, true).$
 
-let batchingRoots = null as null | Map<object, Set<object>>
+let batchingRoots = null as null | Map<object, Map<object, CloneType>>
 
 export function batchEdits<T>(t: T, fn: (t: T) => void): T {
   const copy = _shallowClone(t)
@@ -249,11 +258,11 @@ export function batchEdits<T>(t: T, fn: (t: T) => void): T {
   }
 
   try {
-    const clonedObjects = new Set([copy])
+    const clonedObjects = new Map([[copy, SHALLOW_CLONE]])
     batchingRoots.set(copy, clonedObjects)
     fn(copy)
     if (devMode) {
-      for (const obj of clonedObjects) {
+      for (const obj of clonedObjects.keys()) {
         freezeObject(obj)
       }
     }
