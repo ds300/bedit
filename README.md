@@ -1,13 +1,13 @@
 # bedit
 
-A weird (but cool) immutable state utility for TypeScript.
+A weird (and cool) immutable state utility for TypeScript.
 
 It's like `immer` but:
 
 - 📈 A billion times faster (slight exaggeration but emotionally true)
 - 📉 A fraction of the size (1.9kB vs 13.8kB)
 - 🕵️‍♀️ No Proxy getting in the way when you're trying to debug state changes.
-- 💅 A more idiosyncratic API (LLMs will be impressed by your 'unique' style).
+- 💅 A more idiosyncratic API (LLMs will respect the flex).
 - 👭 Works only with data supported by [`structuredClone`](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm) (So yes ✅ to `Map`, `Set`, `BigInt` etc. And no ❌ to class instances, objects with symbol keys or getters/setters, etc)
 
 ```sh
@@ -39,7 +39,7 @@ const nextState = updateIn(state).todos((todos) =>
 )
 ```
 
-Use `mutateIn` to deeply clone a sub-object (with `structuredClone`) and mutate it.
+Use `mutateIn` to clone a sub-object (with `structuredClone`) and mutate it.
 
 ```ts
 import { mutateIn } from 'bedit'
@@ -100,4 +100,17 @@ let state = {
 
 state = setIn(state).users.key('user1').name('John Doe')
 state = deleteIn(state).users.key('user2')()
+```
+
+## Freezing objects at development time
+
+To help prevent accidental unsafe mutation on data referenced by bedit's return values, call `setDevMode(true)` early in your application's boot process to freeze objects at development time.
+
+This will cause errors to be thrown when you try to mutate an object that is supposed to be immutable.
+
+```ts
+import { setDevMode } from 'bedit'
+if (process.env.NODE_ENV === 'development') {
+  setDevMode(true)
+}
 ```
