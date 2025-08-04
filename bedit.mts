@@ -14,7 +14,7 @@ export type DeepMutable<T> =
     : T extends ReadonlyMap<infer K, infer V>
       ? Map<K, DeepMutable<V>>
       : T extends ReadonlySet<infer U>
-        ? Set<DeepMutable<U>>
+        ? Set<U>
         : T extends object
           ? { -readonly [K in keyof T]: DeepMutable<T[K]> }
           : T
@@ -80,7 +80,8 @@ type ShallowMutatable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
 
 type Deletable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
   ? { key: (k: K) => Deletable<V, Root> }
-  : {
+  : T extends ReadonlySet<infer V>
+  ? { key: (k: V) => () => Root } : {
       [k in keyof T]: T[k] extends object ? Deletable<T[k], Root> : () => Root
     }) &
   (() => Root)
@@ -260,7 +261,7 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
     if (value === DELETE_VALUE) {
       if (Array.isArray(cloned)) {
         cloned.splice(Number(key), 1)
-      } else if (cloned instanceof Map) {
+      } else if (cloned instanceof Map || cloned instanceof Set) {
         cloned.delete(key)
       } else {
         delete cloned[key]

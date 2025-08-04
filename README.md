@@ -73,7 +73,8 @@ Use `deleteIn` to immutably delete properties from objects or remove elements fr
 import { deleteIn } from 'bedit'
 // For arrays, it uses .splice(index, 1) instead of the `delete` operator,
 // to avoid leaving a hole in the array.
-const nextState = deleteIn(state).todos[0]()
+const nextState = deleteIn({ nums: [1, 2, 3] }).nums[1]()
+// => { nums: [1, 3] }
 ```
 
 Use `batchEdits` to keep allocations minimal across multiple updates.
@@ -98,7 +99,7 @@ const nextState = batchEdits(state, (draft) => {
 
 ## Maps
 
-Use `map.key(k)` instead of `map[k]` to update/delete a `Map` value.
+Use `.key(k)` to modify values inside a `Map`.
 
 ```ts
 let state = {
@@ -110,6 +111,30 @@ let state = {
 
 state = setIn(state).users.key('user1').name('John Doe')
 state = deleteIn(state).users.key('user2')()
+```
+
+If you only need to add or remove entries `mutateIn` works well too.
+
+```ts
+state = mutateIn(state).users((users) => {
+  users.set('user3', { name: 'Billy Bob', age: 30 })
+  users.delete('user2')
+})
+```
+
+## Sets
+
+Use `mutateIn` to add/remove `Set` elements.
+
+```ts
+let state = {
+  users: new Set(['user1', 'user2']),
+}
+
+state = mutateIn(state).users((users) => {
+  users.add('user3')
+  users.delete('user2')
+})
 ```
 
 ## Freezing objects at development time
