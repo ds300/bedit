@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Benchmark Results - Bedit vs Immer vs Mutative</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+        background: #fafafa;
+        color: #333;
+        line-height: 1.6;
+        margin: 0;
+        padding: 0;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 40px 20px;
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: 60px;
+        border-bottom: 1px solid #e0e0e0;
+        padding-bottom: 40px;
+      }
+
+      .header h1 {
+        font-size: 2rem;
+        font-weight: 400;
+        margin: 0 0 8px 0;
+        letter-spacing: -0.5px;
+      }
+
+      .header p {
+        font-size: 0.9rem;
+        color: #666;
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      .content {
+        margin-top: 40px;
+      }
+
+      .chart-container {
+        background: white;
+        border: 1px solid #e0e0e0;
+        margin-bottom: 40px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      }
+
+      .chart-title {
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: #666;
+        margin: 0;
+        padding: 24px 24px 16px 24px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid #f0f0f0;
+      }
+
+      .chart-wrapper {
+        position: relative;
+        height: 300px;
+        padding: 20px 24px 24px 24px;
+      }
+
+      .loading {
+        text-align: center;
+        padding: 60px 20px;
+        font-size: 0.9rem;
+        color: #999;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      .error {
+        background: #fff5f5;
+        color: #c53030;
+        padding: 16px 20px;
+        margin: 20px 0;
+        border: 1px solid #fed7d7;
+        font-size: 0.85rem;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-top: 40px;
+        padding-top: 40px;
+        border-top: 1px solid #e0e0e0;
+      }
+
+      .stat-card {
+        background: white;
+        border: 1px solid #e0e0e0;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      }
+
+      .stat-number {
+        font-size: 1.5rem;
+        font-weight: 500;
+        margin-bottom: 4px;
+        color: #333;
+      }
+
+      .stat-label {
+        font-size: 0.75rem;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      @media (max-width: 768px) {
+        .container {
+          padding: 20px 16px;
+        }
+
+        .header {
+          margin-bottom: 40px;
+          padding-bottom: 30px;
+        }
+
+        .header h1 {
+          font-size: 1.5rem;
+        }
+
+        .chart-wrapper {
+          height: 250px;
+          padding: 16px 20px 20px 20px;
+        }
+
+        .stats {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🚀 Benchmark Results</h1>
+        <p>Bedit vs Immer vs Mutative Performance Comparison</p>
+      </div>
+
+      <div class="content">
+        <div id="loading" class="loading">Loading benchmark data...</div>
+
+        <div id="error" class="error" style="display: none">
+          Error loading benchmark data. Please make sure results.json is in the
+          same directory.
+        </div>
+
+        <div id="charts"></div>
+
+        <div id="stats" class="stats" style="display: none">
+          <div class="stat-card">
+            <div class="stat-number" id="total-tests">0</div>
+            <div class="stat-label">Total Test Groups</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" id="total-benchmarks">0</div>
+            <div class="stat-label">Total Benchmarks</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number" id="avg-performance">0</div>
+            <div class="stat-label">Avg Ops/sec (Bedit)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Color scheme for different libraries
+      const colors = {
+        'bedit – setIn': '#2563eb',
+        'bedit - mutateIn': '#1d4ed8',
+        'bedit - batchEdits': '#1e40af',
+        immer: '#dc2626',
+        mutative: '#059669',
+      }
+
+      // Format large numbers for better readability
+      function formatNumber(num) {
+        if (num >= 1000000) {
+          return (num / 1000000).toFixed(1) + 'M'
+        } else if (num >= 1000) {
+          return (num / 1000).toFixed(1) + 'K'
+        }
+        return num.toFixed(0)
+      }
+
+      // Load and process the benchmark data
+      async function loadBenchmarkData() {
+        try {
+          const response = await fetch('results.json')
+          if (!response.ok) {
+            throw new Error('Failed to load results.json')
+          }
+
+          const data = await response.json()
+          return data
+        } catch (error) {
+          console.error('Error loading data:', error)
+          document.getElementById('loading').style.display = 'none'
+          document.getElementById('error').style.display = 'block'
+          return null
+        }
+      }
+
+      // Create a chart for a specific group
+      function createChart(group, containerId) {
+        const ctx = document.getElementById(containerId).getContext('2d')
+
+        const datasets = group.benchmarks.map((benchmark) => ({
+          label: benchmark.name,
+          data: [benchmark.hz],
+          backgroundColor: colors[benchmark.name] || '#999',
+          borderColor: colors[benchmark.name] || '#999',
+          borderWidth: 2,
+          borderRadius: 0,
+          borderSkipped: false,
+        }))
+
+        return new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: [group.fullName.replace('test/bench.bench.ts > ', '')],
+            datasets: datasets,
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: true,
+                position: 'top',
+                labels: {
+                  usePointStyle: true,
+                  padding: 16,
+                  font: {
+                    size: 11,
+                    family:
+                      "'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace",
+                    weight: '500',
+                  },
+                },
+              },
+              tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                borderColor: '#fff',
+                borderWidth: 1,
+                cornerRadius: 8,
+                callbacks: {
+                  label: function (context) {
+                    return (
+                      context.dataset.label +
+                      ': ' +
+                      formatNumber(context.parsed.y) +
+                      ' ops/sec'
+                    )
+                  },
+                },
+              },
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                grid: {
+                  color: '#f0f0f0',
+                  drawBorder: false,
+                },
+                ticks: {
+                  callback: function (value) {
+                    return formatNumber(value)
+                  },
+                  color: '#666',
+                  font: {
+                    size: 11,
+                    family:
+                      "'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace",
+                  },
+                },
+              },
+              x: {
+                grid: {
+                  display: false,
+                },
+                ticks: {
+                  color: '#666',
+                  font: {
+                    size: 11,
+                    family:
+                      "'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace",
+                  },
+                },
+              },
+            },
+            animation: {
+              duration: 1000,
+              easing: 'easeInOutQuart',
+            },
+          },
+        })
+      }
+
+      // Main function to render all charts
+      async function renderCharts() {
+        const data = await loadBenchmarkData()
+        if (!data) return
+
+        const chartsContainer = document.getElementById('charts')
+        const loading = document.getElementById('loading')
+        const stats = document.getElementById('stats')
+
+        loading.style.display = 'none'
+        stats.style.display = 'grid'
+
+        let totalBenchmarks = 0
+        let beditTotalHz = 0
+        let beditCount = 0
+
+        // Calculate normalized scores for each test scenario
+        const testNormalizations = []
+
+        // First pass: normalize each test scenario individually
+        data.files[0].groups.forEach((group) => {
+          const testResults = {}
+
+          // Collect results for this test
+          group.benchmarks.forEach((benchmark) => {
+            const libName = benchmark.name.includes('bedit')
+              ? 'bedit'
+              : benchmark.name.includes('immer')
+                ? 'immer'
+                : benchmark.name.includes('mutative')
+                  ? 'mutative'
+                  : 'unknown'
+            testResults[libName] = benchmark.hz
+          })
+
+          // Find the fastest in this test
+          const fastestInTest = Math.max(...Object.values(testResults))
+
+          // Normalize each library's performance in this test
+          const normalizedTestResults = {}
+          Object.keys(testResults).forEach((libName) => {
+            normalizedTestResults[libName] =
+              (testResults[libName] / fastestInTest) * 100
+          })
+
+          testNormalizations.push(normalizedTestResults)
+        })
+
+        // Second pass: calculate average normalized scores across all tests
+        const normalizedScores = {}
+
+        // Initialize scores
+        testNormalizations.forEach((testResult) => {
+          Object.keys(testResult).forEach((libName) => {
+            if (!normalizedScores[libName]) {
+              normalizedScores[libName] = { total: 0, count: 0 }
+            }
+            normalizedScores[libName].total += testResult[libName]
+            normalizedScores[libName].count++
+          })
+        })
+
+        // Calculate final averages
+        Object.keys(normalizedScores).forEach((libName) => {
+          const stats = normalizedScores[libName]
+          normalizedScores[libName] = stats.total / stats.count
+        })
+
+        // Create overall performance chart
+        const overallChartContainer = document.createElement('div')
+        overallChartContainer.className = 'chart-container'
+        overallChartContainer.innerHTML = `
+          <div class="chart-title">NORMALIZED RELATIVE PERFORMANCE (Higher is better)</div>
+          <div class="chart-wrapper">
+            <canvas id="overall-chart"></canvas>
+          </div>
+        `
+        chartsContainer.appendChild(overallChartContainer)
+
+        // Create overall chart
+        const overallCtx = document
+          .getElementById('overall-chart')
+          .getContext('2d')
+        const overallDatasets = Object.keys(normalizedScores).map(
+          (libName) => ({
+            label: libName,
+            data: [normalizedScores[libName]],
+            backgroundColor:
+              colors[`${libName} – setIn`] ||
+              colors[`${libName} - mutateIn`] ||
+              colors[libName] ||
+              '#999',
+            borderColor:
+              colors[`${libName} – setIn`] ||
+              colors[`${libName} - mutateIn`] ||
+              colors[libName] ||
+              '#999',
+            borderWidth: 2,
+            borderRadius: 0,
+            borderSkipped: false,
+          }),
+        )
+
+        new Chart(overallCtx, {
+          type: 'bar',
+          data: {
+            labels: ['Overall Performance'],
+            datasets: overallDatasets,
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: true,
+                position: 'top',
+                labels: {
+                  usePointStyle: true,
+                  padding: 16,
+                  font: {
+                    size: 11,
+                    family:
+                      "'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace",
+                    weight: '500',
+                  },
+                },
+              },
+              tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                borderColor: '#fff',
+                borderWidth: 1,
+                cornerRadius: 8,
+                callbacks: {
+                  label: function (context) {
+                    const libName = context.dataset.label
+                    const stats = libraryStats[libName]
+                    const avgHz = stats.total / stats.count
+                    return `${libName}: ${formatNumber(avgHz)} ops/sec avg (${context.parsed.y.toFixed(1)}% of fastest)`
+                  },
+                },
+              },
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                max:
+                  Math.ceil(Math.max(...Object.values(normalizedScores)) / 10) *
+                  10,
+                grid: {
+                  color: '#f0f0f0',
+                  drawBorder: false,
+                },
+                ticks: {
+                  callback: function (value) {
+                    return value + '%'
+                  },
+                  color: '#666',
+                  font: {
+                    size: 11,
+                    family:
+                      "'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace",
+                  },
+                },
+              },
+              x: {
+                grid: {
+                  display: false,
+                },
+                ticks: {
+                  color: '#666',
+                  font: {
+                    size: 11,
+                    family:
+                      "'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace",
+                  },
+                },
+              },
+            },
+            animation: {
+              duration: 1000,
+              easing: 'easeInOutQuart',
+            },
+          },
+        })
+
+        // Process each group
+        data.files[0].groups.forEach((group, index) => {
+          const chartId = `chart-${index}`
+
+          // Create chart container
+          const chartContainer = document.createElement('div')
+          chartContainer.className = 'chart-container'
+          chartContainer.innerHTML = `
+                    <div class="chart-title">${group.fullName.replace('test/bench.bench.ts > ', '')}</div>
+                    <div class="chart-wrapper">
+                        <canvas id="${chartId}"></canvas>
+                    </div>
+                `
+
+          chartsContainer.appendChild(chartContainer)
+
+          // Create the chart
+          createChart(group, chartId)
+
+          // Update stats
+          totalBenchmarks += group.benchmarks.length
+          group.benchmarks.forEach((benchmark) => {
+            if (benchmark.name.includes('bedit')) {
+              beditTotalHz += benchmark.hz
+              beditCount++
+            }
+          })
+        })
+
+        // Update statistics
+        document.getElementById('total-tests').textContent =
+          data.files[0].groups.length
+        document.getElementById('total-benchmarks').textContent =
+          totalBenchmarks
+        document.getElementById('avg-performance').textContent = formatNumber(
+          beditCount > 0 ? beditTotalHz / beditCount : 0,
+        )
+      }
+
+      // Initialize the page
+      document.addEventListener('DOMContentLoaded', renderCharts)
+    </script>
+  </body>
+</html>

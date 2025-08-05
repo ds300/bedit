@@ -113,7 +113,7 @@ state = setIn(state).users.key('user1').name('John Doe')
 state = deleteIn(state).users.key('user2')()
 ```
 
-If you only need to add or remove entries `mutateIn` works well too.
+`mutateIn` works well for adding and removing entries.
 
 ```ts
 state = mutateIn(state).users((users) => {

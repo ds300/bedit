@@ -25,7 +25,9 @@
     "size:immer": "esbuild node_modules/immer/dist/immer.mjs --bundle --minify | wc -c",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "bench": "node --expose-gc ./node_modules/.bin/vitest run --reporter=verbose bench.test.ts"
+    "bench": "vitest bench --run --outputJson bench/results.json",
+    "benchmark": "tsx test/benchmark.ts",
+    "benchmark:comprehensive": "tsx test/benchmark-comprehensive.ts"
   },
   "repository": {
     "type": "git",
@@ -47,6 +49,7 @@
     "mutative": "^1.0.0",
     "preprocess": "^3.2.0",
     "prettier": "^3.6.2",
+    "tsx": "^4.20.3",
     "typescript": "^5.9.2",
     "vitest": "^1.6.1"
   }
