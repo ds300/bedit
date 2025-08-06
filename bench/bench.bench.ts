@@ -1,5 +1,5 @@
 import { describe, bench, expect, test, afterEach } from 'vitest'
-import { mutate, mutateIn, setIn } from '../bedit.production.mts'
+import { bedit, mutateIn, setIn } from '../bedit.production.mts'
 import {
   produce,
   enableMapSet,
@@ -299,7 +299,7 @@ describe('marking four todos as completed and changing the filter', () => {
   })
 
   bench('bedit – setIn', () => {
-    result = mutate(data, (data) => {
+    result = bedit(data, (data) => {
       setIn(data).todos[0].completed(true)
       setIn(data).todos[1].completed(true)
       setIn(data).todos[2].completed(true)
@@ -309,7 +309,7 @@ describe('marking four todos as completed and changing the filter', () => {
   })
 
   bench('bedit - mutateIn', () => {
-    result = mutate(data, (data) => {
+    result = bedit(data, (data) => {
       mutateIn(data).todos[0]((draft) => {
         draft.completed = true
       })
@@ -548,8 +548,8 @@ describe('complex nested structure with Maps and Sets using mutate', () => {
     )
   })
 
-  bench('bedit - mutate', () => {
-    result = mutate(data, (draft) => {
+  bench('bedit', () => {
+    result = bedit(data, (draft) => {
       // Update user1's name
       setIn(draft).users.key('user1').name('John Doe')
       // Add a new tag to user1

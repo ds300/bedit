@@ -17,57 +17,52 @@ npm install bedit
 
 ## Usage
 
-Use `setIn` to deeply assign values within nested objects and arrays.
+The `bedit` function creates a shallow clone of the input, and passes it to a callback.
 
 ```ts
-import { setIn } from 'bedit'
+import { bedit, setIn, updateIn, mutateIn } from 'bedit'
+
 const state = {
   user: { name: 'Nick Cave', preferences: { theme: 'dark' } },
   todos: [
+    { id: '0', title: 'Go fishing', completed: false },
     { id: '1', title: 'Buy milk', completed: true },
     { id: '2', title: 'Write a song', completed: false },
   ],
   filter: 'all',
 }
-const nextState = setIn(state).todos[1].completed(true)
-```
 
-Use `updateIn` to get the previous value and return a new version.
+const nextState = bedit(state, (draft) => {
+  // You can mutate the top level draft object safely
+  draft.filter = 'completed'
 
-```ts
-import { updateIn } from 'bedit'
-const nextState = updateIn(state).todos((todos) =>
-  todos.filter((todo) => !todo.completed),
-)
-```
+  // The draft is a regular ass JS object
+  console.log(draft.todos[0])
 
-Use `mutateIn` to edit a shallow clone of a subtree.
-
-```ts
-import { mutateIn } from 'bedit'
-const nextState = mutateIn(state).user((user) => {
-  user.name = 'Nicholas Cage'
   // TypeScript will prevent you from making deep edits.
   // ❌ Type error: `theme` is readonly
-  user.preferences.theme = 'light'
+  draft.user.preferences.theme = 'light'
+
+  // Instead, call setIn on the draft object to assign deeply.
+  setIn(draft).user.preferences.theme('light')
+  setIn(draft).todos[2].completed(true)
+
+  // You can use updateIn to get the previous value and return a new version.
+  updateIn(draft).todos((todos) => todos.filter((todo) => !todo.completed))
+
+  // You can use mutateIn to edit a shallow clone of a subtree.
+  mutateIn(draft).todos[0]((todo) => {
+    todo.title = 'Do the dishes'
+    todo.completed = false
+  })
 })
 ```
 
-If you need to make edits at multiple depths, bedit functions work inside of a `mutateIn` block.
+You don't need to use `bedit` if you only need to make one edit at a time. `setIn` and friends return the new state if called on their own.
 
 ```ts
-import { mutateIn } from 'bedit'
-const nextState = mutateIn(state).user((user) => {
-  user.name = 'Nicholas Cage'
-  // Calling bedit functions on the root `user` mutable object means you
-  // don't need to reassign the result.
-  setIn(user).preferences.theme('light')
-})
+const nextState2 = setIn(state).user.name('Nicholas Cage')
 ```
-
-> [!NOTE]
-> bedit will reuse already-cloned objects in a `mutateIn` block.
-> Minimal allocations means maximum speed 🏎️💨
 
 bedit includes a few other functions for deleting things and suchlike. See [the full API](#api)
 
@@ -76,14 +71,14 @@ bedit includes a few other functions for deleting things and suchlike. See [the 
 Use `.key(k)` to modify values inside a `Map`.
 
 ```ts
-let state = {
+const state = {
   users: new Map([
     ['user1', { name: 'John', age: 30 }],
     ['user2', { name: 'Jane', age: 25 }],
   ]),
 }
 
-state = setIn(state).users.key('user1').name('John Doe')
+const nextState = setIn(state).users.key('user1').name('John Doe')
 ```
 
 ## Freezing objects at development time

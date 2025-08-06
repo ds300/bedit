@@ -662,7 +662,7 @@ export const mutateIn = <T,>(t: T): ShallowMutatable<T> =>
  * const user = { name: 'John', age: 30, profile: { city: 'NYC' } }
  *
  * // Multiple mutations in a single batch
- * const newUser = mutate(user, (user) => {
+ * const newUser = bedit(user, (user) => {
  *   user.name = 'Jane'
  *   user.age = 31
  *   user.profile.city = 'LA'
@@ -673,7 +673,7 @@ export const mutateIn = <T,>(t: T): ShallowMutatable<T> =>
  *
  * // Complex batch operations
  * const state = { users: [{ name: 'John' }, { name: 'Jane' }] }
- * const newState = mutate(state, (state) => {
+ * const newState = bedit(state, (state) => {
  *   // Add a new user
  *   state.users.push({ name: 'Bob' })
  *
@@ -688,7 +688,7 @@ export const mutateIn = <T,>(t: T): ShallowMutatable<T> =>
  *
  * // Maps with batch edits
  * const config = new Map([['theme', 'dark'], ['debug', false]])
- * const newConfig = mutate(config, (config) => {
+ * const newConfig = bedit(config, (config) => {
  *   config.set('theme', 'light')
  *   config.set('debug', true)
  *   config.set('version', '1.0.0')
@@ -696,7 +696,7 @@ export const mutateIn = <T,>(t: T): ShallowMutatable<T> =>
  *
  * // Arrays with batch edits
  * const numbers = [1, 2, 3, 4, 5]
- * const newNumbers = mutate(numbers, (numbers) => {
+ * const newNumbers = bedit(numbers, (numbers) => {
  *   numbers.push(6, 7, 8)
  *   numbers[0] = 0
  *   numbers.splice(2, 1) // Remove element at index 2
@@ -710,14 +710,14 @@ export const mutateIn = <T,>(t: T): ShallowMutatable<T> =>
  * const user3 = setIn(user2).profile.city('LA')
  *
  * // More efficient: single copy with batch edits
- * const userBatch = mutate(user, (user) => {
+ * const userBatch = bedit(user, (user) => {
  *   user.name = 'Jane'
  *   user.age = 31
  *   user.profile.city = 'LA'
  * })
  * ```
  */
-export function mutate<T>(t: T, fn: (t: ShallowMutable<T>) => void): T {
+export function bedit<T>(t: T, fn: (t: ShallowMutable<T>) => void): T {
   return mutateIn(t)(fn)
 }
 
