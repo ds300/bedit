@@ -285,7 +285,12 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
     p: parent,
     r: (root: any, _type: FrameType, _shallow: boolean) => {
       type = _type
-      clonedObjects = batchingRoots?.get(root) ?? null
+      if (root && batchStack?.r === root) {
+        if (batchStack!.s == null) {
+          batchStack!.s = new Map([[root, SHALLOW_CLONE]])
+        }
+        clonedObjects = batchStack!.s
+      }
       shallow = _shallow
       obj = root
     },
@@ -338,9 +343,21 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
             } else {
               value = clone(obj, DEEP_CLONE)
             }
+            batchStack = getBatchStack(batchStack, value, null)
             // Apply the function to the cloned value
-            const res = fn(value)
-            value = typeof res === 'undefined' ? value : res
+            try {
+              const res = fn(value)
+              value = typeof res === 'undefined' ? value : res
+              // @ifndef PRODUCTION
+              if (devMode && batchStack.s != null) {
+                for (const obj of batchStack.s.keys()) {
+                  freezeObject(obj)
+                }
+              }
+              // @endif
+            } finally {
+              releaseBatchStack(batchStack)
+            }
           }
           // @ifndef PRODUCTION
           if (devMode && !clonedObjects) {
@@ -381,7 +398,36 @@ function getFrame(root: any, type: FrameType, shallow?: boolean): Frame {
   ret.r(root, type, !!shallow)
   return ret
 }
-let batchingRoots = null as null | Map<object, Map<object, CloneType>>
+
+type BatchStack = {
+  r: any
+  p: BatchStack | null
+  s: Map<any, CloneType> | null
+}
+let _batchStackPool: BatchStack | null = null
+let batchStack: BatchStack | null = null
+function getBatchStack(
+  p: BatchStack | null,
+  r: any,
+  s: Map<any, CloneType> | null,
+): BatchStack {
+  if (_batchStackPool == null) {
+    return { p, r, s }
+  }
+  const ret = _batchStackPool
+  _batchStackPool = ret.p
+  ret.p = p
+  ret.r = r
+  ret.s = s
+  return ret
+}
+function releaseBatchStack(bs: BatchStack) {
+  batchStack = bs.p
+  bs.p = _batchStackPool
+  _batchStackPool = bs
+  bs.r = null
+  bs.s = null
+}
 
 /**
  * Allows immutably setting properties at any depth in a value.
@@ -588,7 +634,7 @@ export const mutateIn = <T,>(t: T): ShallowMutatable<T> =>
  * const user = { name: 'John', age: 30, profile: { city: 'NYC' } }
  *
  * // Multiple mutations in a single batch
- * const newUser = batchEdits(user, (user) => {
+ * const newUser = mutate(user, (user) => {
  *   user.name = 'Jane'
  *   user.age = 31
  *   user.profile.city = 'LA'
@@ -599,7 +645,7 @@ export const mutateIn = <T,>(t: T): ShallowMutatable<T> =>
  *
  * // Complex batch operations
  * const state = { users: [{ name: 'John' }, { name: 'Jane' }] }
- * const newState = batchEdits(state, (state) => {
+ * const newState = mutate(state, (state) => {
  *   // Add a new user
  *   state.users.push({ name: 'Bob' })
  *
@@ -614,7 +660,7 @@ export const mutateIn = <T,>(t: T): ShallowMutatable<T> =>
  *
  * // Maps with batch edits
  * const config = new Map([['theme', 'dark'], ['debug', false]])
- * const newConfig = batchEdits(config, (config) => {
+ * const newConfig = mutate(config, (config) => {
  *   config.set('theme', 'light')
  *   config.set('debug', true)
  *   config.set('version', '1.0.0')
@@ -622,7 +668,7 @@ export const mutateIn = <T,>(t: T): ShallowMutatable<T> =>
  *
  * // Arrays with batch edits
  * const numbers = [1, 2, 3, 4, 5]
- * const newNumbers = batchEdits(numbers, (numbers) => {
+ * const newNumbers = mutate(numbers, (numbers) => {
  *   numbers.push(6, 7, 8)
  *   numbers[0] = 0
  *   numbers.splice(2, 1) // Remove element at index 2
@@ -636,33 +682,13 @@ export const mutateIn = <T,>(t: T): ShallowMutatable<T> =>
  * const user3 = setIn(user2).profile.city('LA')
  *
  * // More efficient: single copy with batch edits
- * const userBatch = batchEdits(user, (user) => {
+ * const userBatch = mutate(user, (user) => {
  *   user.name = 'Jane'
  *   user.age = 31
  *   user.profile.city = 'LA'
  * })
  * ```
  */
-export function batchEdits<T>(t: T, fn: (t: ShallowMutable<T>) => void): T {
-  const copy = _shallowClone(t)
-  if (batchingRoots == null) {
-    batchingRoots = new Map()
-  }
-
-  try {
-    const clonedObjects = new Map([[copy, SHALLOW_CLONE]])
-    batchingRoots.set(copy, clonedObjects)
-    fn(copy)
-    // @ifndef PRODUCTION
-    if (devMode) {
-      for (const obj of clonedObjects.keys()) {
-        freezeObject(obj)
-      }
-    }
-    // @endif
-  } finally {
-    batchingRoots.delete(copy)
-  }
-
-  return copy
+export function mutate<T>(t: T, fn: (t: ShallowMutable<T>) => void): T {
+  return mutateIn(t)(fn)
 }

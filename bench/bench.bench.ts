@@ -1,5 +1,5 @@
 import { describe, bench, expect, test, afterEach } from 'vitest'
-import { batchEdits, mutateIn, setIn } from '../bedit.production.mts'
+import { mutate, mutateIn, setIn } from '../bedit.production.mts'
 import {
   produce,
   enableMapSet,
@@ -299,7 +299,7 @@ describe('marking four todos as completed and changing the filter', () => {
   })
 
   bench('bedit – setIn', () => {
-    result = batchEdits(data, (data) => {
+    result = mutate(data, (data) => {
       setIn(data).todos[0].completed(true)
       setIn(data).todos[1].completed(true)
       setIn(data).todos[2].completed(true)
@@ -309,7 +309,7 @@ describe('marking four todos as completed and changing the filter', () => {
   })
 
   bench('bedit - mutateIn', () => {
-    result = batchEdits(data, (data) => {
+    result = mutate(data, (data) => {
       mutateIn(data).todos[0]((draft) => {
         draft.completed = true
       })
@@ -478,7 +478,7 @@ describe('shallow Set clone with 10,000 elements', () => {
   })
 })
 
-describe('complex nested structure with Maps and Sets using batchEdits', () => {
+describe('complex nested structure with Maps and Sets using mutate', () => {
   const data = {
     users: new Map([
       [
@@ -548,8 +548,8 @@ describe('complex nested structure with Maps and Sets using batchEdits', () => {
     )
   })
 
-  bench('bedit - batchEdits', () => {
-    result = batchEdits(data, (draft) => {
+  bench('bedit - mutate', () => {
+    result = mutate(data, (draft) => {
       // Update user1's name
       setIn(draft).users.key('user1').name('John Doe')
       // Add a new tag to user1

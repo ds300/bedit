@@ -7,15 +7,9 @@ import {
   createUserArray,
   createDeepNested,
 } from './test-utils'
-import {
-  batchEdits,
-  setIn,
-  updateIn,
-  mutateIn,
-  deepMutateIn,
-} from '../bedit.mts'
+import { mutate, setIn, updateIn, mutateIn, deepMutateIn } from '../bedit.mts'
 
-describe('batchEdits', () => {
+describe('mutate', () => {
   it('should batch multiple set operations', () => {
     const obj = createSimpleUser()
     const backup = structuredClone(obj)
@@ -23,7 +17,7 @@ describe('batchEdits', () => {
     mutable.name = 'Jane'
     mutable.age = 25
 
-    const result = batchEdits(obj, (draft) => {
+    const result = mutate(obj, (draft) => {
       draft.name = 'Jane'
       draft.age = 25
     })
@@ -40,7 +34,7 @@ describe('batchEdits', () => {
     mutable.users = mutable.users.filter((u) => u.age > 25)
     mutable.users[0].age += 5
 
-    const result = batchEdits(obj, (draft) => {
+    const result = mutate(obj, (draft) => {
       setIn(draft).users[0].name('Johnny')
       setIn(draft).users(draft.users.filter((u) => u.age > 25))
       updateIn(draft).users[0].age((age) => age + 5)
@@ -58,7 +52,7 @@ describe('batchEdits', () => {
     mutable.user.profile.age = 25
     mutable.user.profile.age += 5
 
-    const result = batchEdits(obj, (draft) => {
+    const result = mutate(obj, (draft) => {
       setIn(draft).user.profile.name('Jane')
       setIn(draft).user.profile.age(25)
       updateIn(draft).user.profile.age((age) => age + 5)
@@ -76,7 +70,7 @@ describe('batchEdits', () => {
     mutable.users[1].age = 26
     mutable.users.push({ name: 'Bob', age: 40 })
 
-    const result = batchEdits(obj, (draft) => {
+    const result = mutate(obj, (draft) => {
       setIn(draft).users[0].name('Johnny')
       setIn(draft).users[1].age(26)
       updateIn(draft).users((users) => [...users, { name: 'Bob', age: 40 }])
@@ -93,7 +87,7 @@ describe('batchEdits', () => {
     mutable.a.b.c.d.e.f.g.h.i.j = 'new value'
     ;(mutable.a.b.c.d.e.f.g.h.i as any).k = 'another value'
 
-    const result = batchEdits(obj, (draft) => {
+    const result = mutate(obj, (draft) => {
       setIn(draft).a.b.c.d.e.f.g.h.i.j('new value')
       ;(setIn(draft).a.b.c.d.e.f.g.h.i as any).k('another value')
     })
@@ -114,7 +108,7 @@ describe('batchEdits', () => {
     mutable.config.set('theme', { color: 'light' })
     mutable.config.get('debug')!.enabled = true
 
-    const result = batchEdits(obj, (draft) => {
+    const result = mutate(obj, (draft) => {
       mutateIn(draft).config((config) => {
         config.set('theme', { color: 'light' })
       })
@@ -148,7 +142,7 @@ describe('batchEdits', () => {
     mutable.data.config.set('debug', { color: 'light' })
     mutable.data.tags.add('typescript')
 
-    const result = batchEdits(obj, (draft) => {
+    const result = mutate(obj, (draft) => {
       setIn(draft).data.config.key('debug')({ color: 'light' })
       mutateIn(draft).data.tags((tags) => {
         tags.add('typescript')
@@ -172,7 +166,7 @@ describe('batchEdits', () => {
     const backup = structuredClone(obj)
     const mutable = structuredClone(obj)
 
-    const result = batchEdits(obj, (draft) => {
+    const result = mutate(obj, (draft) => {
       // No operations
     })
 
@@ -187,7 +181,7 @@ describe('batchEdits', () => {
     mutable.users.push({ name: 'Bob', age: 40 })
     ;(mutable as any).filter = 'all'
 
-    const result = batchEdits(obj, (draft) => {
+    const result = mutate(obj, (draft) => {
       updateIn(draft).users((users) => [...users, { name: 'Bob', age: 40 }])
       ;(setIn(draft) as any).filter('all')
     })
@@ -212,7 +206,7 @@ describe('batchEdits', () => {
     let profileRef: any = null
     let settingsRef: any = null
 
-    const result = batchEdits(obj, (obj) => {
+    const result = mutate(obj, (obj) => {
       // First modification - should clone
       setIn(obj).user.profile.name('Jane')
       profileRef = obj.user.profile
@@ -261,7 +255,7 @@ describe('batchEdits', () => {
 
     let usersRef: any = null
 
-    const result = batchEdits(obj, (obj) => {
+    const result = mutate(obj, (obj) => {
       // First modification - should clone
       setIn(obj).users[0].name('Johnny')
       usersRef = obj.users
@@ -302,7 +296,7 @@ describe('batchEdits', () => {
 
     let profileRef: any = null
 
-    const result = batchEdits(obj, (draft) => {
+    const result = mutate(obj, (draft) => {
       // Direct mutation first
       setIn(draft).user.profile.name('Jane')
       profileRef = draft.user.profile
@@ -355,7 +349,7 @@ describe('batchEdits', () => {
 
     let deepRef: any = null
 
-    const result = batchEdits(obj, (draft) => {
+    const result = mutate(obj, (draft) => {
       // First modification - should clone the path
       setIn(draft).a.b.c.d.e.f.g.h.i.j('new value')
       deepRef = draft.a.b.c.d.e.f.g.h.i
@@ -405,7 +399,7 @@ describe('batchEdits', () => {
       },
     }
 
-    const result = batchEdits(obj, (draft) => {
+    const result = mutate(obj, (draft) => {
       setIn(draft).a.foo('baz')
       let shallowA = draft.a
       expect(draft.a.b).toBe(obj.a.b)
@@ -449,7 +443,7 @@ describe('batchEdits', () => {
     mutable.foo.set('bar', 'qux')
     mutable.foo.set('new', 'value')
 
-    const result = batchEdits(obj, (draft) => {
+    const result = mutate(obj, (draft) => {
       setIn(draft).foo.key('bar')('qux')
       setIn(draft).foo.key('new')('value')
     })
@@ -471,7 +465,7 @@ describe('batchEdits', () => {
     user.age = 25
     mutable.data.get('users')!.set('user2', { name: 'Bob', age: 35 })
 
-    const result = batchEdits(obj, (draft) => {
+    const result = mutate(obj, (draft) => {
       setIn(draft).data.key('users').key('user1').name('Jane')
       setIn(draft).data.key('users').key('user1').age(25)
       setIn(draft).data.key('users').key('user2')({ name: 'Bob', age: 35 })
@@ -488,7 +482,7 @@ describe('batchEdits', () => {
     mutable[0].bar.set('foo', 'new')
     mutable[0].bar.set('extra', 'value')
 
-    const result = batchEdits(obj, (draft) => {
+    const result = mutate(obj, (draft) => {
       setIn(draft)[0].bar.key('foo')('new')
       setIn(draft)[0].bar.key('extra')('value')
     })
@@ -521,7 +515,7 @@ describe('batchEdits', () => {
       .get('features')!
       .set('feature2', { enabled: true, count: 1 })
 
-    const result = batchEdits(obj, (draft) => {
+    const result = mutate(obj, (draft) => {
       setIn(draft)
         .config.key('settings')
         .key('features')
@@ -548,7 +542,7 @@ describe('batchEdits', () => {
 
     let mapRef: any = null
 
-    const result = batchEdits(obj, (draft) => {
+    const result = mutate(obj, (draft) => {
       // First modification - should clone
       setIn(draft).foo.key('bar')('qux')
       mapRef = draft.foo

@@ -4,7 +4,7 @@ import {
   updateIn,
   deepMutateIn,
   mutateIn,
-  batchEdits,
+  mutate,
   setDevMode,
 } from '../bedit.mts'
 
@@ -70,10 +70,10 @@ describe('Dev Mode', () => {
     expect(result.a).toBe(3)
   })
 
-  test('should freeze objects after batchEdits when dev mode is enabled', () => {
+  test('should freeze objects after mutate when dev mode is enabled', () => {
     const obj = { a: 1, b: { c: 2 } }
 
-    const result = batchEdits(obj, (draft) => {
+    const result = mutate(obj, (draft) => {
       setIn(draft).a(3)
       setIn(draft).b.c(4)
     })
