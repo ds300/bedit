@@ -218,13 +218,13 @@ Add items to arrays and sets.
 import { addIn } from 'bedit'
 
 // Add to arrays (via .push())
-const newUsers = addIn({ users: [{ name: 'John' }, { name: 'Jane' }] })({
+const newUsers = addIn({ users: [{ name: 'John' }, { name: 'Jane' }] }).users({
   name: 'Bob',
 })
 // newUsers = [{ name: 'John' }, { name: 'Jane' }, { name: 'Bob' }]
 
 // Add to Sets
-const newTags = addIn({ tags: new Set(['admin', 'user']) })(
+const newTags = addIn({ tags: new Set(['admin', 'user']) }).tags(
   'moderator',
   'vip',
 )
