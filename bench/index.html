@@ -459,9 +459,8 @@
                 callbacks: {
                   label: function (context) {
                     const libName = context.dataset.label
-                    const stats = libraryStats[libName]
-                    const avgHz = stats.total / stats.count
-                    return `${libName}: ${formatNumber(avgHz)} ops/sec avg (${context.parsed.y.toFixed(1)}% of fastest)`
+                    const normalizedValue = context.parsed.y
+                    return `${libName}: ${normalizedValue.toFixed(1)}% of fastest`
                   },
                 },
               },

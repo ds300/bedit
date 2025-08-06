@@ -25,7 +25,7 @@
     "size:immer": "esbuild node_modules/immer/dist/immer.mjs --bundle --minify | wc -c",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "bench": "vitest bench --run --outputJson bench/results.json",
+    "bench": "npm run build && vitest bench --run --outputJson bench/results.json",
     "benchmark": "tsx test/benchmark.ts",
     "benchmark:comprehensive": "tsx test/benchmark-comprehensive.ts"
   },

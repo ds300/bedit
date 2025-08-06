@@ -81,9 +81,10 @@ type ShallowMutatable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
 type Deletable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
   ? { key: (k: K) => Deletable<V, Root> }
   : T extends ReadonlySet<infer V>
-  ? { key: (k: V) => () => Root } : {
-      [k in keyof T]: T[k] extends object ? Deletable<T[k], Root> : () => Root
-    }) &
+    ? { key: (k: V) => () => Root }
+    : {
+        [k in keyof T]: T[k] extends object ? Deletable<T[k], Root> : () => Root
+      }) &
   (() => Root)
 
 const SET = 0 as const

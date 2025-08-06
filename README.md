@@ -4,12 +4,10 @@ A weird (and cool) immutable state utility for TypeScript.
 
 It's like `immer` but:
 
-- 📈 A billion times faster (exaggeration but emotionally true)
-- 📉 Tiny (2kB minified)
 - 🕵️‍♀️ No Proxy instances getting in the way when you're trying to debug stuff.
-- 💅 An innovative and idiosyncratic API (your LLM agent will respect the flex).
-- 👭 Works only with data supported by [`structuredClone`](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm) (So yes ✅ to `Map`, `Set`, `BigInt` etc. And no ❌ to custom classes, objects with symbol keys or getters/setters, etc)
-- 🩹 No support for patch generation/application.
+- 📉 Tiny (2kB minified)
+- 📈 A billion times faster (exaggeration but emotionally true)
+- 💅 An "innovative" API (your LLM agent will appreciate the challenge)
 
 ## Installation
 
@@ -139,7 +137,7 @@ state = mutateIn(state).users((users) => {
 
 ## Freezing objects at development time
 
-TypeScript should catch most of the situations were you might accidentally mutate data within bedit's mutator functions. However we don't control whether the types you pass in are deeply readonly or not. And you might write type-unsafe code!
+TypeScript should catch most of the situations where you might accidentally mutate data within bedit's mutator functions. However we don't control whether the types you pass in are deeply readonly or not. And you might write type-unsafe code!
 
 To help prevent accidental unsafe mutation, call `setDevMode(true)` early in your application's boot process to freeze objects at development time.
 
@@ -151,3 +149,23 @@ if (process.env.NODE_ENV === 'development') {
   setDevMode(true)
 }
 ```
+
+## Limitations
+
+- 👭 Works only with data supported by [`structuredClone`](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm) (So yes ✅ to `Map`, `Set`, plain objects, and arrays. And no ❌ to custom classes, objects with symbol keys or getters/setters, etc)
+- 🩹 No support for patch generation/application.
+
+# Performance
+
+`bedit` seems to be:
+
+- About 5x faster than `immer`'s production mode.
+- About 3x faster than `mutative` (same API as `immer` but highly optimized)
+
+<div style="text-align: center; transform: scale(.5);">
+  <img alt="Benchmarks" src="https://github.com/ds300/bedit/raw/main/bench/bench.svg" />
+</div>
+
+The benchmarks could be more thorough so take this for what it's worth.
+
+https://github.com/ds300/bedit/tree/main/bench
