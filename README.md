@@ -172,12 +172,13 @@ if (process.env.NODE_ENV === 'development') {
 - About 5x faster than `immer`'s production mode.
 - About 3x faster than `mutative` (same API as `immer` but highly optimized)
 
-<div style="text-align: center; transform: scale(.5);">
+<p align="center">
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/ds300/bedit/raw/main/bench/bench.dark.svg">
-  <img alt="Benchmarks" src="https://github.com/ds300/bedit/raw/main/bench/bench.dark.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/ds300/bedit/raw/main/bench/bench.dark.svg#gh-dark-mode-only">
+  <source media="(prefers-color-scheme: light)" srcset="https://github.com/ds300/bedit/raw/main/bench/bench.light.svg#gh-light-mode-only">
+  <img alt="Benchmarks" src="https://github.com/ds300/bedit/raw/main/bench/bench.light.svg#gh-light-mode-only">
 </picture>
-</div>
+</p>
 
 The benchmarks could be more thorough so take this for what it's worth.
 
