@@ -214,7 +214,7 @@ const nextState = deleteIn({ a: { b: new Set(['c', 'd']) } }).a.b.key('c')()
 
 Add items to arrays and sets.
 
-````ts
+```ts
 import { addIn } from 'bedit'
 
 // Add to arrays (via .push())
@@ -241,4 +241,4 @@ const nextState = deepMutateIn({ a: { b: { c: 1 } } }).a((a) => {
   a.b.c = 4
 })
 // nextState = {a: {b: {c: 4}}}
-````
+```
