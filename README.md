@@ -30,27 +30,37 @@ const state = {
   filter: 'all',
 }
 const nextState = setIn(state).todos[1].completed(true)
+assert(nextState.todos[1].completed === true)
 ```
 
-Use `updateIn` to immutably compute new values based on the current state.
+Use `mutateIn` to edit a shallow clone of a sub-object.
+
+```ts
+import { mutateIn } from 'bedit'
+const nextState = mutateIn(state).user((user) => {
+  user.name =
+    // ❌ Type error: `theme` is readonly because the preferences object was not cloned
+    'Nicholas Cage'.user.preferences.theme = 'light' // TypeScript will prevent you from making deep edits.
+})
+```
+
+If you need to make deep mutations, you can call `setIn` inside of `mutateIn`!
+
+```ts
+import { mutateIn } from 'bedit'
+const nextState = mutateIn(state).user((user) => {
+  user.name = 'Nicholas Cage'
+  user.preferences = setIn(user.preferences).theme('light')
+})
+```
+
+`updateIn` is like `mutateIn` but it doesn't clone the object before passing it in
 
 ```ts
 import { updateIn } from 'bedit'
 const nextState = updateIn(state).todos((todos) =>
   todos.filter((todo) => !todo.completed),
 )
-```
-
-Use `mutateIn` to shallowly clone a sub-object and mutate it.
-
-```ts
-import { mutateIn } from 'bedit'
-const nextState = mutateIn(state).user((user) => {
-  user.name = 'Nicholas Cage'
-
-  // ❌ Type error: `theme` is readonly
-  user.preferences.theme = 'light'
-})
 ```
 
 Use `deepMutateIn` to fully clone a sub-object (with `structuredClone`) and mutate it.
@@ -163,7 +173,10 @@ if (process.env.NODE_ENV === 'development') {
 - About 3x faster than `mutative` (same API as `immer` but highly optimized)
 
 <div style="text-align: center; transform: scale(.5);">
-  <img alt="Benchmarks" src="https://github.com/ds300/bedit/raw/main/bench/bench.svg" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/ds300/bedit/raw/main/bench/bench.dark.svg">
+  <img alt="Benchmarks" src="https://github.com/ds300/bedit/raw/main/bench/bench.dark.svg">
+</picture>
 </div>
 
 The benchmarks could be more thorough so take this for what it's worth.
