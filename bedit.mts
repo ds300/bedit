@@ -87,10 +87,24 @@ type Deletable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
       }) &
   (() => Root)
 
+type Addable<T, Root = T> =
+  T extends ReadonlyMap<infer K, infer V>
+    ? { key: (k: K) => Addable<V, Root> }
+    : T extends ReadonlySet<infer V>
+      ? (...args: V[]) => Root
+      : T extends ReadonlyArray<infer V>
+        ? ((...args: V[]) => Root) & Record<number, Addable<V, Root>>
+        : {
+            [k in keyof T]: T[k] extends object
+              ? Addable<T[k], Root>
+              : () => Root
+          }
+
 const SET = 0 as const
 const UPDATE = 1 as const
 const MUTATE = 2 as const
 const DELETE = 3 as const
+const ADD = 4 as const
 
 const SHALLOW_CLONE = 0 as const
 const DEEP_CLONE = 1 as const
@@ -327,15 +341,15 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
           throw e
         }
       },
-      apply(_target, _thisArg, [valueOrFn]) {
+      apply(_target, _thisArg, args) {
         try {
           let value: any = DELETE_VALUE
           if (type === SET) {
-            value = valueOrFn
+            value = args[0]
           } else if (type === UPDATE) {
-            value = valueOrFn(obj)
+            value = args[0](obj)
           } else if (type === MUTATE) {
-            const fn = valueOrFn
+            const fn = args[0]
             if (obj == null || typeof obj !== 'object') {
               value = obj
             } else if (shallow) {
@@ -357,6 +371,15 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
               // @endif
             } finally {
               releaseBatchStack(batchStack)
+            }
+          } else if (type === ADD) {
+            value = clone(obj, SHALLOW_CLONE)
+            if (Array.isArray(value)) {
+              value.push(...args)
+            } else if (value instanceof Set) {
+              args.forEach((arg) => value.add(arg))
+            } else {
+              throw new Error(`Cannot add to ${obj?.constructor?.name}`)
             }
           }
           // @ifndef PRODUCTION
@@ -387,7 +410,12 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
 // set up a tiny pool of four frames. we only need one frame per level
 // of nested setIn/updateIn/mutateIn calls.
 let top: Frame | null = frame(frame(frame(frame(null))))
-type FrameType = typeof SET | typeof UPDATE | typeof MUTATE | typeof DELETE
+type FrameType =
+  | typeof SET
+  | typeof UPDATE
+  | typeof MUTATE
+  | typeof DELETE
+  | typeof ADD
 
 function getFrame(root: any, type: FrameType, shallow?: boolean): Frame {
   if (top == null) {
@@ -692,3 +720,40 @@ export const mutateIn = <T,>(t: T): ShallowMutatable<T> =>
 export function mutate<T>(t: T, fn: (t: ShallowMutable<T>) => void): T {
   return mutateIn(t)(fn)
 }
+
+/**
+ * Allows immutably adding items to arrays and Sets at any depth in a value.
+ *
+ * @template T - The type of the input value
+ * @param t - The value to create an adder for
+ * @returns An adder object that allows adding items to arrays and Sets at any depth
+ *
+ * @example
+ * ```typescript
+ * // Adding to arrays
+ * const users = [{ name: 'John' }, { name: 'Jane' }]
+ * const newUsers = addIn(users)({ name: 'Bob' })
+ * // Result: [{ name: 'John' }, { name: 'Jane' }, { name: 'Bob' }]
+ *
+ * // Adding to Sets
+ * const tags = new Set(['admin', 'user'])
+ * const newTags = addIn(tags)('moderator', 'vip')
+ * // Result: Set(['admin', 'user', 'moderator', 'vip'])
+ *
+ * // Nested arrays
+ * const state = { users: [{ name: 'John', tags: ['admin'] }] }
+ * const newState = addIn(state).users[0].tags('moderator', 'vip')
+ * // Result: { users: [{ name: 'John', tags: ['admin', 'moderator', 'vip'] }] }
+ *
+ * // Nested Sets
+ * const state = { categories: { tech: new Set(['js', 'ts']) } }
+ * const newState = addIn(state).categories.tech('react', 'vue')
+ * // Result: { categories: { tech: Set(['js', 'ts', 'react', 'vue']) } }
+ *
+ * // Maps with nested Sets
+ * const state = { users: new Map([['user1', { tags: new Set(['admin']) }]]) }
+ * const newState = addIn(state).users.key('user1').tags('moderator')
+ * // Result: { users: Map([['user1', { tags: Set(['admin', 'moderator']) }]]) }
+ * ```
+ */
+export const addIn = <T,>(t: T): Addable<T> => getFrame(t, ADD).$

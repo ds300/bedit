@@ -194,6 +194,43 @@ const nextState = deleteIn({ a: { b: { c: 1 } } }).a.b.c()
 // nextState = {a: {b: {}}}
 ```
 
+It works on maps too.
+
+```ts
+import { deleteIn } from 'bedit'
+const nextState = deleteIn({ a: { b: new Map([['c', 1]]) } }).a.b.key('c')()
+// nextState = {a: {b: Map([])}}
+```
+
+And sets.
+
+```ts
+import { deleteIn } from 'bedit'
+const nextState = deleteIn({ a: { b: new Set(['c', 'd']) } }).a.b.key('c')()
+// nextState = {a: {b: Set(['d'])}}
+```
+
+### `addIn`
+
+Add items to arrays and sets.
+
+````ts
+import { addIn } from 'bedit'
+
+// Add to arrays (via .push())
+const newUsers = addIn({ users: [{ name: 'John' }, { name: 'Jane' }] })({
+  name: 'Bob',
+})
+// newUsers = [{ name: 'John' }, { name: 'Jane' }, { name: 'Bob' }]
+
+// Add to Sets
+const newTags = addIn({ tags: new Set(['admin', 'user']) })(
+  'moderator',
+  'vip',
+)
+// newTags = { tags: Set(['admin', 'user', 'moderator', 'vip']) }
+```
+
 ### `deepMutateIn`
 
 Like `mutateIn` but uses `structuredClone` to copy the entire subtree. You'd be surprised how fast this can be for relatively small values.
@@ -204,4 +241,4 @@ const nextState = deepMutateIn({ a: { b: { c: 1 } } }).a((a) => {
   a.b.c = 4
 })
 // nextState = {a: {b: {c: 4}}}
-```
+````
