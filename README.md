@@ -33,7 +33,7 @@ const state = {
 }
 
 const nextState = bedit(state, (draft) => {
-  // You can mutate the top level draft object safely
+  // You can edit the top level draft object safely
   draft.filter = 'completed'
 
   // The draft is a regular ass JS object
@@ -47,10 +47,10 @@ const nextState = bedit(state, (draft) => {
   setIn(draft).user.preferences.theme('light')
   setIn(draft).todos[2].completed(true)
 
-  // You can use updateIn to get the previous value and return a new version.
-  updateIn(draft).todos((todos) => todos.filter((todo) => !todo.completed))
+  // Use updateIn to apply a function to a value (without cloning it first).
+  updateIn(draft).todos[1].title(title => title.toUpperCase() + '!!!')
 
-  // You can use mutateIn to edit a shallow clone of a subtree.
+  // Use mutateIn to edit a shallow clone of a subtree.
   mutateIn(draft).todos[0]((todo) => {
     todo.title = 'Do the dishes'
     todo.completed = false
