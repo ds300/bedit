@@ -189,7 +189,7 @@ const nextState = deleteIn({ a: { b: { c: 1 } } }).a.b.c()
 It uses .splice on arrays, to avoid leaving a hole behind.
 
 ```ts
-const nextState = deleteIn({ a: { b: [1, 2, 3] } }).a.b(1)
+const nextState = deleteIn({ a: { b: [1, 2, 3] } }).a.b[1]()
 // nextState = {a: {b: [1, 3]}}
 ```
 
