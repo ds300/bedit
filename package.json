@@ -1,7 +1,7 @@
 {
   "name": "bedit",
-  "version": "0.0.8",
-  "description": "better edit than immer",
+  "version": "0.0.9",
+  "description": "like immer but weird (and cool)",
   "main": "dist/bedit.mjs",
   "files": [
     "dist",
