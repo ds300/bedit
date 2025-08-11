@@ -5,7 +5,7 @@ A weird (and cool) immutable state utility for TypeScript.
 It's like `immer` but:
 
 - 🕵️‍♀️ No Proxies getting in the way when you're trying to debug.
-- 📈 A billion times faster (exaggeration but emotionally true)
+- 📈 10x faster (actually [only 5x](#performance) but emotionally 10x)
 - 📉 Tiny (2kB minified)
 - 💅 An "innovative" API (your LLM agent will appreciate the challenge)
 
@@ -93,7 +93,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 ```
 
-# Performance
+## Performance
 
 `bedit` seems to be:
 
