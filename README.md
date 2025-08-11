@@ -61,6 +61,15 @@ You can call `setIn` and friends on non-draft objects too, it will return a new 
 const nextState = setIn(state).user.name('Nicholas Cage')
 ```
 
+Or if you only need to edit one level.
+
+```ts
+const nextState = editIn(state).todos[1]((todo) => {
+  todo.completed = false
+  todo.title = todo.title.toUpperCase() + '!!!'
+})
+```
+
 There's also `addIn` for adding items to arrays and sets, and `deleteIn` for guess what. See [the full API](#api) for details.
 
 ## Maps
@@ -119,6 +128,28 @@ https://github.com/ds300/bedit/tree/main/bench
 
 ## API
 
+### `edit`
+
+Edit a shallow clone of a value.
+
+```ts
+import { edit } from 'bedit'
+const nextState = edit(
+  { name: 'John', preferences: { theme: 'dark' } },
+  (draft) => {
+    // ✅ No type error, safe to mutate the top-level draft object
+    draft.name = 'Jane'
+
+    // ❌ Type error: `theme` is readonly
+    draft.preferences.theme = 'light'
+
+    // ✅ use `setIn(draft)` to mutate deeply and safely
+    setIn(draft).preferences.theme('light')
+  },
+)
+// nextState = {name: 'Jane', preferences: {theme: 'light'}}
+```
+
 ### `setIn`
 
 Assign a value to a nested property.
@@ -160,7 +191,7 @@ editIn({ a: { b: { c: 1 } } }).a((a) => {
 })
 ```
 
-All bedit functions can be used inside a `editIn` block. If you call them on the root mutable object, you don't need to reassign the result.
+All bedit functions can be used inside an `editIn` block. If you call them on the root 'draft' object, you don't need to reassign the result.
 
 ```ts
 editIn({ a: { b: { c: 1 } } }).a((a) => {
