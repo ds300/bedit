@@ -5,9 +5,9 @@ A weird (and cool) immutable state utility for TypeScript.
 It's like `immer` but:
 
 - 🕵️‍♀️ No Proxies getting in the way when you're trying to debug.
-- 📈 10x faster (actually [only 5x](#performance) but emotionally 10x)
+- 📈 10x faster (tbh [only 5x](#performance) but emotionally 10x)
 - 📉 Tiny (2kB minified)
-- 💅 An "innovative" API (your LLM agent will appreciate the challenge)
+- 💅 An "innovative" API (give your complacent AI agent something to chew on)
 
 ## Installation
 
@@ -33,7 +33,7 @@ const state = {
 
 const nextState = edit(state, (draft) => {
   // `draft` is a regular JS object, not a Proxy.
-  // You can edit it safely
+  // You can edit it at the top level.
   draft.filter = 'completed'
 
   // TypeScript will prevent you from making deep edits.
@@ -58,10 +58,10 @@ const nextState = edit(state, (draft) => {
 You can call `setIn` and friends on non-draft objects too, it will return a new state with the edit applied. This is useful if you only need to make one change at a time.
 
 ```ts
-const nextState2 = setIn(state).user.name('Nicholas Cage')
+const nextState = setIn(state).user.name('Nicholas Cage')
 ```
 
-There's also `addIn` for adding items to arrays and sets, and `deleteIn` for deleting items and properties. See [the full API](#api) for details.
+There's also `addIn` for adding items to arrays and sets, and `deleteIn` for guess what. See [the full API](#api) for details.
 
 ## Maps
 
@@ -80,7 +80,7 @@ const nextState = setIn(state).users.key('user1').name('Wilberforce')
 
 ## Freezing objects at development time
 
-TypeScript should prevent accidentally mutating data within bedit's mutator functions if your data is well-typed and you don't use `as any` ! But bedit can't help you once your bedit function has returned.
+TypeScript should prevent unsafely mutating data within bedit's draft functions if your data is well-typed and you don't use `as any` ! But who knows what might happen later, in the outside world. Shit's crazy out there.
 
 For extra peace of mind, call `setDevMode(true)` early in your application's boot process to freeze objects at development time.
 
@@ -186,10 +186,16 @@ const nextState = deleteIn({ a: { b: { c: 1 } } }).a.b.c()
 // nextState = {a: {b: {}}}
 ```
 
+It uses .splice on arrays, to avoid leaving a hole behind.
+
+```ts
+const nextState = deleteIn({ a: { b: [1, 2, 3] } }).a.b(1)
+// nextState = {a: {b: [1, 3]}}
+```
+
 It works on maps too.
 
 ```ts
-import { deleteIn } from 'bedit'
 const nextState = deleteIn({ a: { b: new Map([['c', 1]]) } }).a.b.key('c')()
 // nextState = {a: {b: Map([])}}
 ```
@@ -197,7 +203,6 @@ const nextState = deleteIn({ a: { b: new Map([['c', 1]]) } }).a.b.key('c')()
 And sets.
 
 ```ts
-import { deleteIn } from 'bedit'
 const nextState = deleteIn({ a: { b: new Set(['c', 'd']) } }).a.b.key('c')()
 // nextState = {a: {b: Set(['d'])}}
 ```
