@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { mutateIn } from '../bedit.mjs'
+import { editIn } from '../bedit.mjs'
 
-describe('mutateIn', () => {
+describe('editIn', () => {
   describe('Object mutations', () => {
     it('should allow mutations on object properties', () => {
       const baseObj = {
@@ -15,7 +15,7 @@ describe('mutateIn', () => {
         },
       }
 
-      const result = mutateIn(baseObj).user((user) => {
+      const result = editIn(baseObj).user((user) => {
         // Can mutate top-level properties of user
         user.name = 'Jane'
         user.age = 25
@@ -51,7 +51,7 @@ describe('mutateIn', () => {
         },
       }
 
-      const result = mutateIn(baseObj).user((user) => {
+      const result = editIn(baseObj).user((user) => {
         // Can replace entire objects
         user.profile = {
           name: 'Jane',
@@ -78,7 +78,7 @@ describe('mutateIn', () => {
         ],
       }
 
-      const result = mutateIn(baseObj).todos((todos) => {
+      const result = editIn(baseObj).todos((todos) => {
         // Can replace array elements
         todos[0] = {
           id: 1,
@@ -109,7 +109,7 @@ describe('mutateIn', () => {
         ],
       }
 
-      const result = mutateIn(baseObj).items((items) => {
+      const result = editIn(baseObj).items((items) => {
         // Can mutate array methods
         items.length = 0 // Clear array
         items.push(
@@ -137,7 +137,7 @@ describe('mutateIn', () => {
         ],
       }
 
-      const result = mutateIn(baseObj).categories[0].tasks((tasks) => {
+      const result = editIn(baseObj).categories[0].tasks((tasks) => {
         // Can mutate array methods
         tasks.length = 0
         tasks.push({ id: 3, name: 'New Task 1' }, { id: 4, name: 'New Task 2' })
@@ -165,15 +165,13 @@ describe('mutateIn', () => {
         },
       }
 
-      const result = mutateIn(baseObj).user.profile.preferences(
-        (preferences) => {
-          // Can replace entire objects
-          preferences.themes = ['light', 'dark', 'auto']
-          preferences.settings = {
-            notifications: false,
-          }
-        },
-      )
+      const result = editIn(baseObj).user.profile.preferences((preferences) => {
+        // Can replace entire objects
+        preferences.themes = ['light', 'dark', 'auto']
+        preferences.settings = {
+          notifications: false,
+        }
+      })
 
       // Check that the mutations worked
       expect(result.user.profile.preferences.themes).toEqual([
@@ -194,7 +192,7 @@ describe('mutateIn', () => {
         counter: { value: 5, history: [1, 2, 3] },
       }
 
-      const result = mutateIn(baseObj).counter((counter) => {
+      const result = editIn(baseObj).counter((counter) => {
         // Can mutate top-level properties
         counter.value += 1
         counter.history = [...counter.history, counter.value - 1]
@@ -214,7 +212,7 @@ describe('mutateIn', () => {
         },
       }
 
-      const result = mutateIn(baseObj).user.profile((profile) => {
+      const result = editIn(baseObj).user.profile((profile) => {
         // Can mutate top-level properties
         profile.name = profile.name.toUpperCase()
         profile.settings = {
@@ -255,7 +253,7 @@ describe('mutateIn', () => {
         },
       }
 
-      const result = mutateIn(baseObj).a.b.c.d.e.f.g.h.i.j((j) => {
+      const result = editIn(baseObj).a.b.c.d.e.f.g.h.i.j((j) => {
         j.value = 'updated'
       })
 
@@ -278,7 +276,7 @@ describe('mutateIn', () => {
         },
       }
 
-      const result = mutateIn(baseObj).user.profile.settings((settings) => {
+      const result = editIn(baseObj).user.profile.settings((settings) => {
         settings.theme = 'light'
       })
 
@@ -306,7 +304,7 @@ describe('mutateIn', () => {
         other: { data: 'unchanged' },
       }
 
-      const result = mutateIn(baseObj).user.profile((profile) => {
+      const result = editIn(baseObj).user.profile((profile) => {
         profile.name = 'Jane'
       })
 

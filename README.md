@@ -17,11 +17,10 @@ npm install bedit
 
 ## Usage
 
-The `bedit` function creates a shallow clone of the input, and passes it to a callback.
+The `edit` function creates a shallow clone of the input, and passes it to a callback.
 
 ```ts
-import { bedit, setIn, updateIn, mutateIn } from 'bedit'
-
+import { edit, setIn, updateIn, editIn } from 'bedit'
 const state = {
   user: { name: 'Nick Cave', preferences: { theme: 'dark' } },
   todos: [
@@ -32,39 +31,37 @@ const state = {
   filter: 'all',
 }
 
-const nextState = bedit(state, (draft) => {
-  // You can edit the top level draft object safely
+const nextState = edit(state, (draft) => {
+  // `draft` is a regular JS object, not a Proxy.
+  // You can edit it safely
   draft.filter = 'completed'
-
-  // The draft is a regular ass JS object
-  console.log(draft.todos[0])
 
   // TypeScript will prevent you from making deep edits.
   // ❌ Type error: `theme` is readonly
   draft.user.preferences.theme = 'light'
 
-  // Instead, call setIn on the draft object to assign deeply.
+  // Instead, call `setIn` on the draft object to assign deeply.
   setIn(draft).user.preferences.theme('light')
   setIn(draft).todos[2].completed(true)
 
-  // Use updateIn to apply a function to a value (without cloning it first).
-  updateIn(draft).todos[1].title(title => title.toUpperCase() + '!!!')
+  // Use `updateIn` to apply a function to a value (without cloning it first).
+  updateIn(draft).todos[1].title((title) => title.toUpperCase() + '!!!')
 
-  // Use mutateIn to edit a shallow clone of a subtree.
-  mutateIn(draft).todos[0]((todo) => {
+  // Use `editIn` to edit a shallow clone of a subtree.
+  editIn(draft).todos[0]((todo) => {
     todo.title = 'Do the dishes'
     todo.completed = false
   })
 })
 ```
 
-You don't need to use `bedit` if you only need to make one edit at a time. `setIn` and friends return the new state if called on their own.
+You can call `setIn` and friends on non-draft objects too, it will return a new state with the edit applied. This is useful if you only need to make one change at a time.
 
 ```ts
 const nextState2 = setIn(state).user.name('Nicholas Cage')
 ```
 
-bedit includes a few other functions for deleting things and suchlike. See [the full API](#api)
+There's also `addIn` for adding items to arrays and sets, and `deleteIn` for deleting items and properties. See [the full API](#api) for details.
 
 ## Maps
 
@@ -78,7 +75,7 @@ const state = {
   ]),
 }
 
-const nextState = setIn(state).users.key('user1').name('John Doe')
+const nextState = setIn(state).users.key('user1').name('Wilberforce')
 ```
 
 ## Freezing objects at development time
@@ -87,7 +84,7 @@ TypeScript should prevent accidentally mutating data within bedit's mutator func
 
 For extra peace of mind, call `setDevMode(true)` early in your application's boot process to freeze objects at development time.
 
-This will cause errors to be thrown when you try to mutate an object that is supposed to be immutable.
+This will cause errors to be thrown if you try to mutate an object that is supposed to be immutable.
 
 ```ts
 import { setDevMode } from 'bedit'
@@ -142,13 +139,13 @@ const nextState = updateIn({ a: { b: { c: 1 } } }).a.b.c((c) => c + 4)
 // nextState = {a: {b: {c: 5}}}
 ```
 
-### `mutateIn`
+### `editIn`
 
 Edit a shallow clone of a subtree.
 
 ```ts
-import { mutateIn } from 'bedit'
-const nextState = mutateIn({ a: { b: { c: 1 } } }).a.b((b) => {
+import { editIn } from 'bedit'
+const nextState = editIn({ a: { b: { c: 1 } } }).a.b((b) => {
   b.c = 4
 })
 // nextState = {a: {b: {c: 4}}}
@@ -157,16 +154,16 @@ const nextState = mutateIn({ a: { b: { c: 1 } } }).a.b((b) => {
 TypeScript will prevent you from making deep edits.
 
 ```ts
-mutateIn({ a: { b: { c: 1 } } }).a((a) => {
+editIn({ a: { b: { c: 1 } } }).a((a) => {
   // ❌ Type error: `c` is readonly
   a.b.c = 3
 })
 ```
 
-All bedit functions can be used inside a `mutateIn` block. If you call them on the root mutable object, you don't need to reassign the result.
+All bedit functions can be used inside a `editIn` block. If you call them on the root mutable object, you don't need to reassign the result.
 
 ```ts
-mutateIn({ a: { b: { c: 1 } } }).a((a) => {
+editIn({ a: { b: { c: 1 } } }).a((a) => {
   setIn(a).b.c(3)
 })
 ```
@@ -174,7 +171,7 @@ mutateIn({ a: { b: { c: 1 } } }).a((a) => {
 To mutate the root object, you can just not specify a path.
 
 ```ts
-mutateIn({ a: { b: { c: 1 } } })((obj) => {
+editIn({ a: { b: { c: 1 } } })((obj) => {
   obj.a = { b: { c: 3 } }
 })
 ```
@@ -224,16 +221,4 @@ const newTags = addIn({ tags: new Set(['admin', 'user']) }).tags(
   'vip',
 )
 // newTags = { tags: Set(['admin', 'user', 'moderator', 'vip']) }
-```
-
-### `deepMutateIn`
-
-Like `mutateIn` but uses `structuredClone` to copy the entire subtree. You'd be surprised how fast this can be for relatively small values.
-
-```ts
-import { deepMutateIn } from 'bedit'
-const nextState = deepMutateIn({ a: { b: { c: 1 } } }).a((a) => {
-  a.b.c = 4
-})
-// nextState = {a: {b: {c: 4}}}
 ```

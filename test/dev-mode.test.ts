@@ -1,12 +1,5 @@
 import { describe, beforeEach, afterEach, test, expect } from 'vitest'
-import {
-  setIn,
-  updateIn,
-  deepMutateIn,
-  mutateIn,
-  mutate,
-  setDevMode,
-} from '../bedit.mts'
+import { setIn, updateIn, editIn, edit, setDevMode, addIn } from '../bedit.mts'
 
 describe('Dev Mode', () => {
   beforeEach(() => {
@@ -48,20 +41,20 @@ describe('Dev Mode', () => {
     expect(result.a).toBe(2)
   })
 
-  test('should freeze objects after mutateIn when dev mode is enabled', () => {
+  test('should freeze objects after editIn when dev mode is enabled', () => {
     const obj = { a: 1, b: { c: 2 } }
 
-    const result = deepMutateIn(obj).a((x) => 3)
+    const result = editIn(obj).a((x) => 3)
 
     expect(Object.isFrozen(result)).toBe(true)
     expect(Object.isFrozen(result.b)).toBe(true)
     expect(result.a).toBe(3)
   })
 
-  test('should freeze objects after mutateIn when dev mode is enabled', () => {
+  test('should freeze objects after editIn when dev mode is enabled', () => {
     const obj = { a: 1, b: { c: 2 } }
 
-    const result = mutateIn(obj).a((x) => {
+    const result = editIn(obj).a((x) => {
       return 3
     })
 
@@ -70,10 +63,10 @@ describe('Dev Mode', () => {
     expect(result.a).toBe(3)
   })
 
-  test('should freeze objects after mutate when dev mode is enabled', () => {
+  test('should freeze objects after edit when dev mode is enabled', () => {
     const obj = { a: 1, b: { c: 2 } }
 
-    const result = mutate(obj, (draft) => {
+    const result = edit(obj, (draft) => {
       setIn(draft).a(3)
       setIn(draft).b.c(4)
     })
@@ -180,9 +173,9 @@ describe('Dev Mode', () => {
       tags: new Set(['react']),
     }
 
-    const result = deepMutateIn(obj)((draft) => {
-      draft.config.set('debug', { color: 'light' })
-      draft.tags.add('typescript')
+    const result = edit(obj, (draft) => {
+      setIn(draft).config.key('debug')({ color: 'light' })
+      addIn(draft).tags('typescript')
     })
 
     expect(Object.isFrozen(result)).toBe(true)

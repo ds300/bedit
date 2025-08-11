@@ -1,5 +1,5 @@
 import { describe, bench, expect, test, afterEach } from 'vitest'
-import { bedit, mutateIn, setIn } from '../bedit.production.mts'
+import { edit, editIn, setIn } from '../bedit.production.mts'
 import {
   produce,
   enableMapSet,
@@ -45,8 +45,8 @@ describe('shallow object clone with 1 property', () => {
     result = setIn(data).a(Math.random())
   })
 
-  bench('bedit - mutateIn', () => {
-    result = mutateIn(data)((draft) => {
+  bench('bedit - editIn', () => {
+    result = editIn(data)((draft) => {
       draft.a = Math.random()
     })
   })
@@ -89,8 +89,8 @@ describe('shallow object clone with 10 properties', () => {
     result = setIn(data).a(Math.random())
   })
 
-  bench('bedit - mutateIn', () => {
-    result = mutateIn(data)((draft) => {
+  bench('bedit - editIn', () => {
+    result = editIn(data)((draft) => {
       draft.a = Math.random()
     })
   })
@@ -122,8 +122,8 @@ describe('shallow array clone with 10 items', () => {
     result = setIn(data)[4](Math.random())
   })
 
-  bench('bedit - mutateIn', () => {
-    result = mutateIn(data)((draft) => {
+  bench('bedit - editIn', () => {
+    result = editIn(data)((draft) => {
       draft[4] = Math.random()
     })
   })
@@ -155,8 +155,8 @@ describe('shallow array clone with 10_000 items', () => {
     result = setIn(data)[4](Math.random())
   })
 
-  bench('bedit - mutateIn', () => {
-    result = mutateIn(data)((draft) => {
+  bench('bedit - editIn', () => {
+    result = editIn(data)((draft) => {
       draft[4] = Math.random()
     })
   })
@@ -220,8 +220,8 @@ describe('deep object clone', () => {
     result = setIn(data).a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p(Math.random())
   })
 
-  bench('bedit - mutateIn', () => {
-    result = mutateIn(data).a.b.c.d.e.f.g.h.i.j.k.l.m.n.o((draft) => {
+  bench('bedit - editIn', () => {
+    result = editIn(data).a.b.c.d.e.f.g.h.i.j.k.l.m.n.o((draft) => {
       draft.p = Math.random()
     })
   })
@@ -256,8 +256,8 @@ describe('marking a todo as completed', () => {
     result = setIn(data).todos[0].completed(true)
   })
 
-  bench('bedit - mutateIn', () => {
-    result = mutateIn(data).todos[0]((draft) => {
+  bench('bedit - editIn', () => {
+    result = editIn(data).todos[0]((draft) => {
       draft.completed = true
     })
   })
@@ -299,7 +299,7 @@ describe('marking four todos as completed and changing the filter', () => {
   })
 
   bench('bedit – setIn', () => {
-    result = bedit(data, (data) => {
+    result = edit(data, (data) => {
       setIn(data).todos[0].completed(true)
       setIn(data).todos[1].completed(true)
       setIn(data).todos[2].completed(true)
@@ -308,18 +308,18 @@ describe('marking four todos as completed and changing the filter', () => {
     })
   })
 
-  bench('bedit - mutateIn', () => {
-    result = bedit(data, (data) => {
-      mutateIn(data).todos[0]((draft) => {
+  bench('bedit - editIn', () => {
+    result = edit(data, (data) => {
+      editIn(data).todos[0]((draft) => {
         draft.completed = true
       })
-      mutateIn(data).todos[1]((draft) => {
+      editIn(data).todos[1]((draft) => {
         draft.completed = true
       })
-      mutateIn(data).todos[2]((draft) => {
+      editIn(data).todos[2]((draft) => {
         draft.completed = true
       })
-      mutateIn(data).todos[3]((draft) => {
+      editIn(data).todos[3]((draft) => {
         draft.completed = true
       })
 
@@ -368,8 +368,8 @@ describe('shallow Map clone with 5 elements', () => {
     result = setIn(data).key('a')(Math.random())
   })
 
-  bench('bedit - mutateIn', () => {
-    result = mutateIn(data)((draft) => {
+  bench('bedit - editIn', () => {
+    result = editIn(data)((draft) => {
       draft.set('a', Math.random())
     })
   })
@@ -401,8 +401,8 @@ describe('shallow Map clone with 10,000 elements', () => {
     result = setIn(data).key('key0')(Math.random())
   })
 
-  bench('bedit - mutateIn', () => {
-    result = mutateIn(data)((draft) => {
+  bench('bedit - editIn', () => {
+    result = editIn(data)((draft) => {
       draft.set('key0', Math.random())
     })
   })
@@ -430,8 +430,8 @@ describe('shallow Set clone with 5 elements', () => {
     expect(data.has('a')).toBe(true)
   })
 
-  bench('bedit - mutateIn', () => {
-    result = mutateIn(data)((draft) => {
+  bench('bedit - editIn', () => {
+    result = editIn(data)((draft) => {
       draft.add('f')
     })
   })
@@ -459,8 +459,8 @@ describe('shallow Set clone with 10,000 elements', () => {
     expect(data.has('newItem')).toBe(true)
   })
 
-  bench('bedit - mutateIn', () => {
-    result = mutateIn(data)((draft) => {
+  bench('bedit - editIn', () => {
+    result = editIn(data)((draft) => {
       draft.add('newItem')
     })
   })
@@ -549,17 +549,17 @@ describe('complex nested structure with Maps and Sets using mutate', () => {
   })
 
   bench('bedit', () => {
-    result = bedit(data, (draft) => {
+    result = edit(data, (draft) => {
       // Update user1's name
       setIn(draft).users.key('user1').name('John Doe')
       // Add a new tag to user1
-      mutateIn(draft)
+      editIn(draft)
         .users.key('user1')
         .tags((tags) => {
           tags.add('vip')
         })
       // Add a like to user1's first post
-      mutateIn(draft)
+      editIn(draft)
         .users.key('user1')
         .posts[0].likes((likes) => {
           likes.add('user5')
@@ -567,7 +567,7 @@ describe('complex nested structure with Maps and Sets using mutate', () => {
       // Update user2's theme preference
       setIn(draft).users.key('user2').preferences.theme('auto')
       // Add a new subscriber to tech category
-      mutateIn(draft)
+      editIn(draft)
         .categories.key('tech')
         .subscribers((subs) => {
           subs.add('user3')
@@ -575,7 +575,7 @@ describe('complex nested structure with Maps and Sets using mutate', () => {
       // Update global post limit
       setIn(draft).settings.global.limits.key('posts_per_day')(15)
       // Add a new global feature
-      mutateIn(draft).settings.global.features((features) => {
+      editIn(draft).settings.global.features((features) => {
         features.add('analytics')
       })
     })

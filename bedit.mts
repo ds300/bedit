@@ -8,22 +8,20 @@ export type DeepReadonly<T> =
         : T extends object
           ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
           : T
-export type DeepMutable<T> =
-  T extends ReadonlyArray<infer U>
-    ? Array<DeepMutable<U>>
-    : T extends ReadonlyMap<infer K, infer V>
-      ? Map<K, DeepMutable<V>>
-      : T extends ReadonlySet<infer U>
-        ? Set<U>
-        : T extends object
-          ? { -readonly [K in keyof T]: DeepMutable<T[K]> }
-          : T
+
+export const $beditStateContainer = Symbol.for('__bedit_state_container__')
+export interface BeditStateContainer<T> {
+  [$beditStateContainer]: {
+    get(): T
+    set(t: T): void
+  }
+}
 
 /**
- * ShallowMutable<T> makes the top-level properties of T mutable,
+ * Editable<T> makes the top-level properties of T mutable,
  * but all child properties (or elements, for arrays/maps/sets) are readonly.
  */
-export type ShallowMutable<T> =
+export type Editable<T> =
   // Arrays: mutable array, but elements are readonly
   T extends ReadonlyArray<infer U>
     ? Array<DeepReadonly<U>>
@@ -65,18 +63,18 @@ type Mutatable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
   : {
       [k in keyof T]: T[k] extends object
         ? Mutatable<T[k], Root>
-        : (mutate: Mutator<DeepMutable<T[k]>>) => Root
+        : (mutate: Mutator<Editable<T[k]>>) => Root
     }) &
-  ((mutate: Mutator<DeepMutable<T>>) => Root)
+  ((mutate: Mutator<Editable<T>>) => Root)
 
 type ShallowMutatable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
   ? { key: (k: K) => ShallowMutatable<V, Root> }
   : {
       [k in keyof T]: T[k] extends object
         ? ShallowMutatable<T[k], Root>
-        : (mutate: Mutator<ShallowMutable<T[k]>>) => Root
+        : (mutate: Mutator<Editable<T[k]>>) => Root
     }) &
-  ((mutate: Mutator<ShallowMutable<T>>) => Root)
+  ((mutate: Mutator<Editable<T>>) => Root)
 
 type Deletable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
   ? { key: (k: K) => Deletable<V, Root> }
@@ -206,7 +204,7 @@ interface Frame {
   /**
    * The reset function used when acquiring a frame
    */
-  r: (root: any, type: FrameType, shallow: boolean) => void
+  r: (root: any, type: FrameType) => void
 }
 const isPlainObject = (obj: any) => {
   if (obj == null || typeof obj !== 'object') {
@@ -232,11 +230,11 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
   const objPath = new Array(8)
   let obj = null as any
   let i = 0
-  let shallow = false
   let type = SET as FrameType
-  let clonedObjects = null as null | Map<object, CloneType>
+  let clonedObjects = null as null | Set<object>
 
   function release() {
+    complete = null
     clonedObjects = null
     if (!isEphemeral) {
       result.p = top
@@ -249,30 +247,21 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
     keyPath.fill(undefined)
     objPath.fill(undefined)
     obj = null
-    clonedObjects = null
     release()
   }
 
-  function clone(obj: any, type: CloneType) {
-    const existing = clonedObjects?.get(obj)
-    if (existing === SHALLOW_CLONE) {
-      if (type === DEEP_CLONE) {
-        updateChildren(obj, (child) => clone(child, DEEP_CLONE))
-        clonedObjects?.set(obj, DEEP_CLONE)
-      }
+  function clone(obj: any) {
+    if (clonedObjects?.has(obj)) {
       return obj
-    } else if (existing === DEEP_CLONE) {
-      return obj
-    } else {
-      const res =
-        type === DEEP_CLONE ? structuredClone(obj) : _shallowClone(obj)
-      clonedObjects?.set(res, type)
-      return res
     }
+
+    const res = _shallowClone(obj)
+    clonedObjects?.add(res)
+    return res
   }
 
   function set(obj: any, key: string | number, value: any): any {
-    const cloned = clone(obj, SHALLOW_CLONE)
+    const cloned = clone(obj)
     if (value === DELETE_VALUE) {
       if (Array.isArray(cloned)) {
         cloned.splice(Number(key), 1)
@@ -295,17 +284,25 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
     // @endif
     return cloned
   }
+  let complete = null as null | ((obj: any) => any)
   const result = {
     p: parent,
-    r: (root: any, _type: FrameType, _shallow: boolean) => {
+    r: (root: any, _type: FrameType) => {
+      if ($beditStateContainer in root) {
+        const container = root[$beditStateContainer]
+        root = container.get()
+        complete = (obj: any) => {
+          container.set(obj)
+          return obj
+        }
+      }
       type = _type
       if (root && batchStack?.r === root) {
         if (batchStack!.s == null) {
-          batchStack!.s = new Map([[root, SHALLOW_CLONE]])
+          batchStack!.s = new Set([root])
         }
         clonedObjects = batchStack!.s
       }
-      shallow = _shallow
       obj = root
     },
     $: new Proxy(() => {}, {
@@ -352,10 +349,8 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
             const fn = args[0]
             if (obj == null || typeof obj !== 'object') {
               value = obj
-            } else if (shallow) {
-              value = clone(obj, SHALLOW_CLONE)
             } else {
-              value = clone(obj, DEEP_CLONE)
+              value = clone(obj)
             }
             batchStack = getBatchStack(batchStack, value, null)
             // Apply the function to the cloned value
@@ -373,7 +368,7 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
               releaseBatchStack(batchStack)
             }
           } else if (type === ADD) {
-            value = clone(obj, SHALLOW_CLONE)
+            value = clone(obj)
             if (Array.isArray(value)) {
               value.push(...args)
             } else if (value instanceof Set) {
@@ -395,8 +390,9 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
             objPath[i] = undefined
           }
           obj = null
+          const ret = complete ? complete(value) : value
           release()
-          return value
+          return ret
         } catch (e) {
           resetAfterThrow()
           throw e
@@ -408,7 +404,7 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
 }
 
 // set up a tiny pool of four frames. we only need one frame per level
-// of nested setIn/updateIn/mutateIn calls.
+// of nested setIn/updateIn/editIn calls.
 let top: Frame | null = frame(frame(frame(frame(null))))
 type FrameType =
   | typeof SET
@@ -417,27 +413,27 @@ type FrameType =
   | typeof DELETE
   | typeof ADD
 
-function getFrame(root: any, type: FrameType, shallow?: boolean): Frame {
+function getFrame(root: any, type: FrameType): Frame {
   if (top == null) {
     return frame(null, true)
   }
   const ret = top
   top = ret.p
-  ret.r(root, type, !!shallow)
+  ret.r(root, type)
   return ret
 }
 
 type BatchStack = {
   r: any
   p: BatchStack | null
-  s: Map<any, CloneType> | null
+  s: Set<object> | null
 }
 let _batchStackPool: BatchStack | null = null
 let batchStack: BatchStack | null = null
 function getBatchStack(
   p: BatchStack | null,
   r: any,
-  s: Map<any, CloneType> | null,
+  s: Set<object> | null,
 ): BatchStack {
   if (_batchStackPool == null) {
     return { p, r, s }
@@ -487,7 +483,8 @@ function releaseBatchStack(bs: BatchStack) {
  * // Result: Map([['theme', 'light']])
  * ```
  */
-export const setIn = <T,>(t: T): Settable<T> => getFrame(t, SET).$
+export const setIn = <T,>(t: T | BeditStateContainer<T>): Settable<T> =>
+  getFrame(t, SET).$
 
 /**
  * Allows immutably updating properties at any depth in a value using functions.
@@ -521,48 +518,8 @@ export const setIn = <T,>(t: T): Settable<T> => getFrame(t, SET).$
  * // Result: Map([['theme', 'DARK']])
  * ```
  */
-export const updateIn = <T,>(t: T): Updatable<T> => getFrame(t, UPDATE).$
-
-/**
- * Allows immutably mutating properties at any depth in a value using functions.
- * The function can either mutate the value directly or return a new value.
- * This performs deep cloning using `structuredClone` for complete isolation.
- *
- * @template T - The type of the input value
- * @param t - The value to create a mutator for
- * @returns A mutator object that allows mutating properties at any depth using functions
- *
- * @example
- * ```typescript
- * const user = { name: 'John', age: 30 }
- *
- * // Direct mutation
- * const newUser = deepMutateIn(user)(user => {
- *   user.name = user.name.toUpperCase()
- *   user.age += 1
- * })
- * // Result: { name: 'JOHN', age: 31 }
- *
- * // Return new value
- * const newUser2 = deepMutateIn(user).name(name => name.toUpperCase())
- * // Result: { name: 'JOHN', age: 30 }
- *
- * // Nested objects with complex mutations
- * const state = { user: { profile: { name: 'John', age: 30 } } }
- * const newState = deepMutateIn(state).user.profile(profile => {
- *   profile.name = profile.name.toUpperCase()
- *   profile.age += 5
- *   profile.hobbies = ['reading', 'gaming']
- * })
- * // Result: { user: { profile: { name: 'JOHN', age: 35, hobbies: ['reading', 'gaming'] } } }
- *
- * // Maps with mutations
- * const config = new Map([['theme', 'dark']])
- * const newConfig = deepMutateIn(config).key('theme')(theme => theme.toUpperCase())
- * // Result: Map([['theme', 'DARK']])
- * ```
- */
-export const deepMutateIn = <T,>(t: T): Mutatable<T> => getFrame(t, MUTATE).$
+export const updateIn = <T,>(t: T | BeditStateContainer<T>): Updatable<T> =>
+  getFrame(t, UPDATE).$
 
 /**
  * Allows immutably deleting properties at any depth in a value.
@@ -598,7 +555,8 @@ export const deepMutateIn = <T,>(t: T): Mutatable<T> => getFrame(t, MUTATE).$
  * // Result: Map([['users', new Map([])]])
  * ```
  */
-export const deleteIn = <T,>(t: T): Deletable<T> => getFrame(t, DELETE).$
+export const deleteIn = <T,>(t: T | BeditStateContainer<T>): Deletable<T> =>
+  getFrame(t, DELETE).$
 
 /**
  * Allows immutably mutating properties at any depth in a value using functions.
@@ -614,7 +572,7 @@ export const deleteIn = <T,>(t: T): Deletable<T> => getFrame(t, DELETE).$
  * const state = { user: { name: 'John', profile: { age: 30, city: 'NYC' } } }
  *
  * // Shallow mutation - only the top-level object is cloned
- * const newState = mutateIn(state).user(user => {
+ * const newState = editIn(state).user(user => {
  *   user.name = 'Jane'
  *   // ❌ don't mutate nested objects! This would throw an error at dev time.
  *   // user.profile.age = 31
@@ -622,15 +580,9 @@ export const deleteIn = <T,>(t: T): Deletable<T> => getFrame(t, DELETE).$
  * // Result: { name: 'Jane', profile: { age: 30, city: 'NYC' } }
  * // Original user.profile.age is still 30 (shared reference)
  *
- * // For nested mutations, use deepMutateIn instead
- * const safeState = deepMutateIn(state).user(user => {
- *   user.profile.age = 31 // This only affects the new object
- * })
- * // Original user.profile.age remains 30
- *
  * // Arrays with shallow mutation
  * const state = { users: [{ name: 'John', details: { age: 30 } }] }
- * const newState = mutateIn(state).users(users => {
+ * const newState = editIn(state).users(users => {
  *   const user = users.pop()
  *   // Only the array itself is cloned, not the nested objects.
  *   // ❌ This would throw an error at dev time.
@@ -639,14 +591,15 @@ export const deleteIn = <T,>(t: T): Deletable<T> => getFrame(t, DELETE).$
  *
  * // Maps with shallow mutation
  * const config = { preferences: new Map([['theme', 'dark']]) }
- * const newConfig = mutateIn(config).preferences(prefs => {
+ * const newConfig = editIn(config).preferences(prefs => {
  *   prefs.set('theme', 'light')
  * })
  * // Result: { preferences: Map([['theme', 'light']]) }
  * ```
  */
-export const mutateIn = <T,>(t: T): ShallowMutatable<T> =>
-  getFrame(t, MUTATE, true).$
+export const editIn = <T,>(
+  t: T | BeditStateContainer<T>,
+): ShallowMutatable<T> => getFrame(t, MUTATE).$
 
 /**
  * Allows performing multiple mutations on a value at once while minimizing the
@@ -662,7 +615,7 @@ export const mutateIn = <T,>(t: T): ShallowMutatable<T> =>
  * const user = { name: 'John', age: 30, profile: { city: 'NYC' } }
  *
  * // Multiple mutations in a single batch
- * const newUser = bedit(user, (user) => {
+ * const newUser = edit(user, (user) => {
  *   user.name = 'Jane'
  *   user.age = 31
  *   user.profile.city = 'LA'
@@ -673,7 +626,7 @@ export const mutateIn = <T,>(t: T): ShallowMutatable<T> =>
  *
  * // Complex batch operations
  * const state = { users: [{ name: 'John' }, { name: 'Jane' }] }
- * const newState = bedit(state, (state) => {
+ * const newState = edit(state, (state) => {
  *   // Add a new user
  *   state.users.push({ name: 'Bob' })
  *
@@ -688,7 +641,7 @@ export const mutateIn = <T,>(t: T): ShallowMutatable<T> =>
  *
  * // Maps with batch edits
  * const config = new Map([['theme', 'dark'], ['debug', false]])
- * const newConfig = bedit(config, (config) => {
+ * const newConfig = edit(config, (config) => {
  *   config.set('theme', 'light')
  *   config.set('debug', true)
  *   config.set('version', '1.0.0')
@@ -696,7 +649,7 @@ export const mutateIn = <T,>(t: T): ShallowMutatable<T> =>
  *
  * // Arrays with batch edits
  * const numbers = [1, 2, 3, 4, 5]
- * const newNumbers = bedit(numbers, (numbers) => {
+ * const newNumbers = edit(numbers, (numbers) => {
  *   numbers.push(6, 7, 8)
  *   numbers[0] = 0
  *   numbers.splice(2, 1) // Remove element at index 2
@@ -710,15 +663,18 @@ export const mutateIn = <T,>(t: T): ShallowMutatable<T> =>
  * const user3 = setIn(user2).profile.city('LA')
  *
  * // More efficient: single copy with batch edits
- * const userBatch = bedit(user, (user) => {
+ * const userBatch = edit(user, (user) => {
  *   user.name = 'Jane'
  *   user.age = 31
  *   user.profile.city = 'LA'
  * })
  * ```
  */
-export function bedit<T>(t: T, fn: (t: ShallowMutable<T>) => void): T {
-  return mutateIn(t)(fn)
+export function edit<T>(
+  t: T | BeditStateContainer<T>,
+  fn: (t: Editable<T>) => void,
+): T {
+  return editIn(t)(fn)
 }
 
 /**
@@ -756,4 +712,5 @@ export function bedit<T>(t: T, fn: (t: ShallowMutable<T>) => void): T {
  * // Result: { users: Map([['user1', { tags: Set(['admin', 'moderator']) }]]) }
  * ```
  */
-export const addIn = <T,>(t: T): Addable<T> => getFrame(t, ADD).$
+export const addIn = <T,>(t: T | BeditStateContainer<T>): Addable<T> =>
+  getFrame(t, ADD).$

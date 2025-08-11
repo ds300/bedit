@@ -190,7 +190,7 @@
       // Color scheme for different libraries
       const colors = {
         'bedit – setIn': '#2563eb',
-        'bedit - mutateIn': '#1d4ed8',
+        'bedit - editIn': '#1d4ed8',
         'bedit - mutate': '#1e40af',
         immer: '#dc2626',
         mutative: '#059669',
@@ -411,12 +411,12 @@
             data: [normalizedScores[libName]],
             backgroundColor:
               colors[`${libName} – setIn`] ||
-              colors[`${libName} - mutateIn`] ||
+              colors[`${libName} - editIn`] ||
               colors[libName] ||
               '#999',
             borderColor:
               colors[`${libName} – setIn`] ||
-              colors[`${libName} - mutateIn`] ||
+              colors[`${libName} - editIn`] ||
               colors[libName] ||
               '#999',
             borderWidth: 2,

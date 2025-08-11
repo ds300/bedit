@@ -7,9 +7,9 @@ import {
   createUserArray,
   createDeepNested,
 } from './test-utils'
-import { mutate, setIn, updateIn, mutateIn, deepMutateIn } from '../bedit.mts'
+import { edit, setIn, updateIn, editIn } from '../bedit.mts'
 
-describe('mutate', () => {
+describe('edit', () => {
   it('should batch multiple set operations', () => {
     const obj = createSimpleUser()
     const backup = structuredClone(obj)
@@ -17,7 +17,7 @@ describe('mutate', () => {
     mutable.name = 'Jane'
     mutable.age = 25
 
-    const result = mutate(obj, (draft) => {
+    const result = edit(obj, (draft) => {
       draft.name = 'Jane'
       draft.age = 25
     })
@@ -34,7 +34,7 @@ describe('mutate', () => {
     mutable.users = mutable.users.filter((u) => u.age > 25)
     mutable.users[0].age += 5
 
-    const result = mutate(obj, (draft) => {
+    const result = edit(obj, (draft) => {
       setIn(draft).users[0].name('Johnny')
       setIn(draft).users(draft.users.filter((u) => u.age > 25))
       updateIn(draft).users[0].age((age) => age + 5)
@@ -52,7 +52,7 @@ describe('mutate', () => {
     mutable.user.profile.age = 25
     mutable.user.profile.age += 5
 
-    const result = mutate(obj, (draft) => {
+    const result = edit(obj, (draft) => {
       setIn(draft).user.profile.name('Jane')
       setIn(draft).user.profile.age(25)
       updateIn(draft).user.profile.age((age) => age + 5)
@@ -70,7 +70,7 @@ describe('mutate', () => {
     mutable.users[1].age = 26
     mutable.users.push({ name: 'Bob', age: 40 })
 
-    const result = mutate(obj, (draft) => {
+    const result = edit(obj, (draft) => {
       setIn(draft).users[0].name('Johnny')
       setIn(draft).users[1].age(26)
       updateIn(draft).users((users) => [...users, { name: 'Bob', age: 40 }])
@@ -87,7 +87,7 @@ describe('mutate', () => {
     mutable.a.b.c.d.e.f.g.h.i.j = 'new value'
     ;(mutable.a.b.c.d.e.f.g.h.i as any).k = 'another value'
 
-    const result = mutate(obj, (draft) => {
+    const result = edit(obj, (draft) => {
       setIn(draft).a.b.c.d.e.f.g.h.i.j('new value')
       ;(setIn(draft).a.b.c.d.e.f.g.h.i as any).k('another value')
     })
@@ -108,12 +108,12 @@ describe('mutate', () => {
     mutable.config.set('theme', { color: 'light' })
     mutable.config.get('debug')!.enabled = true
 
-    const result = mutate(obj, (draft) => {
-      mutateIn(draft).config((config) => {
+    const result = edit(obj, (draft) => {
+      editIn(draft).config((config) => {
         config.set('theme', { color: 'light' })
       })
-      deepMutateIn(draft).config((config) => {
-        config.get('debug')!.enabled = true
+      editIn(draft).config.key('debug')((config) => {
+        config.enabled = true
       })
     })
 
@@ -142,9 +142,9 @@ describe('mutate', () => {
     mutable.data.config.set('debug', { color: 'light' })
     mutable.data.tags.add('typescript')
 
-    const result = mutate(obj, (draft) => {
+    const result = edit(obj, (draft) => {
       setIn(draft).data.config.key('debug')({ color: 'light' })
-      mutateIn(draft).data.tags((tags) => {
+      editIn(draft).data.tags((tags) => {
         tags.add('typescript')
       })
     })
@@ -166,7 +166,7 @@ describe('mutate', () => {
     const backup = structuredClone(obj)
     const mutable = structuredClone(obj)
 
-    const result = mutate(obj, (draft) => {
+    const result = edit(obj, (draft) => {
       // No operations
     })
 
@@ -181,7 +181,7 @@ describe('mutate', () => {
     mutable.users.push({ name: 'Bob', age: 40 })
     ;(mutable as any).filter = 'all'
 
-    const result = mutate(obj, (draft) => {
+    const result = edit(obj, (draft) => {
       updateIn(draft).users((users) => [...users, { name: 'Bob', age: 40 }])
       ;(setIn(draft) as any).filter('all')
     })
@@ -206,7 +206,7 @@ describe('mutate', () => {
     let profileRef: any = null
     let settingsRef: any = null
 
-    const result = mutate(obj, (obj) => {
+    const result = edit(obj, (obj) => {
       // First modification - should clone
       setIn(obj).user.profile.name('Jane')
       profileRef = obj.user.profile
@@ -255,7 +255,7 @@ describe('mutate', () => {
 
     let usersRef: any = null
 
-    const result = mutate(obj, (obj) => {
+    const result = edit(obj, (obj) => {
       // First modification - should clone
       setIn(obj).users[0].name('Johnny')
       usersRef = obj.users
@@ -265,7 +265,7 @@ describe('mutate', () => {
       expect(obj.users).toBe(usersRef)
 
       // Third modification - should still reuse
-      mutateIn(obj).users((users) => {
+      editIn(obj).users((users) => {
         users.push({ name: 'Bob', age: 40 })
       })
       expect(obj.users).toBe(usersRef)
@@ -296,7 +296,7 @@ describe('mutate', () => {
 
     let profileRef: any = null
 
-    const result = mutate(obj, (draft) => {
+    const result = edit(obj, (draft) => {
       // Direct mutation first
       setIn(draft).user.profile.name('Jane')
       profileRef = draft.user.profile
@@ -349,7 +349,7 @@ describe('mutate', () => {
 
     let deepRef: any = null
 
-    const result = mutate(obj, (draft) => {
+    const result = edit(obj, (draft) => {
       // First modification - should clone the path
       setIn(draft).a.b.c.d.e.f.g.h.i.j('new value')
       deepRef = draft.a.b.c.d.e.f.g.h.i
@@ -399,12 +399,12 @@ describe('mutate', () => {
       },
     }
 
-    const result = mutate(obj, (draft) => {
+    const result = edit(obj, (draft) => {
       setIn(draft).a.foo('baz')
       let shallowA = draft.a
       expect(draft.a.b).toBe(obj.a.b)
-      deepMutateIn(draft).a((a) => {
-        a.b.c.d = 'new value'
+      editIn(draft).a.b.c((c) => {
+        c.d = 'new value'
       })
       // a should not have been recloned
       expect(draft.a).toBe(shallowA)
@@ -443,7 +443,7 @@ describe('mutate', () => {
     mutable.foo.set('bar', 'qux')
     mutable.foo.set('new', 'value')
 
-    const result = mutate(obj, (draft) => {
+    const result = edit(obj, (draft) => {
       setIn(draft).foo.key('bar')('qux')
       setIn(draft).foo.key('new')('value')
     })
@@ -465,7 +465,7 @@ describe('mutate', () => {
     user.age = 25
     mutable.data.get('users')!.set('user2', { name: 'Bob', age: 35 })
 
-    const result = mutate(obj, (draft) => {
+    const result = edit(obj, (draft) => {
       setIn(draft).data.key('users').key('user1').name('Jane')
       setIn(draft).data.key('users').key('user1').age(25)
       setIn(draft).data.key('users').key('user2')({ name: 'Bob', age: 35 })
@@ -482,7 +482,7 @@ describe('mutate', () => {
     mutable[0].bar.set('foo', 'new')
     mutable[0].bar.set('extra', 'value')
 
-    const result = mutate(obj, (draft) => {
+    const result = edit(obj, (draft) => {
       setIn(draft)[0].bar.key('foo')('new')
       setIn(draft)[0].bar.key('extra')('value')
     })
@@ -515,7 +515,7 @@ describe('mutate', () => {
       .get('features')!
       .set('feature2', { enabled: true, count: 1 })
 
-    const result = mutate(obj, (draft) => {
+    const result = edit(obj, (draft) => {
       setIn(draft)
         .config.key('settings')
         .key('features')
@@ -542,7 +542,7 @@ describe('mutate', () => {
 
     let mapRef: any = null
 
-    const result = mutate(obj, (draft) => {
+    const result = edit(obj, (draft) => {
       // First modification - should clone
       setIn(draft).foo.key('bar')('qux')
       mapRef = draft.foo

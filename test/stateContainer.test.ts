@@ -1,0 +1,25 @@
+import { describe, it, expect } from 'vitest'
+import { $beditStateContainer, setIn } from '../bedit.mts'
+
+class MySignal<T> {
+  constructor(private value: T) {}
+  get() {
+    return this.value
+  }
+  set(value: T) {
+    this.value = value
+  }
+  [$beditStateContainer] = this
+}
+
+describe('state container', () => {
+  it.only('should work', () => {
+    const original = {
+      count: 0,
+    }
+    const signal = new MySignal(original)
+    const result = setIn(signal).count(1)
+    expect(result.count).toBe(1)
+    expect(signal.get().count).toBe(1)
+  })
+})
