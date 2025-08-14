@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { editIn } from '../bedit.mjs'
+import { editIn } from '../src/bedit.mjs'
 
 describe('editIn', () => {
   describe('Object mutations', () => {

@@ -7,7 +7,14 @@ import {
   createUserArray,
   createDeepNested,
 } from './test-utils'
-import { edit, setIn, updateIn, editIn } from '../src/bedit.mts'
+import {
+  edit,
+  setIn,
+  updateIn,
+  editIn,
+  addIn,
+  deleteIn,
+} from '../src/bedit.mts'
 
 describe('edit', () => {
   it('should batch multiple set operations', () => {
@@ -564,5 +571,261 @@ describe('edit', () => {
       ]),
     })
     expect(obj).toEqual(backup)
+  })
+
+  // Async edit tests
+  describe('async functionality', () => {
+    const delay = (ms: number) =>
+      new Promise((resolve) => setTimeout(resolve, ms))
+
+    it('should handle simple async mutations', async () => {
+      const obj = createSimpleUser()
+      const backup = structuredClone(obj)
+
+      let resolved = false
+      const result = edit(obj, async (draft) => {
+        await delay(1)
+        draft.name = 'Jane'
+        draft.age = 25
+        resolved = true
+      })
+
+      // Should not have resolved synchronously
+      expect(resolved).toBe(false)
+
+      await delay(5) // Wait for async operation to complete
+
+      expect(resolved).toBe(true)
+      expect(await result).toEqual({ name: 'Jane', age: 25 })
+      expect(obj).toEqual(backup) // Original unchanged
+    })
+
+    it('should handle async mutations with nested operations', async () => {
+      const obj = createNestedUser()
+      const backup = structuredClone(obj)
+
+      let resolved = false
+      const result = edit(obj, async (draft) => {
+        await delay(1)
+        setIn(draft).user.profile.name('Jane')
+        setIn(draft).user.profile.age(25)
+        resolved = true
+      })
+
+      expect(resolved).toBe(false)
+      await delay(5)
+
+      expect(resolved).toBe(true)
+      expect(await result).toEqual({
+        user: {
+          profile: {
+            name: 'Jane',
+            age: 25,
+          },
+        },
+      })
+      expect(obj).toEqual(backup)
+    })
+
+    it('should handle async mutations with multiple await calls', async () => {
+      const obj = createSimpleUser()
+      const backup = structuredClone(obj)
+
+      const mockApiCall1 = async () => {
+        await delay(1)
+        return 'Jane'
+      }
+
+      const mockApiCall2 = async () => {
+        await delay(1)
+        return 25
+      }
+
+      let resolved = false
+      const result = edit(obj, async (draft) => {
+        const name = await mockApiCall1()
+        draft.name = name
+
+        const age = await mockApiCall2()
+        draft.age = age
+        resolved = true
+      })
+
+      expect(resolved).toBe(false)
+      await delay(10)
+
+      expect(resolved).toBe(true)
+      expect(await result).toEqual({ name: 'Jane', age: 25 })
+      expect(obj).toEqual(backup)
+    })
+
+    it('should handle async mutations with Maps', async () => {
+      const obj = {
+        config: new Map([
+          ['theme', 'dark'],
+          ['debug', 'enabled'],
+        ]),
+      }
+      const backup = structuredClone(obj)
+
+      let resolved = false
+      const result = edit(obj, async (draft) => {
+        await delay(1)
+        setIn(draft).config.key('theme')('light')
+        setIn(draft).config.key('version')('1.0.0')
+        resolved = true
+      })
+
+      expect(resolved).toBe(false)
+      await delay(5)
+
+      expect(resolved).toBe(true)
+      expect(await result).toEqual({
+        config: new Map([
+          ['theme', 'light'],
+          ['debug', 'enabled'],
+          ['version', '1.0.0'],
+        ]),
+      })
+      expect(obj).toEqual(backup)
+    })
+
+    it('should handle async mutations with Sets', async () => {
+      const obj = { tags: new Set(['react', 'typescript']) }
+      const backup = structuredClone(obj)
+
+      let resolved = false
+      const result = edit(obj, async (draft) => {
+        await delay(1)
+        addIn(draft).tags('nodejs')
+        deleteIn(draft).tags.key('react')()
+        resolved = true
+      })
+
+      expect(resolved).toBe(false)
+      await delay(5)
+
+      expect(resolved).toBe(true)
+      expect(await result).toEqual({
+        tags: new Set(['typescript', 'nodejs']),
+      })
+      expect(obj).toEqual(backup)
+    })
+
+    it('should handle async mutations with arrays', async () => {
+      const obj = createUserArray()
+      const backup = structuredClone(obj)
+
+      let resolved = false
+      const result = await edit(obj, async (draft) => {
+        await delay(1)
+        addIn(draft).users({ name: 'Bob', age: 40 })
+        setIn(draft).users[0].name('Johnny')
+        resolved = true
+      })
+
+      expect(resolved).toBe(true)
+      expect(result.users).toHaveLength(3)
+      expect(result.users[0].name).toBe('Johnny')
+      expect(result.users[2]).toEqual({ name: 'Bob', age: 40 })
+      expect(obj).toEqual(backup)
+    })
+
+    it('should handle complex async operations with error handling', async () => {
+      const obj = {
+        data: null as { id: number; name: string } | null,
+        loading: false,
+        error: null as string | null,
+      }
+      const backup = structuredClone(obj)
+
+      const mockApiCall = async (shouldFail: boolean) => {
+        await delay(1)
+        if (shouldFail) {
+          throw new Error('API Error')
+        }
+        return { id: 1, name: 'John' }
+      }
+
+      let resolved = false
+      const result = await edit(obj, async (draft) => {
+        draft.loading = true
+
+        try {
+          const data = await mockApiCall(false)
+          draft.data = data
+          draft.error = null
+        } catch (error) {
+          draft.error = (error as Error).message
+        } finally {
+          draft.loading = false
+          resolved = true
+        }
+      })
+
+      expect(resolved).toBe(true)
+      expect(result).toEqual({
+        data: { id: 1, name: 'John' },
+        loading: false,
+        error: null,
+      })
+      expect(obj).toEqual(backup)
+    })
+
+    it('should handle async mutations returning values', async () => {
+      const obj = createSimpleUser()
+      const backup = structuredClone(obj)
+
+      let resolved = false
+      const result = edit(obj, async (_draft) => {
+        await delay(1)
+        resolved = true
+        return { name: 'Jane', age: 25 }
+      })
+
+      expect(resolved).toBe(false)
+      await result
+
+      expect(resolved).toBe(true)
+      expect(await result).toEqual({ name: 'Jane', age: 25 })
+      expect(obj).toEqual(backup)
+    })
+
+    it('should handle nested async operations with bedit functions', async () => {
+      const obj = {
+        users: [{ id: 1, name: 'John', profile: { bio: 'Developer' } }],
+        loading: false,
+      }
+      const backup = structuredClone(obj)
+
+      const updateProfile = async (id: number) => {
+        await delay(1)
+        return `Updated bio for user ${id}`
+      }
+
+      let resolved = false
+      const result = edit(obj, async (draft) => {
+        setIn(draft).loading(true)
+
+        const newBio = await updateProfile(draft.users[0].id)
+        setIn(draft).users[0].profile.bio(newBio)
+        updateIn(draft).users[0].name((name) => name.toUpperCase())
+
+        setIn(draft).loading(false)
+        resolved = true
+      })
+
+      expect(resolved).toBe(false)
+      await result
+
+      expect(resolved).toBe(true)
+      expect(await result).toEqual({
+        users: [
+          { id: 1, name: 'JOHN', profile: { bio: 'Updated bio for user 1' } },
+        ],
+        loading: false,
+      })
+      expect(obj).toEqual(backup)
+    })
   })
 })

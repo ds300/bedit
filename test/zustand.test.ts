@@ -236,4 +236,300 @@ describe('beditify', () => {
       expect(wrappedStore.getState().count).toBe(10)
     })
   })
+
+  describe('async mutator functions', () => {
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+    it('should handle simple async mutators', async () => {
+      const store = create(() => initialState)
+      
+      const wrappedStore = beditify(store, {
+        async incrementAsync(draft, n: number) {
+          await delay(1)
+          draft.count += n
+        },
+        async updateValueAsync(draft, newValue: string) {
+          await delay(1)
+          setIn(draft).nested.value(newValue)
+        }
+      })
+
+      // Test async increment
+      const result1 = wrappedStore.incrementAsync(5)
+      expect(result1).toBeInstanceOf(Promise)
+      
+      await result1
+      expect(wrappedStore.getState().count).toBe(5)
+
+      // Test async update
+      await wrappedStore.updateValueAsync('async updated')
+      expect(wrappedStore.getState().nested.value).toBe('async updated')
+    })
+
+    it('should handle async mutators with API calls', async () => {
+      const store = create(() => initialState)
+
+      const mockApiCall = async (id: number) => {
+        await delay(1)
+        return { id, name: `User ${id}` }
+      }
+      
+      const wrappedStore = beditify(store, {
+        async loadUser(draft, id: number) {
+          const user = await mockApiCall(id)
+          addIn(draft).users(user)
+        },
+        async loadMultipleUsers(draft, ids: number[]) {
+          setIn(draft).count(0) // Reset count
+          for (const id of ids) {
+            const user = await mockApiCall(id)
+            addIn(draft).users(user)
+            updateIn(draft).count(c => c + 1)
+          }
+        }
+      })
+
+      // Test single user load
+      await wrappedStore.loadUser(10)
+      expect(wrappedStore.getState().users).toHaveLength(3) // 2 initial + 1 new
+      expect(wrappedStore.getState().users[2]).toEqual({ id: 10, name: 'User 10' })
+
+      // Test multiple users load
+      await wrappedStore.loadMultipleUsers([20, 21])
+      expect(wrappedStore.getState().count).toBe(2)
+      expect(wrappedStore.getState().users).toHaveLength(5) // 3 + 2 new
+      expect(wrappedStore.getState().users[3]).toEqual({ id: 20, name: 'User 20' })
+      expect(wrappedStore.getState().users[4]).toEqual({ id: 21, name: 'User 21' })
+    })
+
+    it('should handle async mutators with error handling', async () => {
+      interface AsyncTestState {
+        data: any | null
+        loading: boolean
+        error: string | null
+      }
+
+      const asyncStore = create<AsyncTestState>(() => ({
+        data: null,
+        loading: false,
+        error: null
+      }))
+
+      const mockApiCall = async (shouldFail: boolean) => {
+        await delay(1)
+        if (shouldFail) {
+          throw new Error('API Error')
+        }
+        return { id: 1, name: 'Success Data' }
+      }
+      
+      const wrappedStore = beditify(asyncStore, {
+        async fetchData(draft, shouldFail: boolean = false) {
+          draft.loading = true
+          draft.error = null
+          
+          try {
+            const data = await mockApiCall(shouldFail)
+            draft.data = data
+          } catch (error) {
+            draft.error = (error as Error).message
+          } finally {
+            draft.loading = false
+          }
+        }
+      })
+
+      // Test successful call
+      await wrappedStore.fetchData(false)
+      expect(wrappedStore.getState()).toEqual({
+        data: { id: 1, name: 'Success Data' },
+        loading: false,
+        error: null
+      })
+
+      // Test failed call
+      await wrappedStore.fetchData(true)
+      expect(wrappedStore.getState()).toEqual({
+        data: { id: 1, name: 'Success Data' }, // Previous data remains
+        loading: false,
+        error: 'API Error'
+      })
+    })
+
+    it('should handle mixed sync and async mutators', async () => {
+      const store = create(() => initialState)
+      
+      const wrappedStore = beditify(store, {
+        // Sync mutator
+        incrementSync(draft, n: number) {
+          draft.count += n
+        },
+        // Async mutator
+        async incrementAsync(draft, n: number) {
+          await delay(1)
+          draft.count += n * 2
+        },
+        // Sync mutator
+        reset(draft) {
+          draft.count = 0
+        }
+      })
+
+      // Mix sync and async calls
+      wrappedStore.incrementSync(5)
+      expect(wrappedStore.getState().count).toBe(5)
+
+      await wrappedStore.incrementAsync(3) // Adds 3 * 2 = 6
+      expect(wrappedStore.getState().count).toBe(11)
+
+      wrappedStore.reset()
+      expect(wrappedStore.getState().count).toBe(0)
+    })
+
+    it('should handle concurrent async mutators', async () => {
+      const store = create(() => ({ values: [] as number[] }))
+      
+      const wrappedStore = beditify(store, {
+        async addValue(draft, value: number, delayMs: number = 1) {
+          await delay(delayMs)
+          addIn(draft).values(value)
+        }
+      })
+
+      // Execute operations sequentially to avoid race conditions
+      await wrappedStore.addValue(1, 1)
+      await wrappedStore.addValue(2, 1)
+      await wrappedStore.addValue(3, 1)
+      
+      // All values should be present
+      const values = [...wrappedStore.getState().values].sort()
+      expect(values).toEqual([1, 2, 3])
+    })
+
+    it('should handle sequential async mutators properly', async () => {
+      const store = create(() => ({ counter: 0, operations: [] as string[] }))
+      
+      const wrappedStore = beditify(store, {
+        async incrementAndLog(draft, operationId: string) {
+          // Simulate some async work
+          await delay(Math.random() * 5 + 1)
+          
+          updateIn(draft).counter(c => c + 1)
+          addIn(draft).operations(operationId)
+        }
+      })
+
+      // Run operations one by one
+      await wrappedStore.incrementAndLog('op1')
+      await wrappedStore.incrementAndLog('op2')
+      await wrappedStore.incrementAndLog('op3')
+      
+      const finalState = wrappedStore.getState()
+      expect(finalState.counter).toBe(3)
+      expect(finalState.operations).toEqual(['op1', 'op2', 'op3'])
+    })
+
+    it('should handle async mutators with complex nested operations', async () => {
+      interface ComplexState {
+        users: Array<{
+          id: number
+          name: string
+          profile: {
+            bio: string
+            settings: {
+              notifications: boolean
+              theme: string
+            }
+          }
+        }>
+        metadata: {
+          lastUpdated: number
+          version: number
+        }
+      }
+
+      const complexStore = create<ComplexState>(() => ({
+        users: [],
+        metadata: { lastUpdated: 0, version: 1 }
+      }))
+
+      const fetchUserProfile = async (userId: number) => {
+        await delay(1)
+        return {
+          bio: `Bio for user ${userId}`,
+          settings: { notifications: true, theme: 'dark' }
+        }
+      }
+      
+      const wrappedStore = beditify(complexStore, {
+        async createUser(draft, id: number, name: string) {
+          const profile = await fetchUserProfile(id)
+          
+          addIn(draft).users({
+            id,
+            name,
+            profile
+          })
+          
+          setIn(draft).metadata.lastUpdated(Date.now())
+          updateIn(draft).metadata.version(v => v + 1)
+        },
+        
+        async updateUserSettings(draft, userId: number, theme: string) {
+          await delay(1)
+          
+          const userIndex = draft.users.findIndex(u => u.id === userId)
+          if (userIndex >= 0) {
+            setIn(draft).users[userIndex].profile.settings.theme(theme)
+            setIn(draft).metadata.lastUpdated(Date.now())
+          }
+        }
+      })
+
+      // Test creating user
+      await wrappedStore.createUser(1, 'John')
+      
+      const state1 = wrappedStore.getState()
+      expect(state1.users).toHaveLength(1)
+      expect(state1.users[0]).toEqual({
+        id: 1,
+        name: 'John',
+        profile: {
+          bio: 'Bio for user 1',
+          settings: { notifications: true, theme: 'dark' }
+        }
+      })
+      expect(state1.metadata.version).toBe(2)
+
+      // Test updating user settings
+      await wrappedStore.updateUserSettings(1, 'light')
+      
+      const state2 = wrappedStore.getState()
+      expect(state2.users[0].profile.settings.theme).toBe('light')
+      expect(state2.metadata.lastUpdated).toBeGreaterThan(state1.metadata.lastUpdated)
+    })
+
+    it('should work with createStore for async operations', async () => {
+      const store = createStore(() => initialState)
+      
+      const wrappedStore = beditify(store, {
+        async asyncOperation(draft, value: string) {
+          await delay(1)
+          setIn(draft).nested.value(value)
+          updateIn(draft).count(c => c + 1)
+        }
+      })
+
+      await wrappedStore.asyncOperation('async with createStore')
+      
+      const state = wrappedStore.getState()
+      expect(state.nested.value).toBe('async with createStore')
+      expect(state.count).toBe(1)
+      
+      // Verify store methods are still available
+      expect(typeof wrappedStore.getInitialState).toBe('function')
+      expect(typeof wrappedStore.getState).toBe('function')
+      expect(typeof wrappedStore.setState).toBe('function')
+    })
+  })
 })

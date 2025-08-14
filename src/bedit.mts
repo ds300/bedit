@@ -1,3 +1,4 @@
+import { T } from 'vitest/dist/reporters-w_64AS5f'
 import { $beditStateContainer, BeditStateContainer } from './symbols.mjs'
 
 export type DeepReadonly<T> =
@@ -32,7 +33,7 @@ export type Editable<T> =
             T
 
 type Updater<T> = (val: T) => T
-type Mutator<T> = (val: T) => void | T
+type Mutator<T> = (val: T) => void | T | Promise<void | T>
 
 type Updatable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
   ? { key: (k: K) => Updatable<V, Root> }
@@ -52,23 +53,18 @@ type Settable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
     }) &
   ((val: T) => Root)
 
-type Mutatable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
-  ? { key: (k: K) => Mutatable<V, Root> }
-  : {
-      [k in keyof T]: T[k] extends object
-        ? Mutatable<T[k], Root>
-        : (mutate: Mutator<Editable<T[k]>>) => Root
-    }) &
-  ((mutate: Mutator<Editable<T>>) => Root)
-
 type ShallowMutatable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
   ? { key: (k: K) => ShallowMutatable<V, Root> }
   : {
       [k in keyof T]: T[k] extends object
         ? ShallowMutatable<T[k], Root>
-        : (mutate: Mutator<Editable<T[k]>>) => Root
+        : <F extends Mutator<Editable<T[k]>>>(
+            mutate: F,
+          ) => ReturnType<F> extends Promise<any> ? Promise<Root> : Root
     }) &
-  ((mutate: Mutator<Editable<T>>) => Root)
+  (<F extends Mutator<Editable<T>>>(
+    mutate: F,
+  ) => ReturnType<F> extends Promise<any> ? Promise<Root> : Root)
 
 type Deletable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
   ? { key: (k: K) => Deletable<V, Root> }
@@ -123,11 +119,6 @@ type CloneType = typeof SHALLOW_CLONE | typeof DEEP_CLONE
  *
  * // Disable development mode
  * setDevMode(false)
- *
- * // Check if development mode is enabled
- * if (isDevModeEnabled()) {
- *   console.log('Development mode is active')
- * }
  * ```
  */
 export function setDevMode(enabled: boolean) {
@@ -300,23 +291,37 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
       obj = root
     },
     $: new Proxy(() => {}, {
-      get(_target, prop) {
+      get: function getTrap(_target, prop) {
         try {
           if (obj == null || typeof obj !== 'object') {
-            throw new TypeError(
+            const error = new TypeError(
               `Cannot read property ${JSON.stringify(String(prop))} of ${obj === null ? 'null' : typeof obj}`,
             )
+            throw Error.captureStackTrace?.(error, getTrap) ?? error
           }
           if (obj instanceof Map) {
             if (prop !== 'key') {
               throw new TypeError(
-                `Cannot edit property ${JSON.stringify(String(prop))} of Map. Use .key() instead.`,
+                `Cannot edit property ${JSON.stringify(String(prop))} of Map or Set. Use .key() instead.`,
               )
             }
             return (k: any) => {
               keyPath[i] = k
               objPath[i] = obj
               obj = obj.get(k)
+              i++
+              return result.$
+            }
+          } else if (obj instanceof Set) {
+            if (prop !== 'key') {
+              throw new TypeError(
+                `Cannot edit property ${JSON.stringify(String(prop))} of Map or Set. Use .key() instead.`,
+              )
+            }
+            return (k: any) => {
+              keyPath[i] = k
+              objPath[i] = obj
+              obj = null
               i++
               return result.$
             }
@@ -347,9 +352,22 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
               value = clone(obj)
             }
             batchStack = getBatchStack(batchStack, value, null)
+            let isAsync = false
             // Apply the function to the cloned value
             try {
               const res = fn(value)
+              if (res instanceof Promise) {
+                isAsync = true
+                type = SET
+
+                return res.then((res) => {
+                  if (typeof res === 'undefined') {
+                    res = value
+                  }
+                  return (result.$ as any)(res)
+                })
+              }
+
               value = typeof res === 'undefined' ? value : res
               // @ifndef PRODUCTION
               if (devMode && batchStack.s != null) {
@@ -359,7 +377,9 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
               }
               // @endif
             } finally {
-              releaseBatchStack(batchStack)
+              if (!isAsync) {
+                releaseBatchStack(batchStack)
+              }
             }
           } else if (type === ADD) {
             value = clone(obj)
@@ -563,20 +583,20 @@ export const deleteIn = <T,>(t: T | BeditStateContainer<T>): Deletable<T> =>
  *
  * @example
  * ```typescript
- * const state = { user: { name: 'John', profile: { age: 30, city: 'NYC' } } }
+ * const userState = { user: { name: 'John', profile: { age: 30, city: 'NYC' } } }
  *
  * // Shallow mutation - only the top-level object is cloned
- * const newState = editIn(state).user(user => {
+ * const newUserState = editIn(userState).user(user => {
  *   user.name = 'Jane'
  *   // ❌ don't mutate nested objects! This would throw an error at dev time.
  *   // user.profile.age = 31
  * })
- * // Result: { name: 'Jane', profile: { age: 30, city: 'NYC' } }
+ * // Result: { user: { name: 'Jane', profile: { age: 30, city: 'NYC' } } }
  * // Original user.profile.age is still 30 (shared reference)
  *
  * // Arrays with shallow mutation
- * const state = { users: [{ name: 'John', details: { age: 30 } }] }
- * const newState = editIn(state).users(users => {
+ * const usersState = { users: [{ name: 'John', details: { age: 30 } }] }
+ * const newUsersState = editIn(usersState).users(users => {
  *   const user = users.pop()
  *   // Only the array itself is cloned, not the nested objects.
  *   // ❌ This would throw an error at dev time.
@@ -664,10 +684,13 @@ export const editIn = <T,>(
  * })
  * ```
  */
-export function edit<T>(
+export function edit<
+  T,
+  Fn extends (t: Editable<T>) => void | Promise<void | Editable<T>>,
+>(
   t: T | BeditStateContainer<T>,
-  fn: (t: Editable<T>) => void,
-): T {
+  fn: Fn,
+): ReturnType<Fn> extends Promise<any> ? Promise<T> : T {
   return editIn(t)(fn)
 }
 

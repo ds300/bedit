@@ -10,46 +10,47 @@ type GetState<S> = S extends { getState: () => infer T } ? T : never
 
 // Helper type to infer mutator function signatures
 type MutatorFunctions<T> = {
-  [K: string]: (draft: Editable<T>, ...args: any[]) => void
+  [K: string]: (draft: Editable<T>, ...args: any[]) => void | Promise<void>
 }
 
 // Type for the enhanced store with mutator functions
-type BeditifiedStore<S extends ZustandStoreish<any>, M extends MutatorFunctions<GetState<S>>> = 
-  S & BeditStateContainer<GetState<S>> & {
-    [K in keyof M]: M[K] extends (draft: Editable<GetState<S>>, ...args: infer Args) => void
-      ? (...args: Args) => void
-      : never
+type BeditifiedStore<
+  S extends ZustandStoreish<any>,
+  M extends MutatorFunctions<GetState<S>>,
+> = S &
+  BeditStateContainer<GetState<S>> & {
+    [K in keyof M]: M[K] extends (
+      draft: Editable<GetState<S>>,
+      ...args: infer Args
+    ) => Promise<void>
+      ? (...args: Args) => Promise<void>
+      : M[K] extends (draft: Editable<GetState<S>>, ...args: infer Args) => void
+        ? (...args: Args) => void
+        : never
   }
 
 export function beditify<S extends ZustandStoreish<any>>(
   store: S,
-): S & BeditStateContainer<GetState<S>>
+): S & BeditStateContainer<GetState<S>> 
 
 export function beditify<
   S extends ZustandStoreish<any>,
-  M extends MutatorFunctions<GetState<S>>
->(
-  store: S,
-  mutators: M,
-): BeditifiedStore<S, M>
+  M extends MutatorFunctions<GetState<S>>,
+>(store: S, mutators: M): BeditifiedStore<S, M>
 
 export function beditify<
   S extends ZustandStoreish<any>,
-  M extends MutatorFunctions<GetState<S>>
+  M extends MutatorFunctions<GetState<S>>,
 >(
   store: S,
   mutators?: M,
-): S & BeditStateContainer<GetState<S>> | BeditifiedStore<S, M> {
-  // Create the bedit state container implementation
-  const beditContainer: BeditStateContainer<GetState<S>> = {
-    [$beditStateContainer]: {
-      get: () => store.getState(),
-      set: (newState: GetState<S>) => store.setState(newState),
-    },
+) {
+  // Start with the enhanced store and add the bedit state container symbol
+  const enhancedStore = store as any
+  enhancedStore[$beditStateContainer] = {
+    get: () => store.getState(),
+    set: (newState: GetState<S>) => store.setState(newState),
   }
-
-  // Start with the enhanced store
-  const enhancedStore = Object.assign(store, beditContainer)
 
   // If no mutators provided, return the basic enhanced store
   if (!mutators) {
@@ -57,15 +58,26 @@ export function beditify<
   }
 
   // Add mutator functions to the store
-  const mutatorMethods: Record<string, (...args: any[]) => void> = {}
-  
+  const mutatorMethods: Record<string, (...args: any[]) => any> = {}
+
   for (const [key, mutatorFn] of Object.entries(mutators)) {
     mutatorMethods[key] = (...args: any[]) => {
       const currentState = store.getState()
-      const newState = edit(currentState, (draft) => {
-        mutatorFn(draft, ...args)
+      const result = edit(currentState, (draft) => {
+        return mutatorFn(draft, ...args)
       })
-      store.setState(newState)
+
+      // Check if result is a promise (async mutator)
+      if (result && typeof result.then === 'function') {
+        return result.then((newState: GetState<S>) => {
+          store.setState(newState)
+          return newState
+        })
+      } else {
+        // Sync mutator
+        store.setState(result as GetState<S>)
+        return result
+      }
     }
   }
 
