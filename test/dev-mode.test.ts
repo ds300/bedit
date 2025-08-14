@@ -1,5 +1,12 @@
 import { describe, beforeEach, afterEach, test, expect } from 'vitest'
-import { setIn, updateIn, editIn, edit, setDevMode, addIn } from '../bedit.mts'
+import {
+  setIn,
+  updateIn,
+  editIn,
+  edit,
+  setDevMode,
+  addIn,
+} from '../src/bedit.mts'
 
 describe('Dev Mode', () => {
   beforeEach(() => {

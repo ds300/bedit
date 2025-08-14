@@ -258,3 +258,16 @@ const newTags = addIn({ tags: new Set(['admin', 'user']) }).tags(
 )
 // newTags = { tags: Set(['admin', 'user', 'moderator', 'vip']) }
 ```
+
+## Using with state containers
+
+Wrap or extend your state container (e.g. `zustand`, `valtio`, `recoil`, etc) to support bedit functions.
+
+```ts
+import { edit } from 'bedit'
+
+const store = createStore((set) => ({
+  count: 0,
+  increment: () => set((state) => ({ count: state.count + 1 })),
+}))
+```

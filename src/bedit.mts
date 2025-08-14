@@ -1,3 +1,5 @@
+import { $beditStateContainer, BeditStateContainer } from './symbols.mjs'
+
 export type DeepReadonly<T> =
   T extends ReadonlyArray<infer U>
     ? ReadonlyArray<DeepReadonly<U>>
@@ -8,14 +10,6 @@ export type DeepReadonly<T> =
         : T extends object
           ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
           : T
-
-export const $beditStateContainer = Symbol.for('__bedit_state_container__')
-export interface BeditStateContainer<T> {
-  [$beditStateContainer]: {
-    get(): T
-    set(t: T): void
-  }
-}
 
 /**
  * Editable<T> makes the top-level properties of T mutable,
@@ -129,6 +123,11 @@ type CloneType = typeof SHALLOW_CLONE | typeof DEEP_CLONE
  *
  * // Disable development mode
  * setDevMode(false)
+ *
+ * // Check if development mode is enabled
+ * if (isDevModeEnabled()) {
+ *   console.log('Development mode is active')
+ * }
  * ```
  */
 export function setDevMode(enabled: boolean) {
@@ -564,20 +563,20 @@ export const deleteIn = <T,>(t: T | BeditStateContainer<T>): Deletable<T> =>
  *
  * @example
  * ```typescript
- * const userState = { user: { name: 'John', profile: { age: 30, city: 'NYC' } } }
+ * const state = { user: { name: 'John', profile: { age: 30, city: 'NYC' } } }
  *
  * // Shallow mutation - only the top-level object is cloned
- * const newUserState = editIn(userState).user(user => {
+ * const newState = editIn(state).user(user => {
  *   user.name = 'Jane'
  *   // ❌ don't mutate nested objects! This would throw an error at dev time.
  *   // user.profile.age = 31
  * })
- * // Result: { user: { name: 'Jane', profile: { age: 30, city: 'NYC' } } }
+ * // Result: { name: 'Jane', profile: { age: 30, city: 'NYC' } }
  * // Original user.profile.age is still 30 (shared reference)
  *
  * // Arrays with shallow mutation
- * const usersState = { users: [{ name: 'John', details: { age: 30 } }] }
- * const newUsersState = editIn(usersState).users(users => {
+ * const state = { users: [{ name: 'John', details: { age: 30 } }] }
+ * const newState = editIn(state).users(users => {
  *   const user = users.pop()
  *   // Only the array itself is cloned, not the nested objects.
  *   // ❌ This would throw an error at dev time.

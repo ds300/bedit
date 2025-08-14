@@ -5,14 +5,17 @@
   "main": "dist/bedit.mjs",
   "files": [
     "dist",
-    "bedit.mts",
-    "bedit.production.mts"
+    "src"
   ],
   "type": "module",
   "exports": {
     ".": {
       "production": "./dist/bedit.production.mjs",
       "default": "./dist/bedit.mjs"
+    },
+    "./zustand": {
+      "production": "./dist/zustand.mjs",
+      "default": "./dist/zustand.mjs"
     }
   },
   "scripts": {
@@ -49,8 +52,10 @@
     "mutative": "^1.0.0",
     "preprocess": "^3.2.0",
     "prettier": "^3.6.2",
+    "react": "^19.1.1",
     "tsx": "^4.20.3",
     "typescript": "^5.9.2",
-    "vitest": "^1.6.1"
+    "vitest": "^1.6.1",
+    "zustand": "^5.0.7"
   }
 }

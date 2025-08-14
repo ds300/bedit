@@ -7,7 +7,7 @@ import {
   createUserArray,
   createDeepNested,
 } from './test-utils'
-import { edit, setIn, updateIn, editIn } from '../bedit.mts'
+import { edit, setIn, updateIn, editIn } from '../src/bedit.mts'
 
 describe('edit', () => {
   it('should batch multiple set operations', () => {

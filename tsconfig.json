@@ -13,11 +13,11 @@
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "rootDir": "./",
+    "rootDir": "./src",
     "removeComments": false,
     "noEmit": false,
     "types": ["vitest/globals"]
   },
-  "include": ["bedit.mts", "bedit.production.mts"],
+  "include": ["src"],
   "exclude": ["node_modules", "dist"]
 }

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { $beditStateContainer, setIn } from '../bedit.mts'
+import { setIn } from '../src/bedit.mjs'
+import { $beditStateContainer } from '../src/symbols.mts'
 
 class MySignal<T> {
   constructor(private value: T) {}
