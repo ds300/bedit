@@ -16,6 +16,10 @@
     "./zustand": {
       "production": "./dist/zustand.mjs",
       "default": "./dist/zustand.mjs"
+    },
+    "./symbols": {
+      "production": "./dist/symbols.mjs",
+      "default": "./dist/symbols.mjs"
     }
   },
   "scripts": {
