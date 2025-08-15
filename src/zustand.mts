@@ -73,6 +73,8 @@ export function beditify<
           store.setState(newState)
           return newState
         })
+        // Note: If the async mutator throws, the promise will be rejected
+        // and store.setState() will not be called, preserving the original state
       } else {
         // Sync mutator
         store.setState(result as GetState<S>)

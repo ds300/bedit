@@ -17,6 +17,30 @@ import {
 } from '../src/bedit.mts'
 
 describe('edit', () => {
+  it('should handle concurrent async operations without interference', async () => {
+    const obj1 = { a: { value: 1 }, b: { value: 2 } }
+    const obj2 = { x: { value: 10 }, y: { value: 20 } }
+
+    // Start two async operations that complete in different orders
+    const promise1 = edit(obj1, async (draft) => {
+      await new Promise((resolve) => setTimeout(resolve, 20)) // Longer delay
+      setIn(draft).a.value(100)
+      setIn(draft).b.value(200)
+    })
+
+    const promise2 = edit(obj2, async (draft) => {
+      await new Promise((resolve) => setTimeout(resolve, 5)) // Shorter delay - completes first
+      setIn(draft).x.value(1000)
+      setIn(draft).y.value(2000)
+    })
+
+    // Both should complete successfully despite out-of-order completion
+    const [result1, result2] = await Promise.all([promise1, promise2])
+
+    expect(result1).toEqual({ a: { value: 100 }, b: { value: 200 } })
+    expect(result2).toEqual({ x: { value: 1000 }, y: { value: 2000 } })
+  })
+
   it('should batch multiple set operations', () => {
     const obj = createSimpleUser()
     const backup = structuredClone(obj)

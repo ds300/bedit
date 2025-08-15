@@ -14,7 +14,7 @@ class MySignal<T> {
 }
 
 describe('state container', () => {
-  it.only('should work', () => {
+  it('should work', () => {
     const original = {
       count: 0,
     }

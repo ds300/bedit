@@ -123,6 +123,23 @@ try {
 } catch (error) {
   console.error('Failed to load user:', error)
 }
+
+// Note: If an async mutator throws an unhandled error, 
+// the store state remains unchanged and the error is propagated
+const store = beditify(useStore, {
+  async riskyOperation(draft, data: any) {
+    // If this throws, store state won't be modified
+    const result = await someRiskyApiCall(data) 
+    setIn(draft).result(result)
+  }
+})
+
+try {
+  await store.riskyOperation(badData) // May throw
+} catch (error) {
+  // Store state is unchanged, error is caught here
+  console.log('Operation failed, store state preserved')
+}
 ```
 
 ## Mixing Approaches

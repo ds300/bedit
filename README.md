@@ -123,8 +123,8 @@ https://github.com/ds300/bedit/tree/main/bench
 
 ## Limitations
 
-- 👭 Works only with data supported by [`structuredClone`](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm) (So yes ✅ to `Map`, `Set`, plain objects, and arrays. And no ❌ to custom classes, objects with symbol keys or getters/setters, etc)
 - 🩹 No support for patch generation/application.
+- 🤷‍♂️ LLMs really do suck at using bedit. They get it if you point them at the README but otherwise they make mistakes like 20% of the time, which is not what you want!!
 
 ## API
 
@@ -271,7 +271,7 @@ import { create } from 'zustand'
 const useStore = create(() => ({
   count: 0,
   user: { name: 'John', theme: 'light' },
-  todos: []
+  todos: [],
 }))
 
 const store = beditify(useStore, {
@@ -279,18 +279,18 @@ const store = beditify(useStore, {
   increment(draft, n: number) {
     draft.count += n
   },
-  
+
   async loadUser(draft, userId: string) {
-    const user = await fetch(`/api/users/${userId}`).then(r => r.json())
+    const user = await fetch(`/api/users/${userId}`).then((r) => r.json())
     setIn(draft).user(user)
-  }
+  },
 })
 
 // Use bedit functions directly
 setIn(store).user.name('Jane')
-updateIn(store).count(c => c + 1)
+updateIn(store).count((c) => c + 1)
 
-// Or call your custom functions  
+// Or call your custom functions
 store.increment(5)
 await store.loadUser('user123')
 ```
@@ -319,8 +319,8 @@ class CustomStore<T> implements BeditStateContainer<T> {
     get: () => this.state,
     set: (newState: T) => {
       this.state = newState
-      this.listeners.forEach(listener => listener())
-    }
+      this.listeners.forEach((listener) => listener())
+    },
   }
 
   // Your custom store methods
@@ -334,19 +334,22 @@ class CustomStore<T> implements BeditStateContainer<T> {
 // Usage
 const store = new CustomStore({
   count: 0,
-  user: { name: 'John', preferences: { theme: 'dark' } }
+  user: { name: 'John', preferences: { theme: 'dark' } },
 })
 
 // Now bedit functions work directly with your store!
 setIn(store).count(42)
 setIn(store).user.name('Jane')
-updateIn(store).user.preferences.theme(theme => theme === 'dark' ? 'light' : 'dark')
+updateIn(store).user.preferences.theme((theme) =>
+  theme === 'dark' ? 'light' : 'dark',
+)
 
 console.log(store.getState())
 // { count: 42, user: { name: 'Jane', preferences: { theme: 'light' } } }
 ```
 
 The `BeditStateContainer` interface requires:
+
 - A symbol property `[$beditStateContainer]` with `get()` and `set(newState)` methods
 - Import the symbol and interface from `'bedit/symbols'`
 

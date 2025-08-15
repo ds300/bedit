@@ -51,6 +51,7 @@
   "homepage": "https://github.com/ds300/bedit#readme",
   "devDependencies": {
     "@types/node": "^24.1.0",
+    "@vitest/coverage-v8": "^1.6.1",
     "esbuild": "^0.25.8",
     "immer": "^10.0.3",
     "mutative": "^1.0.0",

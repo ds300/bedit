@@ -1,4 +1,3 @@
-import { T } from 'vitest/dist/reporters-w_64AS5f'
 import { $beditStateContainer, BeditStateContainer } from './symbols.mjs'
 
 export type DeepReadonly<T> =
@@ -94,12 +93,7 @@ const MUTATE = 2 as const
 const DELETE = 3 as const
 const ADD = 4 as const
 
-const SHALLOW_CLONE = 0 as const
-const DEEP_CLONE = 1 as const
-
 const DELETE_VALUE = {}
-
-type CloneType = typeof SHALLOW_CLONE | typeof DEEP_CLONE
 
 /**
  * Enables or disables development mode for the bedit library.
@@ -210,7 +204,7 @@ const _shallowClone = (obj: any) =>
           ? new Set(obj)
           : structuredClone(obj)
 
-function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
+function frame(parent: Frame | null): Frame {
   const keyPath = new Array(8)
   const objPath = new Array(8)
   let obj = null as any
@@ -221,10 +215,8 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
   function release() {
     complete = null
     clonedObjects = null
-    if (!isEphemeral) {
-      result.p = top
-      top = result
-    }
+    result.p = top
+    top = result
   }
 
   function resetAfterThrow() {
@@ -282,13 +274,21 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
         }
       }
       type = _type
-      if (root && batchStack?.r === root) {
-        if (batchStack!.s == null) {
-          batchStack!.s = new Set([root])
-        }
-        clonedObjects = batchStack!.s
-      }
       obj = root
+      if (!root || typeof root !== 'object' || !batchStack) {
+        return
+      }
+      let current = batchStack as BatchFrame | null
+      while (current) {
+        if (current.r === root) {
+          if (current.s == null) {
+            current.s = new Set([root])
+          }
+          clonedObjects = current.s
+          break
+        }
+        current = current.b
+      }
     },
     $: new Proxy(() => {}, {
       get: function getTrap(_target, prop) {
@@ -351,7 +351,7 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
             } else {
               value = clone(obj)
             }
-            batchStack = getBatchStack(batchStack, value, null)
+            const currentBatchFrame = getBatchFrame(value)
             let isAsync = false
             // Apply the function to the cloned value
             try {
@@ -360,25 +360,34 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
                 isAsync = true
                 type = SET
 
-                return res.then((res) => {
-                  if (typeof res === 'undefined') {
-                    res = value
-                  }
-                  return (result.$ as any)(res)
-                })
+                return res
+                  .then((res) => {
+                    if (typeof res === 'undefined') {
+                      res = value
+                    }
+                    return (result.$ as any)(res)
+                  })
+                  .catch((e) => {
+                    resetAfterThrow()
+                    throw e
+                  })
+                  .finally(() => {
+                    // Ensure batch stack is always released for async operations
+                    releaseBatchFrame(currentBatchFrame)
+                  })
               }
 
               value = typeof res === 'undefined' ? value : res
               // @ifndef PRODUCTION
-              if (devMode && batchStack.s != null) {
-                for (const obj of batchStack.s.keys()) {
+              if (devMode && clonedObjects != null) {
+                for (const obj of clonedObjects.keys()) {
                   freezeObject(obj)
                 }
               }
               // @endif
             } finally {
               if (!isAsync) {
-                releaseBatchStack(batchStack)
+                releaseBatchFrame(currentBatchFrame)
               }
             }
           } else if (type === ADD) {
@@ -429,7 +438,9 @@ type FrameType =
 
 function getFrame(root: any, type: FrameType): Frame {
   if (top == null) {
-    return frame(null, true)
+    const res = frame(null)
+    res.r(root, type)
+    return res
   }
   const ret = top
   top = ret.p
@@ -437,34 +448,51 @@ function getFrame(root: any, type: FrameType): Frame {
   return ret
 }
 
-type BatchStack = {
+type BatchFrame = {
   r: any
-  p: BatchStack | null
+  // frame below this one (added earlier)
+  b: BatchFrame | null
+  // frame above this one (added later)
+  a: BatchFrame | null
   s: Set<object> | null
 }
-let _batchStackPool: BatchStack | null = null
-let batchStack: BatchStack | null = null
-function getBatchStack(
-  p: BatchStack | null,
-  r: any,
-  s: Set<object> | null,
-): BatchStack {
-  if (_batchStackPool == null) {
-    return { p, r, s }
+let _batchStackPool: BatchFrame | null = null
+let batchStack: BatchFrame | null = null
+function getBatchFrame(root: any): BatchFrame {
+  let ret = _batchStackPool
+  if (ret === null) {
+    ret = { b: batchStack, a: null, r: root, s: null }
+  } else {
+    _batchStackPool = ret.b
+    ret.b = batchStack
+    ret.a = null
+    ret.r = root
+    ret.s = null
   }
-  const ret = _batchStackPool
-  _batchStackPool = ret.p
-  ret.p = p
-  ret.r = r
-  ret.s = s
+  if (batchStack) {
+    batchStack.a = ret
+  }
+  batchStack = ret
   return ret
 }
-function releaseBatchStack(bs: BatchStack) {
-  batchStack = bs.p
-  bs.p = _batchStackPool
-  _batchStackPool = bs
-  bs.r = null
-  bs.s = null
+
+function releaseBatchFrame(frame: BatchFrame) {
+  // clear the set and root to avoid memory leaks
+  frame.r = frame.s = null
+  // snip the frame out of the stack
+  if (frame.b) {
+    frame.b.a = frame.a
+  }
+  if (frame.a) {
+    frame.a.b = frame.b
+  } else {
+    // special case: this is the top frame, so we need to update the top pointer
+    batchStack = frame.b
+  }
+  // finally return the frame to the pool
+  frame.a = null
+  frame.b = _batchStackPool
+  _batchStackPool = frame
 }
 
 /**

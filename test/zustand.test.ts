@@ -501,7 +501,8 @@ describe('beditify', () => {
       })
       expect(state1.metadata.version).toBe(2)
 
-      // Test updating user settings
+      // Test updating user settings (add small delay to ensure different timestamp)
+      await new Promise(resolve => setTimeout(resolve, 1))
       await wrappedStore.updateUserSettings(1, 'light')
       
       const state2 = wrappedStore.getState()
@@ -530,6 +531,31 @@ describe('beditify', () => {
       expect(typeof wrappedStore.getInitialState).toBe('function')
       expect(typeof wrappedStore.getState).toBe('function')
       expect(typeof wrappedStore.setState).toBe('function')
+    })
+
+    it('should handle unhandled async mutator errors', async () => {
+      const store = create(() => initialState)
+      
+      const wrappedStore = beditify(store, {
+        async throwingMutator(draft, shouldThrow: boolean) {
+          await delay(1)
+          draft.count = 99 // This change should not be persisted if error occurs
+          
+          if (shouldThrow) {
+            throw new Error('Unhandled mutator error')
+          }
+          
+          setIn(draft).nested.value('success')
+        }
+      })
+
+      // Test that the error is properly propagated
+      await expect(wrappedStore.throwingMutator(true)).rejects.toThrow('Unhandled mutator error')
+      
+      // Test that state is not modified when mutator throws
+      const state = wrappedStore.getState()
+      expect(state.count).toBe(0) // Should remain initial value
+      expect(state.nested.value).toBe('test') // Should remain initial value
     })
   })
 })
