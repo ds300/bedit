@@ -124,7 +124,8 @@ https://github.com/ds300/bedit/tree/main/bench
 ## Limitations
 
 - 🩹 No support for patch generation/application.
-- 🤷‍♂️ LLMs really do suck at using bedit. They get it if you point them at the README but otherwise they make mistakes like 20% of the time, which is not what you want!!
+- 👭 Works only with data supported by [`structuredClone`](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm) (So yes ✅ to `Map`, `Set`, plain objects, and arrays. And no ❌ to custom classes, objects with symbol keys or getters/setters, etc)
+- 🤷‍♂️ LLMs really do suck at using bedit. They get it if you point them at the README but otherwise they make a lot of mistakes (which is bad !!) !
 
 ## API
 
