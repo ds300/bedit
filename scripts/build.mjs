@@ -3,8 +3,8 @@ import { preprocessFileSync } from 'preprocess'
 import { execSync } from 'child_process'
 
 preprocessFileSync(
-  'bedit.mts',
-  'bedit.production.mts',
+  'src/bedit.mts',
+  'src/bedit.production.mts',
   {
     PRODUCTION: true,
     DEV_MODE_ERROR:

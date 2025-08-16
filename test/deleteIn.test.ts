@@ -5,7 +5,7 @@ import {
   createDeepNested,
   createNestedArray,
 } from './test-utils'
-import { deleteIn } from '../bedit.mts'
+import { deleteIn } from '../src/bedit.mjs'
 
 describe('deleteIn', () => {
   it('should delete a top-level property', () => {

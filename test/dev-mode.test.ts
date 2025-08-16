@@ -1,5 +1,12 @@
 import { describe, beforeEach, afterEach, test, expect } from 'vitest'
-import { setIn, updateIn, editIn, edit, setDevMode, addIn } from '../bedit.mts'
+import {
+  setIn,
+  updateIn,
+  editIn,
+  edit,
+  setDevMode,
+  addIn,
+} from '../src/bedit.mts'
 
 describe('Dev Mode', () => {
   beforeEach(() => {
@@ -192,5 +199,60 @@ describe('Dev Mode', () => {
     for (const value of result.tags) {
       expect(Object.isFrozen(value)).toBe(true)
     }
+  })
+
+  test('should modify Map values when freezing in dev mode', () => {
+    const map = new Map([['key', { nested: { value: 1 } }]])
+    const obj = { map }
+    
+    const result = setIn(obj).map.key('key')({ nested: { value: 2 } })
+    
+    expect(Object.isFrozen(result.map.get('key'))).toBe(true)
+    expect(result.map.get('key')).toEqual({ nested: { value: 2 } })
+  })
+
+  test('should freeze all cloned objects in batch operations', () => {
+    const obj = { a: { nested: 1 }, b: { nested: 2 } }
+    
+    const result = edit(obj, (draft) => {
+      setIn(draft).a({ nested: 10 })
+      setIn(draft).b({ nested: 20 })
+    })
+    
+    expect(Object.isFrozen(result)).toBe(true)
+    expect(Object.isFrozen(result.a)).toBe(true)
+    expect(Object.isFrozen(result.b)).toBe(true)
+    expect(result.a.nested).toBe(10)
+    expect(result.b.nested).toBe(20)
+  })
+
+  test('should handle complex batch object freezing scenarios', () => {
+    const obj = { 
+      users: [{ name: 'John', profile: { age: 30 } }],
+      settings: new Map([['theme', { color: 'dark', size: 'medium' }]]),
+      tags: new Set([{ id: 1, name: 'important' }])
+    }
+    
+    const result = edit(obj, (draft) => {
+      // Use setIn instead of editIn to avoid readonly issues
+      setIn(draft).users[0]({ name: 'Jane', profile: { age: 31 } })
+      setIn(draft).settings.key('theme')({ color: 'light', size: 'medium' })
+      
+      // For Set, use proper bedit operations
+      const newTags = new Set([{ id: 2, name: 'urgent' }])
+      setIn(draft).tags(newTags)
+    })
+    
+    // Everything should be frozen
+    expect(Object.isFrozen(result)).toBe(true)
+    expect(Object.isFrozen(result.users[0])).toBe(true)
+    expect(Object.isFrozen(result.users[0].profile)).toBe(true)
+    expect(Object.isFrozen(result.settings.get('theme'))).toBe(true)
+    
+    // Verify mutations worked
+    expect(result.users[0].name).toBe('Jane')
+    expect(result.users[0].profile.age).toBe(31)
+    expect(result.settings.get('theme')?.color).toBe('light')
+    expect([...result.tags]).toEqual([{ id: 2, name: 'urgent' }])
   })
 })

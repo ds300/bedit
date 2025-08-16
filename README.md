@@ -123,8 +123,8 @@ https://github.com/ds300/bedit/tree/main/bench
 
 ## Limitations
 
-- 👭 Works only with data supported by [`structuredClone`](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm) (So yes ✅ to `Map`, `Set`, plain objects, and arrays. And no ❌ to custom classes, objects with symbol keys or getters/setters, etc)
 - 🩹 No support for patch generation/application.
+- 🤷‍♂️ LLMs really do suck at using bedit. They get it if you point them at the README but otherwise they make mistakes like 20% of the time, which is not what you want!!
 
 ## API
 
@@ -258,3 +258,99 @@ const newTags = addIn({ tags: new Set(['admin', 'user']) }).tags(
 )
 // newTags = { tags: Set(['admin', 'user', 'moderator', 'vip']) }
 ```
+
+## Zustand Integration
+
+bedit provides integration with [Zustand](https://github.com/pmndrs/zustand) stores. Use bedit functions directly on stores and define custom mutator functions with full TypeScript support and async operations:
+
+```ts
+import { beditify } from 'bedit/zustand'
+import { setIn, updateIn, addIn } from 'bedit'
+import { create } from 'zustand'
+
+const useStore = create(() => ({
+  count: 0,
+  user: { name: 'John', theme: 'light' },
+  todos: [],
+}))
+
+const store = beditify(useStore, {
+  // Custom mutator functions with automatic type inference
+  increment(draft, n: number) {
+    draft.count += n
+  },
+
+  async loadUser(draft, userId: string) {
+    const user = await fetch(`/api/users/${userId}`).then((r) => r.json())
+    setIn(draft).user(user)
+  },
+})
+
+// Use bedit functions directly
+setIn(store).user.name('Jane')
+updateIn(store).count((c) => c + 1)
+
+// Or call your custom functions
+store.increment(5)
+await store.loadUser('user123')
+```
+
+See [Zustand Integration docs](./docs/zustand.md) for full details on sync/async mutators, TypeScript support, and advanced usage patterns.
+
+## Custom State Container Integration
+
+You can integrate bedit with any state container by implementing the `BeditStateContainer` interface. This allows bedit functions to work directly with your store:
+
+```ts
+import { $beditStateContainer, BeditStateContainer } from 'bedit/symbols'
+import { setIn, updateIn } from 'bedit'
+
+// Example: Custom Redux-like store
+class CustomStore<T> implements BeditStateContainer<T> {
+  private state: T
+  private listeners = new Set<() => void>()
+
+  constructor(initialState: T) {
+    this.state = initialState
+  }
+
+  // Required by BeditStateContainer interface
+  [$beditStateContainer] = {
+    get: () => this.state,
+    set: (newState: T) => {
+      this.state = newState
+      this.listeners.forEach((listener) => listener())
+    },
+  }
+
+  // Your custom store methods
+  getState = () => this.state
+  subscribe = (listener: () => void) => {
+    this.listeners.add(listener)
+    return () => this.listeners.delete(listener)
+  }
+}
+
+// Usage
+const store = new CustomStore({
+  count: 0,
+  user: { name: 'John', preferences: { theme: 'dark' } },
+})
+
+// Now bedit functions work directly with your store!
+setIn(store).count(42)
+setIn(store).user.name('Jane')
+updateIn(store).user.preferences.theme((theme) =>
+  theme === 'dark' ? 'light' : 'dark',
+)
+
+console.log(store.getState())
+// { count: 42, user: { name: 'Jane', preferences: { theme: 'light' } } }
+```
+
+The `BeditStateContainer` interface requires:
+
+- A symbol property `[$beditStateContainer]` with `get()` and `set(newState)` methods
+- Import the symbol and interface from `'bedit/symbols'`
+
+This pattern works with any state management library - Redux, MobX, custom stores, etc.

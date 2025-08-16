@@ -1,5 +1,5 @@
-import { describe, bench, expect, test, afterEach } from 'vitest'
-import { edit, editIn, setIn } from '../bedit.production.mts'
+import { describe, bench, expect, afterEach } from 'vitest'
+import { edit, editIn, setIn } from '../src/bedit.production.mts'
 import {
   produce,
   enableMapSet,

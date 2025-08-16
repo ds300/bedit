@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { $beditStateContainer, setIn } from '../bedit.mts'
+import { setIn } from '../src/bedit.mjs'
+import { $beditStateContainer } from '../src/symbols.mjs'
 
 class MySignal<T> {
   constructor(private value: T) {}
@@ -13,7 +14,7 @@ class MySignal<T> {
 }
 
 describe('state container', () => {
-  it.only('should work', () => {
+  it('should work', () => {
     const original = {
       count: 0,
     }
