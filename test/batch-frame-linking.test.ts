@@ -15,9 +15,12 @@ describe('batch frame linking', () => {
 
     // Create nested batch operations to test frame linking
     const result = await edit(obj, async (draft) => {
-      await editIn(draft).a(async (val) => {
-        await editIn({ temp: val }).temp(async (temp) => temp + 1)
-        return val + 1
+      await edit(draft, async (draft) => {
+        await edit(draft, async (draft) => {
+          await edit(draft, async (draft) => {
+            draft.a = 2
+          })
+        })
       })
       setIn(draft).b(20)
       setIn(draft).c(30)

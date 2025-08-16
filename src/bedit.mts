@@ -32,7 +32,9 @@ export type Editable<T> =
             T
 
 type Updater<T> = (val: T) => T
-type Mutator<T> = (val: T) => void | T | Promise<void | T>
+type Mutator<T> = (
+  val: Editable<T>,
+) => void | T | Editable<T> | Promise<void | T | Editable<T>>
 
 type Updatable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
   ? { key: (k: K) => Updatable<V, Root> }
@@ -57,11 +59,11 @@ type ShallowMutatable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
   : {
       [k in keyof T]: T[k] extends object
         ? ShallowMutatable<T[k], Root>
-        : <F extends Mutator<Editable<T[k]>>>(
+        : <F extends Mutator<T[k]>>(
             mutate: F,
           ) => ReturnType<F> extends Promise<any> ? Promise<Root> : Root
     }) &
-  (<F extends Mutator<Editable<T>>>(
+  (<F extends Mutator<T>>(
     mutate: F,
   ) => ReturnType<F> extends Promise<any> ? Promise<Root> : Root)
 
@@ -131,13 +133,15 @@ let devMode = false
 const frozenObjects = new WeakSet<object>()
 
 function freezeObject(obj: any): any {
-  if (!devMode || !obj || typeof obj !== 'object') {
+  if (!devMode || !obj || typeof obj !== 'object' || obj == DELETE_VALUE) {
     return obj
   }
 
   if (frozenObjects.has(obj)) {
     return obj
   }
+
+  obj = _shallowClone(obj)
 
   // Recursively freeze nested objects
   updateChildren(obj, freezeObject)
@@ -152,7 +156,7 @@ function freezeObject(obj: any): any {
 function updateChildren(obj: any, fn: (child: any) => any) {
   if (isPlainObject(obj)) {
     for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
         obj[key] = fn(obj[key])
       }
     }
@@ -256,7 +260,7 @@ function frame(parent: Frame | null): Frame {
     }
     // @ifndef PRODUCTION
     if (devMode && !clonedObjects) {
-      freezeObject(cloned)
+      return freezeObject(cloned)
     }
     // @endif
     return cloned
@@ -380,9 +384,7 @@ function frame(parent: Frame | null): Frame {
               value = typeof res === 'undefined' ? value : res
               // @ifndef PRODUCTION
               if (devMode && clonedObjects != null) {
-                for (const obj of clonedObjects.keys()) {
-                  freezeObject(obj)
-                }
+                value = freezeObject(value)
               }
               // @endif
             } finally {
@@ -402,7 +404,7 @@ function frame(parent: Frame | null): Frame {
           }
           // @ifndef PRODUCTION
           if (devMode && !clonedObjects) {
-            freezeObject(value)
+            value = freezeObject(value)
           }
           // @endif
 
@@ -712,10 +714,7 @@ export const editIn = <T,>(
  * })
  * ```
  */
-export function edit<
-  T,
-  Fn extends (t: Editable<T>) => void | Promise<void | Editable<T>>,
->(
+export function edit<T, Fn extends Mutator<T>>(
   t: T | BeditStateContainer<T>,
   fn: Fn,
 ): ReturnType<Fn> extends Promise<any> ? Promise<T> : T {

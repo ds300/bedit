@@ -50,9 +50,11 @@
   },
   "homepage": "https://github.com/ds300/bedit#readme",
   "devDependencies": {
+    "@fast-check/vitest": "^0.2.2",
     "@types/node": "^24.1.0",
     "@vitest/coverage-v8": "^1.6.1",
     "esbuild": "^0.25.8",
+    "fast-check": "^4.2.0",
     "immer": "^10.0.3",
     "mutative": "^1.0.0",
     "preprocess": "^3.2.0",
