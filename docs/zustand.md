@@ -56,9 +56,9 @@ const store = beditify(useStore, {
   },
   
   toggleTodo(draft, id: string) {
-    const todo = draft.todos.find(t => t.id === id)
-    if (todo) {
-      updateIn(draft).todos.find(t => t.id === id).completed(c => !c)
+    const idx = draft.todos.findIndex(t => t.id === id)
+    if (idx !== -1) {
+      updateIn(draft).todos[idx].completed(c => !c)
     }
   }
 })

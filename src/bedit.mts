@@ -36,44 +36,73 @@ type Mutator<T> = (
   val: Editable<T>,
 ) => void | T | Editable<T> | Promise<void | T | Editable<T>>
 
+type PrimitiveOrImmutableBuiltin =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | Date
+  | RegExp
+  | Error
+  | Symbol
+
 type Updatable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
   ? { key: (k: K) => Updatable<V, Root> }
-  : {
-      [k in keyof T]: T[k] extends object
-        ? Updatable<T[k], Root>
-        : (update: Updater<DeepReadonly<T[k]>>) => Root
-    }) &
+  : T extends ReadonlyArray<infer U>
+    ? { [key: number]: Updatable<U, Root> }
+    : PrimitiveOrImmutableBuiltin extends T
+      ? never
+      : {
+          [k in keyof T]: T[k] extends object
+            ? Updatable<T[k], Root>
+            : (update: Updater<DeepReadonly<T[k]>>) => Root
+        }) &
   ((update: Updater<DeepReadonly<T>>) => Root)
 
 type Settable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
   ? { key: (k: K) => Settable<V, Root> }
-  : {
-      [k in keyof T]: T[k] extends object
-        ? Settable<T[k], Root>
-        : (val: T[k]) => Root
-    }) &
+  : T extends ReadonlyArray<infer U>
+    ? { [key: number]: Settable<U, Root> }
+    : PrimitiveOrImmutableBuiltin extends T
+      ? never
+      : {
+          [k in keyof T]: T[k] extends object
+            ? Settable<T[k], Root>
+            : (val: T[k]) => Root
+        }) &
   ((val: T) => Root)
 
 type ShallowMutatable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
   ? { key: (k: K) => ShallowMutatable<V, Root> }
-  : {
-      [k in keyof T]: T[k] extends object
-        ? ShallowMutatable<T[k], Root>
-        : <F extends Mutator<T[k]>>(
-            mutate: F,
-          ) => ReturnType<F> extends Promise<any> ? Promise<Root> : Root
-    }) &
+  : T extends ReadonlyArray<infer U>
+    ? { [key: number]: ShallowMutatable<U, Root> }
+    : PrimitiveOrImmutableBuiltin extends T
+      ? never
+      : {
+          [k in keyof T]: T[k] extends object
+            ? ShallowMutatable<T[k], Root>
+            : <F extends Mutator<T[k]>>(
+                mutate: F,
+              ) => ReturnType<F> extends Promise<any> ? Promise<Root> : Root
+        }) &
   (<F extends Mutator<T>>(
     mutate: F,
   ) => ReturnType<F> extends Promise<any> ? Promise<Root> : Root)
 
 type Deletable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
   ? { key: (k: K) => Deletable<V, Root> }
-  : T extends ReadonlySet<infer V>
-    ? { key: (k: V) => () => Root }
-    : {
-        [k in keyof T]: T[k] extends object ? Deletable<T[k], Root> : () => Root
-      }) &
+  : T extends ReadonlyArray<infer U>
+    ? { [key: number]: Deletable<U, Root> }
+    : T extends ReadonlySet<infer V>
+      ? { key: (k: V) => () => Root }
+      : PrimitiveOrImmutableBuiltin extends T
+        ? never
+        : {
+            [k in keyof T]: T[k] extends object
+              ? Deletable<T[k], Root>
+              : () => Root
+          }) &
   (() => Root)
 
 type Addable<T, Root = T> =
@@ -83,11 +112,13 @@ type Addable<T, Root = T> =
       ? (...args: V[]) => Root
       : T extends ReadonlyArray<infer V>
         ? ((...args: V[]) => Root) & Record<number, Addable<V, Root>>
-        : {
-            [k in keyof T]: T[k] extends object
-              ? Addable<T[k], Root>
-              : () => Root
-          }
+        : PrimitiveOrImmutableBuiltin extends T
+          ? () => Root
+          : {
+              [k in keyof T]: T[k] extends object
+                ? Addable<T[k], Root>
+                : () => Root
+            }
 
 const SET = 0 as const
 const UPDATE = 1 as const
