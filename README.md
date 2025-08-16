@@ -1,13 +1,13 @@
 # bedit
 
-A weird (and cool) immutable state utility for TypeScript.
+A weird but kinda cool immutable state utility for TypeScript.
 
 It's like `immer` but:
 
-- 🕵️‍♀️ No Proxies getting in the way when you're trying to debug.
+- 🕵️‍♀️ No `Proxy` instances getting in the way when you're trying to debug.
 - 📈 10x faster (tbh [only 5x](#performance) but emotionally 10x)
 - 📉 Tiny (2kB minified)
-- 💅 An "innovative" API (give your complacent AI agent something to chew on)
+- 💅 An "innovative" API (your AI agent will enjoy the challenge)
 
 ## Installation
 
@@ -126,6 +126,15 @@ https://github.com/ds300/bedit/tree/main/bench
 - 🩹 No support for patch generation/application.
 - 👭 Works only with data supported by [`structuredClone`](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm) (So yes ✅ to `Map`, `Set`, plain objects, and arrays. And no ❌ to custom classes, objects with symbol keys or getters/setters, etc)
 - 🤷‍♂️ LLMs really do suck at using bedit. They get it if you point them at the README but otherwise they make a lot of mistakes (which is bad !!) !
+- It currently returns a new object even if an edit is ineffectual, e.g.
+
+  ```ts
+  const foo = { bar: 'baz' }
+  const nextState = setIn(foo).bar('baz')
+  newState !== foo // sadly true
+  ```
+
+  This could be fixed partially for certain usage patterns (PRs welcome), but a full fix would hurt performance when working with large objects and collections.
 
 ## API
 
