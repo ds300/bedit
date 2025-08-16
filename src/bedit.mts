@@ -383,7 +383,7 @@ function frame(parent: Frame | null): Frame {
 
               value = typeof res === 'undefined' ? value : res
               // @ifndef PRODUCTION
-              if (devMode && clonedObjects != null) {
+              if (devMode && clonedObjects == null) {
                 value = freezeObject(value)
               }
               // @endif

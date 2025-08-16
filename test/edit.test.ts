@@ -14,7 +14,10 @@ import {
   editIn,
   addIn,
   deleteIn,
+  setDevMode,
 } from '../src/bedit.mts'
+
+setDevMode(true)
 
 describe('edit', () => {
   it('should handle concurrent async operations without interference', async () => {
