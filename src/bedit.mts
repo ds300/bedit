@@ -1,3 +1,4 @@
+import { _shallowClone, isPlainObject } from './utils.mjs'
 import { $beditStateContainer, BeditStateContainer } from './symbols.mjs'
 
 export type DeepReadonly<T> =
@@ -220,25 +221,6 @@ interface Frame {
    */
   r: (root: any, type: FrameType) => void
 }
-const isPlainObject = (obj: any) => {
-  if (obj == null || typeof obj !== 'object') {
-    return false
-  }
-  const proto = Object.getPrototypeOf(obj)
-  return proto === Object.prototype || proto === null
-}
-
-const _shallowClone = (obj: any) =>
-  isPlainObject(obj)
-    ? { ...obj }
-    : Array.isArray(obj)
-      ? obj.slice()
-      : obj instanceof Map
-        ? new Map(obj)
-        : obj instanceof Set
-          ? new Set(obj)
-          : structuredClone(obj)
-
 function frame(parent: Frame | null): Frame {
   const keyPath = new Array(8)
   const objPath = new Array(8)
@@ -390,7 +372,7 @@ function frame(parent: Frame | null): Frame {
             let isAsync = false
             // Apply the function to the cloned value
             try {
-              const res = fn(value)
+              const res = fn.call(currentBatchFrame, value)
               if (res instanceof Promise) {
                 isAsync = true
                 type = SET

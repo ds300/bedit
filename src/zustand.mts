@@ -1,5 +1,6 @@
 import { Editable, edit } from './bedit.mjs'
 import { $beditStateContainer, BeditStateContainer } from './symbols.mjs'
+import { _shallowClone } from './utils.mjs'
 
 interface ZustandStoreish<T> {
   getState: () => T
@@ -10,7 +11,11 @@ type GetState<S> = S extends { getState: () => infer T } ? T : never
 
 // Helper type to infer mutator function signatures
 type MutatorFunctions<T> = {
-  [K: string]: (draft: Editable<T>, ...args: any[]) => void | Promise<void>
+  [K: string]: (
+    this: { commit(): void },
+    draft: Editable<T>,
+    ...args: any[]
+  ) => void | Promise<void>
 }
 
 // Type for the enhanced store with mutator functions
@@ -31,7 +36,7 @@ type BeditifiedStore<
 
 export function beditify<S extends ZustandStoreish<any>>(
   store: S,
-): S & BeditStateContainer<GetState<S>> 
+): S & BeditStateContainer<GetState<S>>
 
 export function beditify<
   S extends ZustandStoreish<any>,
@@ -41,10 +46,7 @@ export function beditify<
 export function beditify<
   S extends ZustandStoreish<any>,
   M extends MutatorFunctions<GetState<S>>,
->(
-  store: S,
-  mutators?: M,
-) {
+>(store: S, mutators?: M) {
   // Start with the enhanced store and add the bedit state container symbol
   const enhancedStore = store as any
   enhancedStore[$beditStateContainer] = {
@@ -63,9 +65,17 @@ export function beditify<
   for (const [key, mutatorFn] of Object.entries(mutators)) {
     mutatorMethods[key] = (...args: any[]) => {
       const currentState = store.getState()
-      const result = edit(currentState, (draft) => {
-        return mutatorFn(draft, ...args)
-      })
+      const result = edit(
+        currentState,
+        function (this: { s: Set<any> | null }, draft) {
+          const commit = () => {
+            const next = _shallowClone(draft)
+            this.s = null
+            store.setState(next)
+          }
+          return mutatorFn.call({ commit }, draft, ...args)
+        },
+      )
 
       // Check if result is a promise (async mutator)
       if (result && typeof result.then === 'function') {

@@ -31,7 +31,7 @@ const store = beditify(useStore)
 
 // Use bedit functions directly on the store
 setIn(store).user.name('Jane')
-updateIn(store).count(c => c + 1)
+updateIn(store).count((c) => c + 1)
 addIn(store).todos({ id: '1', title: 'Learn bedit', completed: false })
 ```
 
@@ -43,24 +43,24 @@ Define type-safe mutator functions with automatic type inference:
 const store = beditify(useStore, {
   // TypeScript automatically infers draft type - no annotations needed!
   increment(draft, n: number) {
-    draft.count += n  // Top-level mutations allowed
+    draft.count += n // Top-level mutations allowed
   },
-  
+
   updateTheme(draft, theme: 'light' | 'dark') {
-    setIn(draft).user.theme(theme)  // Use bedit for nested mutations
+    setIn(draft).user.theme(theme) // Use bedit for nested mutations
   },
-  
+
   addTodo(draft, title: string) {
     const id = crypto.randomUUID()
     addIn(draft).todos({ id, title, completed: false })
   },
-  
+
   toggleTodo(draft, id: string) {
-    const idx = draft.todos.findIndex(t => t.id === id)
+    const idx = draft.todos.findIndex((t) => t.id === id)
     if (idx !== -1) {
-      updateIn(draft).todos[idx].completed(c => !c)
+      updateIn(draft).todos[idx].completed((c) => !c)
     }
-  }
+  },
 })
 
 // Call your custom functions directly
@@ -80,67 +80,24 @@ const store = beditify(useStore, {
   async loadUser(draft, userId: string) {
     draft.loading = true
     draft.error = null
-    
+
+    // call this.commit() to flush changes to the store
+    this.commit()
+
     try {
-      const user = await fetch(`/api/users/${userId}`).then(r => r.json())
-      setIn(draft).user(user)
+      const user = await fetch(`/api/users/${userId}`).then((r) => r.json())
+      draft.user = user
       draft.loading = false
     } catch (error) {
       draft.error = error.message
       draft.loading = false
     }
   },
-  
-  async addTodoFromAPI(draft, title: string) {
-    const todo = await fetch('/api/todos', {
-      method: 'POST',
-      body: JSON.stringify({ title }),
-      headers: { 'Content-Type': 'application/json' }
-    }).then(r => r.json())
-    
-    addIn(draft).todos(todo)
-  },
-  
-  // Mix async and sync operations
-  async batchUpdate(draft, updates: string[]) {
-    setIn(draft).count(0) // Sync operation
-    
-    for (const update of updates) {
-      await new Promise(resolve => setTimeout(resolve, 100)) // Simulate delay
-      updateIn(draft).count(c => c + 1) // Update count after each operation
-    }
-  }
 })
-
-// Async functions return promises
-await store.loadUser('user123')
-await store.addTodoFromAPI('New task from server')
-await store.batchUpdate(['a', 'b', 'c'])
-
-// Handle errors with try/catch
-try {
-  await store.loadUser('invalid-id')
-} catch (error) {
-  console.error('Failed to load user:', error)
-}
-
-// Note: If an async mutator throws an unhandled error, 
-// the store state remains unchanged and the error is propagated
-const store = beditify(useStore, {
-  async riskyOperation(draft, data: any) {
-    // If this throws, store state won't be modified
-    const result = await someRiskyApiCall(data) 
-    setIn(draft).result(result)
-  }
-})
-
-try {
-  await store.riskyOperation(badData) // May throw
-} catch (error) {
-  // Store state is unchanged, error is caught here
-  console.log('Operation failed, store state preserved')
-}
 ```
+
+> [!NOTE]
+> If an async mutator throws an unhandled error, any uncommitted changes will be dropped and the error will be propagated.
 
 ## Mixing Approaches
 
@@ -152,19 +109,19 @@ const store = beditify(useStore, {
     draft.count = 0
     setIn(draft).todos([])
   },
-  
+
   async syncWithServer(draft) {
-    const data = await fetch('/api/sync').then(r => r.json())
+    const data = await fetch('/api/sync').then((r) => r.json())
     setIn(draft).user(data.user)
     setIn(draft).todos(data.todos)
-  }
+  },
 })
 
 // Mix all approaches seamlessly
-store.reset()                           // Custom sync mutator
-setIn(store).user.name('Alice')        // Direct bedit function
-await store.syncWithServer()            // Custom async mutator
-updateIn(store).count(c => c + 10)     // Direct bedit function
+store.reset() // Custom sync mutator
+setIn(store).user.name('Alice') // Direct bedit function
+await store.syncWithServer() // Custom async mutator
+updateIn(store).count((c) => c + 10) // Direct bedit function
 ```
 
 ## Preserved Store Properties
@@ -172,9 +129,9 @@ updateIn(store).count(c => c + 10)     // Direct bedit function
 All original Zustand methods remain available:
 
 ```typescript
-store.getState()    // ✅ Original Zustand method
-store.setState()    // ✅ Original Zustand method  
-store.subscribe()   // ✅ Original Zustand method
+store.getState() // ✅ Original Zustand method
+store.setState() // ✅ Original Zustand method
+store.subscribe() // ✅ Original Zustand method
 ```
 
 ## TypeScript Support
@@ -182,7 +139,7 @@ store.subscribe()   // ✅ Original Zustand method
 bedit provides excellent TypeScript support with full type safety:
 
 - **Automatic type inference** - No need to annotate `draft` parameter types
-- **Full type safety** - All mutations are type-checked at compile time  
+- **Full type safety** - All mutations are type-checked at compile time
 - **Async/sync function detection** - Return types automatically inferred
 - **Works with both `create()` and `createStore()`**
 
@@ -191,21 +148,21 @@ const store = beditify(useStore, {
   // Sync function - returns void
   updateUser(draft, name: string, theme: 'light' | 'dark') {
     // draft is automatically typed as Editable<State>
-    draft.user.name = name        // ❌ TypeScript error - use bedit functions for nested
-    setIn(draft).user.name(name)  // ✅ Correct
+    draft.user.name = name // ❌ TypeScript error - use bedit functions for nested
+    setIn(draft).user.name(name) // ✅ Correct
     setIn(draft).user.theme(theme) // ✅ Fully type-checked
   },
-  
+
   // Async function - returns Promise<void>
   async loadData(draft, id: string) {
     const data = await fetchData(id) // TypeScript knows this returns Promise<void>
     setIn(draft).user(data.user)
-  }
+  },
 })
 
-store.updateUser('Bob', 'dark')      // ✅ Type-safe sync call
-await store.loadData('123')          // ✅ Type-safe async call  
-store.updateUser(123, 'invalid')     // ❌ TypeScript errors
+store.updateUser('Bob', 'dark') // ✅ Type-safe sync call
+await store.loadData('123') // ✅ Type-safe async call
+store.updateUser(123, 'invalid') // ❌ TypeScript errors
 const result = store.loadData('123') // ✅ result is typed as Promise<void>
 ```
 
