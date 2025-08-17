@@ -1,6 +1,6 @@
 {
   "name": "bedit",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "description": "like immer but weird (and kinda cool)",
   "main": "dist/bedit.mjs",
   "files": [
