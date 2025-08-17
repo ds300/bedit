@@ -293,17 +293,17 @@ updateIn(store).count((c) => c + 1)
 addIn(store).todos({ id: 1, text: 'Learn bedit' })
 
 // Write your own helper functions as needed
-const increment = (store, n: number) => {
+const increment = (n: number) => {
   updateIn(store).count((c) => c + n)
 }
 
-const loadUser = async (store, userId: string) => {
+const loadUser = async (userId: string) => {
   const user = await fetch(`/api/users/${userId}`).then((r) => r.json())
   setIn(store).user(user)
 }
 
-increment(store, 5)
-await loadUser(store, 'user123')
+increment(5)
+await loadUser('user123')
 
 // Your original useStore hook still works as usual
 function MyComponent() {
