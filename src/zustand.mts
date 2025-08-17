@@ -9,44 +9,12 @@ interface ZustandStoreish<T> {
 
 type GetState<S> = S extends { getState: () => infer T } ? T : never
 
-// Helper type to infer mutator function signatures
-type MutatorFunctions<T> = {
-  [K: string]: (
-    this: { commit(): void },
-    draft: Editable<T>,
-    ...args: any[]
-  ) => void | Promise<void>
-}
-
 // Type for the enhanced store with mutator functions
 type BeditifiedStore<
   S extends ZustandStoreish<any>,
-  M extends MutatorFunctions<GetState<S>>,
-> = S &
-  BeditStateContainer<GetState<S>> & {
-    [K in keyof M]: M[K] extends (
-      draft: Editable<GetState<S>>,
-      ...args: infer Args
-    ) => Promise<void>
-      ? (...args: Args) => Promise<void>
-      : M[K] extends (draft: Editable<GetState<S>>, ...args: infer Args) => void
-        ? (...args: Args) => void
-        : never
-  }
+> = S & BeditStateContainer<GetState<S>>
 
-export function beditify<S extends ZustandStoreish<any>>(
-  store: S,
-): S & BeditStateContainer<GetState<S>>
-
-export function beditify<
-  S extends ZustandStoreish<any>,
-  M extends MutatorFunctions<GetState<S>>,
->(store: S, mutators: M): BeditifiedStore<S, M>
-
-export function beditify<
-  S extends ZustandStoreish<any>,
-  M extends MutatorFunctions<GetState<S>>,
->(store: S, mutators?: M) {
+export function beditify<S extends ZustandStoreish<any>>(store: S): BeditifiedStore<S> {
   // Start with the enhanced store and add the bedit state container symbol
   const enhancedStore = store as any
   enhancedStore[$beditStateContainer] = {
@@ -54,44 +22,5 @@ export function beditify<
     set: (newState: GetState<S>) => store.setState(newState),
   }
 
-  // If no mutators provided, return the basic enhanced store
-  if (!mutators) {
-    return enhancedStore as S & BeditStateContainer<GetState<S>>
-  }
-
-  // Add mutator functions to the store
-  const mutatorMethods: Record<string, (...args: any[]) => any> = {}
-
-  for (const [key, mutatorFn] of Object.entries(mutators)) {
-    mutatorMethods[key] = (...args: any[]) => {
-      const currentState = store.getState()
-      const result = edit(
-        currentState,
-        function (this: { s: Set<any> | null }, draft) {
-          const commit = () => {
-            const next = _shallowClone(draft)
-            this.s = null
-            store.setState(next)
-          }
-          return mutatorFn.call({ commit }, draft, ...args)
-        },
-      )
-
-      // Check if result is a promise (async mutator)
-      if (result && typeof result.then === 'function') {
-        return result.then((newState: GetState<S>) => {
-          store.setState(newState)
-          return newState
-        })
-        // Note: If the async mutator throws, the promise will be rejected
-        // and store.setState() will not be called, preserving the original state
-      } else {
-        // Sync mutator
-        store.setState(result as GetState<S>)
-        return result
-      }
-    }
-  }
-
-  return Object.assign(enhancedStore, mutatorMethods) as BeditifiedStore<S, M>
+  return enhancedStore as BeditifiedStore<S>
 }

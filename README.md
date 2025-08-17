@@ -271,7 +271,7 @@ const newTags = addIn({ tags: new Set(['admin', 'user']) }).tags(
 
 ## Zustand Integration
 
-bedit provides integration with [Zustand](https://github.com/pmndrs/zustand) stores. Use bedit functions directly on stores and define custom mutator functions with full TypeScript support and async operations:
+bedit provides integration with [Zustand](https://github.com/pmndrs/zustand) stores. Simply beditify your store and use bedit functions directly:
 
 ```ts
 import { beditify } from 'bedit/zustand'
@@ -284,30 +284,33 @@ const useStore = create(() => ({
   todos: [],
 }))
 
-const store = beditify(useStore, {
-  // Custom mutator functions with automatic type inference
-  increment(draft, n: number) {
-    draft.count += n
-  },
+// Beditify the store to enable bedit functions
+const store = beditify(useStore)
 
-  async loadUser(draft, userId: string) {
-    draft.user = await fetch(`/api/users/${userId}`).then((r) => r.json())
-  },
-})
-
-// Use bedit functions directly
+// Use bedit functions directly on the store
 setIn(store).user.name('Jane')
 updateIn(store).count((c) => c + 1)
+addIn(store).todos({ id: 1, text: 'Learn bedit' })
 
-// Or call your custom functions
-store.increment(5)
-await store.loadUser('user123')
+// Write your own helper functions as needed
+const increment = (store, n: number) => {
+  updateIn(store).count((c) => c + n)
+}
 
-// Your original useStore hook still works as expected
-const count = useStore((s) => s.count)
+const loadUser = async (store, userId: string) => {
+  const user = await fetch(`/api/users/${userId}`).then((r) => r.json())
+  setIn(store).user(user)
+}
+
+increment(store, 5)
+await loadUser(store, 'user123')
+
+// Your original useStore hook still works as usual
+function MyComponent() {
+  const count = useStore((s) => s.count)
+  return <div>{count}</div>
+}
 ```
-
-See [Zustand Integration docs](./docs/zustand.md) for full details on sync/async mutators, TypeScript support, and advanced usage patterns.
 
 ## Custom State Container Integration
 
