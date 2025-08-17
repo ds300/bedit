@@ -1,6 +1,6 @@
 # bedit
 
-A weird but kinda cool immutable state utility for TypeScript.
+A weird (but kinda cool) immutable state utility for TypeScript.
 
 It's like `immer` but:
 
@@ -134,7 +134,7 @@ https://github.com/ds300/bedit/tree/main/bench
   newState !== foo // sadly true
   ```
 
-  This could be fixed partially for certain usage patterns (PRs welcome), but a full fix would hurt performance when working with large objects and collections.
+  This could be fixed partially for certain usage patterns (PRs welcome).
 
 ## API
 
