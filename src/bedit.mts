@@ -1,3 +1,6 @@
+import { _shallowClone, isPlainObject } from './utils.mjs'
+import { $beditStateContainer, BeditStateContainer } from './symbols.mjs'
+
 export type DeepReadonly<T> =
   T extends ReadonlyArray<infer U>
     ? ReadonlyArray<DeepReadonly<U>>
@@ -8,14 +11,6 @@ export type DeepReadonly<T> =
         : T extends object
           ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
           : T
-
-export const $beditStateContainer = Symbol.for('__bedit_state_container__')
-export interface BeditStateContainer<T> {
-  [$beditStateContainer]: {
-    get(): T
-    set(t: T): void
-  }
-}
 
 /**
  * Editable<T> makes the top-level properties of T mutable,
@@ -38,51 +33,77 @@ export type Editable<T> =
             T
 
 type Updater<T> = (val: T) => T
-type Mutator<T> = (val: T) => void | T
+type Mutator<T> = (
+  val: Editable<T>,
+) => void | T | Editable<T> | Promise<void | T | Editable<T>>
+
+type PrimitiveOrImmutableBuiltin =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | Date
+  | RegExp
+  | Error
+  | Symbol
 
 type Updatable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
   ? { key: (k: K) => Updatable<V, Root> }
-  : {
-      [k in keyof T]: T[k] extends object
-        ? Updatable<T[k], Root>
-        : (update: Updater<DeepReadonly<T[k]>>) => Root
-    }) &
+  : T extends ReadonlyArray<infer U>
+    ? { [key: number]: Updatable<U, Root> }
+    : PrimitiveOrImmutableBuiltin extends T
+      ? never
+      : {
+          [k in keyof T]: T[k] extends object
+            ? Updatable<T[k], Root>
+            : (update: Updater<DeepReadonly<T[k]>>) => Root
+        }) &
   ((update: Updater<DeepReadonly<T>>) => Root)
 
 type Settable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
   ? { key: (k: K) => Settable<V, Root> }
-  : {
-      [k in keyof T]: T[k] extends object
-        ? Settable<T[k], Root>
-        : (val: T[k]) => Root
-    }) &
+  : T extends ReadonlyArray<infer U>
+    ? { [key: number]: Settable<U, Root> }
+    : PrimitiveOrImmutableBuiltin extends T
+      ? never
+      : {
+          [k in keyof T]: T[k] extends object
+            ? Settable<T[k], Root>
+            : (val: T[k]) => Root
+        }) &
   ((val: T) => Root)
-
-type Mutatable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
-  ? { key: (k: K) => Mutatable<V, Root> }
-  : {
-      [k in keyof T]: T[k] extends object
-        ? Mutatable<T[k], Root>
-        : (mutate: Mutator<Editable<T[k]>>) => Root
-    }) &
-  ((mutate: Mutator<Editable<T>>) => Root)
 
 type ShallowMutatable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
   ? { key: (k: K) => ShallowMutatable<V, Root> }
-  : {
-      [k in keyof T]: T[k] extends object
-        ? ShallowMutatable<T[k], Root>
-        : (mutate: Mutator<Editable<T[k]>>) => Root
-    }) &
-  ((mutate: Mutator<Editable<T>>) => Root)
+  : T extends ReadonlyArray<infer U>
+    ? { [key: number]: ShallowMutatable<U, Root> }
+    : PrimitiveOrImmutableBuiltin extends T
+      ? never
+      : {
+          [k in keyof T]: T[k] extends object
+            ? ShallowMutatable<T[k], Root>
+            : <F extends Mutator<T[k]>>(
+                mutate: F,
+              ) => ReturnType<F> extends Promise<any> ? Promise<Root> : Root
+        }) &
+  (<F extends Mutator<T>>(
+    mutate: F,
+  ) => ReturnType<F> extends Promise<any> ? Promise<Root> : Root)
 
 type Deletable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
   ? { key: (k: K) => Deletable<V, Root> }
-  : T extends ReadonlySet<infer V>
-    ? { key: (k: V) => () => Root }
-    : {
-        [k in keyof T]: T[k] extends object ? Deletable<T[k], Root> : () => Root
-      }) &
+  : T extends ReadonlyArray<infer U>
+    ? { [key: number]: Deletable<U, Root> }
+    : T extends ReadonlySet<infer V>
+      ? { key: (k: V) => () => Root }
+      : PrimitiveOrImmutableBuiltin extends T
+        ? never
+        : {
+            [k in keyof T]: T[k] extends object
+              ? Deletable<T[k], Root>
+              : () => Root
+          }) &
   (() => Root)
 
 type Addable<T, Root = T> =
@@ -92,11 +113,13 @@ type Addable<T, Root = T> =
       ? (...args: V[]) => Root
       : T extends ReadonlyArray<infer V>
         ? ((...args: V[]) => Root) & Record<number, Addable<V, Root>>
-        : {
-            [k in keyof T]: T[k] extends object
-              ? Addable<T[k], Root>
-              : () => Root
-          }
+        : PrimitiveOrImmutableBuiltin extends T
+          ? () => Root
+          : {
+              [k in keyof T]: T[k] extends object
+                ? Addable<T[k], Root>
+                : () => Root
+            }
 
 const SET = 0 as const
 const UPDATE = 1 as const
@@ -104,12 +127,7 @@ const MUTATE = 2 as const
 const DELETE = 3 as const
 const ADD = 4 as const
 
-const SHALLOW_CLONE = 0 as const
-const DEEP_CLONE = 1 as const
-
 const DELETE_VALUE = {}
-
-type CloneType = typeof SHALLOW_CLONE | typeof DEEP_CLONE
 
 /**
  * Enables or disables development mode for the bedit library.
@@ -129,11 +147,6 @@ type CloneType = typeof SHALLOW_CLONE | typeof DEEP_CLONE
  *
  * // Disable development mode
  * setDevMode(false)
- *
- * // Check if development mode is enabled
- * if (isDevModeEnabled()) {
- *   console.log('Development mode is active')
- * }
  * ```
  */
 export function setDevMode(enabled: boolean) {
@@ -152,13 +165,15 @@ let devMode = false
 const frozenObjects = new WeakSet<object>()
 
 function freezeObject(obj: any): any {
-  if (!devMode || !obj || typeof obj !== 'object') {
+  if (!devMode || !obj || typeof obj !== 'object' || obj == DELETE_VALUE) {
     return obj
   }
 
   if (frozenObjects.has(obj)) {
     return obj
   }
+
+  obj = _shallowClone(obj)
 
   // Recursively freeze nested objects
   updateChildren(obj, freezeObject)
@@ -173,7 +188,7 @@ function freezeObject(obj: any): any {
 function updateChildren(obj: any, fn: (child: any) => any) {
   if (isPlainObject(obj)) {
     for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
         obj[key] = fn(obj[key])
       }
     }
@@ -206,26 +221,7 @@ interface Frame {
    */
   r: (root: any, type: FrameType) => void
 }
-const isPlainObject = (obj: any) => {
-  if (obj == null || typeof obj !== 'object') {
-    return false
-  }
-  const proto = Object.getPrototypeOf(obj)
-  return proto === Object.prototype || proto === null
-}
-
-const _shallowClone = (obj: any) =>
-  isPlainObject(obj)
-    ? { ...obj }
-    : Array.isArray(obj)
-      ? obj.slice()
-      : obj instanceof Map
-        ? new Map(obj)
-        : obj instanceof Set
-          ? new Set(obj)
-          : structuredClone(obj)
-
-function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
+function frame(parent: Frame | null): Frame {
   const keyPath = new Array(8)
   const objPath = new Array(8)
   let obj = null as any
@@ -236,10 +232,8 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
   function release() {
     complete = null
     clonedObjects = null
-    if (!isEphemeral) {
-      result.p = top
-      top = result
-    }
+    result.p = top
+    top = result
   }
 
   function resetAfterThrow() {
@@ -279,7 +273,7 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
     }
     // @ifndef PRODUCTION
     if (devMode && !clonedObjects) {
-      freezeObject(cloned)
+      return freezeObject(cloned)
     }
     // @endif
     return cloned
@@ -297,32 +291,54 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
         }
       }
       type = _type
-      if (root && batchStack?.r === root) {
-        if (batchStack!.s == null) {
-          batchStack!.s = new Set([root])
-        }
-        clonedObjects = batchStack!.s
-      }
       obj = root
+      if (!root || typeof root !== 'object' || !batchStack) {
+        return
+      }
+      let current = batchStack as BatchFrame | null
+      while (current) {
+        if (current.r === root) {
+          if (current.s == null) {
+            current.s = new Set([root])
+          }
+          clonedObjects = current.s
+          break
+        }
+        current = current.b
+      }
     },
     $: new Proxy(() => {}, {
-      get(_target, prop) {
+      get: function getTrap(_target, prop) {
         try {
           if (obj == null || typeof obj !== 'object') {
-            throw new TypeError(
+            const error = new TypeError(
               `Cannot read property ${JSON.stringify(String(prop))} of ${obj === null ? 'null' : typeof obj}`,
             )
+            throw Error.captureStackTrace?.(error, getTrap) ?? error
           }
           if (obj instanceof Map) {
             if (prop !== 'key') {
               throw new TypeError(
-                `Cannot edit property ${JSON.stringify(String(prop))} of Map. Use .key() instead.`,
+                `Cannot edit property ${JSON.stringify(String(prop))} of Map or Set. Use .key() instead.`,
               )
             }
             return (k: any) => {
               keyPath[i] = k
               objPath[i] = obj
               obj = obj.get(k)
+              i++
+              return result.$
+            }
+          } else if (obj instanceof Set) {
+            if (prop !== 'key') {
+              throw new TypeError(
+                `Cannot edit property ${JSON.stringify(String(prop))} of Map or Set. Use .key() instead.`,
+              )
+            }
+            return (k: any) => {
+              keyPath[i] = k
+              objPath[i] = obj
+              obj = null
               i++
               return result.$
             }
@@ -352,20 +368,42 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
             } else {
               value = clone(obj)
             }
-            batchStack = getBatchStack(batchStack, value, null)
+            const currentBatchFrame = getBatchFrame(value)
+            let isAsync = false
             // Apply the function to the cloned value
             try {
-              const res = fn(value)
+              const res = fn.call(currentBatchFrame, value)
+              if (res instanceof Promise) {
+                isAsync = true
+                type = SET
+
+                return res
+                  .then((res) => {
+                    if (typeof res === 'undefined') {
+                      res = value
+                    }
+                    return (result.$ as any)(res)
+                  })
+                  .catch((e) => {
+                    resetAfterThrow()
+                    throw e
+                  })
+                  .finally(() => {
+                    // Ensure batch stack is always released for async operations
+                    releaseBatchFrame(currentBatchFrame)
+                  })
+              }
+
               value = typeof res === 'undefined' ? value : res
               // @ifndef PRODUCTION
-              if (devMode && batchStack.s != null) {
-                for (const obj of batchStack.s.keys()) {
-                  freezeObject(obj)
-                }
+              if (devMode && clonedObjects == null) {
+                value = freezeObject(value)
               }
               // @endif
             } finally {
-              releaseBatchStack(batchStack)
+              if (!isAsync) {
+                releaseBatchFrame(currentBatchFrame)
+              }
             }
           } else if (type === ADD) {
             value = clone(obj)
@@ -379,7 +417,7 @@ function frame(parent: Frame | null, isEphemeral: boolean = false): Frame {
           }
           // @ifndef PRODUCTION
           if (devMode && !clonedObjects) {
-            freezeObject(value)
+            value = freezeObject(value)
           }
           // @endif
 
@@ -415,7 +453,9 @@ type FrameType =
 
 function getFrame(root: any, type: FrameType): Frame {
   if (top == null) {
-    return frame(null, true)
+    const res = frame(null)
+    res.r(root, type)
+    return res
   }
   const ret = top
   top = ret.p
@@ -423,34 +463,51 @@ function getFrame(root: any, type: FrameType): Frame {
   return ret
 }
 
-type BatchStack = {
+type BatchFrame = {
   r: any
-  p: BatchStack | null
+  // frame below this one (added earlier)
+  b: BatchFrame | null
+  // frame above this one (added later)
+  a: BatchFrame | null
   s: Set<object> | null
 }
-let _batchStackPool: BatchStack | null = null
-let batchStack: BatchStack | null = null
-function getBatchStack(
-  p: BatchStack | null,
-  r: any,
-  s: Set<object> | null,
-): BatchStack {
-  if (_batchStackPool == null) {
-    return { p, r, s }
+let _batchStackPool: BatchFrame | null = null
+let batchStack: BatchFrame | null = null
+function getBatchFrame(root: any): BatchFrame {
+  let ret = _batchStackPool
+  if (ret === null) {
+    ret = { b: batchStack, a: null, r: root, s: null }
+  } else {
+    _batchStackPool = ret.b
+    ret.b = batchStack
+    ret.a = null
+    ret.r = root
+    ret.s = null
   }
-  const ret = _batchStackPool
-  _batchStackPool = ret.p
-  ret.p = p
-  ret.r = r
-  ret.s = s
+  if (batchStack) {
+    batchStack.a = ret
+  }
+  batchStack = ret
   return ret
 }
-function releaseBatchStack(bs: BatchStack) {
-  batchStack = bs.p
-  bs.p = _batchStackPool
-  _batchStackPool = bs
-  bs.r = null
-  bs.s = null
+
+function releaseBatchFrame(frame: BatchFrame) {
+  // clear the set and root to avoid memory leaks
+  frame.r = frame.s = null
+  // snip the frame out of the stack
+  if (frame.b) {
+    frame.b.a = frame.a
+  }
+  if (frame.a) {
+    frame.a.b = frame.b
+  } else {
+    // special case: this is the top frame, so we need to update the top pointer
+    batchStack = frame.b
+  }
+  // finally return the frame to the pool
+  frame.a = null
+  frame.b = _batchStackPool
+  _batchStackPool = frame
 }
 
 /**
@@ -569,20 +626,20 @@ export const deleteIn = <T,>(t: T | BeditStateContainer<T>): Deletable<T> =>
  *
  * @example
  * ```typescript
- * const state = { user: { name: 'John', profile: { age: 30, city: 'NYC' } } }
+ * const userState = { user: { name: 'John', profile: { age: 30, city: 'NYC' } } }
  *
  * // Shallow mutation - only the top-level object is cloned
- * const newState = editIn(state).user(user => {
+ * const newUserState = editIn(userState).user(user => {
  *   user.name = 'Jane'
  *   // ❌ don't mutate nested objects! This would throw an error at dev time.
  *   // user.profile.age = 31
  * })
- * // Result: { name: 'Jane', profile: { age: 30, city: 'NYC' } }
+ * // Result: { user: { name: 'Jane', profile: { age: 30, city: 'NYC' } } }
  * // Original user.profile.age is still 30 (shared reference)
  *
  * // Arrays with shallow mutation
- * const state = { users: [{ name: 'John', details: { age: 30 } }] }
- * const newState = editIn(state).users(users => {
+ * const usersState = { users: [{ name: 'John', details: { age: 30 } }] }
+ * const newUsersState = editIn(usersState).users(users => {
  *   const user = users.pop()
  *   // Only the array itself is cloned, not the nested objects.
  *   // ❌ This would throw an error at dev time.
@@ -670,10 +727,10 @@ export const editIn = <T,>(
  * })
  * ```
  */
-export function edit<T>(
+export function edit<T, Fn extends Mutator<T>>(
   t: T | BeditStateContainer<T>,
-  fn: (t: Editable<T>) => void,
-): T {
+  fn: Fn,
+): ReturnType<Fn> extends Promise<any> ? Promise<T> : T {
   return editIn(t)(fn)
 }
 

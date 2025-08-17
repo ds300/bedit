@@ -1,13 +1,13 @@
 # bedit
 
-A weird (and cool) immutable state utility for TypeScript.
+A weird (but kinda cool) immutable state utility for TypeScript.
 
 It's like `immer` but:
 
-- 🕵️‍♀️ No Proxies getting in the way when you're trying to debug.
+- 🕵️‍♀️ No `Proxy` instances getting in the way when you're trying to debug.
 - 📈 10x faster (tbh [only 5x](#performance) but emotionally 10x)
 - 📉 Tiny (2kB minified)
-- 💅 An "innovative" API (give your complacent AI agent something to chew on)
+- 💅 An "innovative" API (your AI agent will enjoy the challenge)
 
 ## Installation
 
@@ -123,8 +123,18 @@ https://github.com/ds300/bedit/tree/main/bench
 
 ## Limitations
 
-- 👭 Works only with data supported by [`structuredClone`](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm) (So yes ✅ to `Map`, `Set`, plain objects, and arrays. And no ❌ to custom classes, objects with symbol keys or getters/setters, etc)
 - 🩹 No support for patch generation/application.
+- 👭 Works only with data supported by [`structuredClone`](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm) (So yes ✅ to `Map`, `Set`, plain objects, and arrays. And no ❌ to custom classes, objects with symbol keys or getters/setters, etc)
+- 🤷‍♂️ LLMs really do suck at using bedit. They get it if you point them at the README but otherwise they make a lot of mistakes (which is bad !!) !
+- It currently returns a new object even if an edit is ineffectual, e.g.
+
+  ```ts
+  const foo = { bar: 'baz' }
+  const nextState = setIn(foo).bar('baz')
+  newState !== foo // sadly true
+  ```
+
+  This could be fixed partially for certain usage patterns (PRs welcome).
 
 ## API
 
@@ -258,3 +268,52 @@ const newTags = addIn({ tags: new Set(['admin', 'user']) }).tags(
 )
 // newTags = { tags: Set(['admin', 'user', 'moderator', 'vip']) }
 ```
+
+## Zustand Integration
+
+bedit provides integration with [Zustand](https://github.com/pmndrs/zustand) stores. Simply beditify your store and use bedit functions directly:
+
+```ts
+import { beditify } from 'bedit/zustand'
+import { setIn, updateIn, addIn } from 'bedit'
+import { create } from 'zustand'
+
+const useStore = create(() => ({
+  count: 0,
+  user: { name: 'John', theme: 'light' },
+  todos: [],
+}))
+
+// Beditify the store to enable bedit functions
+const store = beditify(useStore)
+
+// Use bedit functions directly on the store
+setIn(store).user.name('Jane')
+updateIn(store).count((c) => c + 1)
+addIn(store).todos({ id: 1, text: 'Learn bedit' })
+
+// Write your own helper functions as needed
+const increment = (store, n: number) => {
+  updateIn(store).count((c) => c + n)
+}
+
+const loadUser = async (store, userId: string) => {
+  const user = await fetch(`/api/users/${userId}`).then((r) => r.json())
+  setIn(store).user(user)
+}
+
+increment(store, 5)
+await loadUser(store, 'user123')
+
+// Your original useStore hook still works as usual
+function MyComponent() {
+  const count = useStore((s) => s.count)
+  return <div>{count}</div>
+}
+```
+
+## Custom State Container Integration
+
+You can integrate bedit with any state container by implementing the `BeditStateContainer` interface. This allows bedit functions to work directly with your store.
+
+See [Custom State Container Integration docs](./docs/custom-state-containers.md) for implementation details and examples.

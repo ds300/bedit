@@ -1,5 +1,5 @@
 import { describe, it, expect } from './test-utils'
-import { setIn } from '../bedit.mts'
+import { setIn } from '../src/bedit.mjs'
 
 describe('edge cases', () => {
   it('should handle empty objects', () => {
@@ -91,6 +91,58 @@ describe('edge cases', () => {
       // @ts-expect-error
       setIn(obj).data.key('foo')('value')
     }).toThrow('Cannot read property "key" of null')
+    expect(obj).toEqual(backup)
+  })
+
+  it('should handle null/undefined in isPlainObject checks', () => {
+    // Test null properties - should not affect cloning behavior
+    const obj: { nullProp: string | null, undefinedProp: string | undefined, validProp: { nested: string } } = { 
+      nullProp: null, 
+      undefinedProp: undefined, 
+      validProp: { nested: 'value' } 
+    }
+    const backup = structuredClone(obj)
+    
+    const result = setIn(obj).nullProp('not null')
+    
+    expect(result.nullProp).toBe('not null')
+    expect(result.undefinedProp).toBe(undefined)
+    expect(result.validProp).toEqual({ nested: 'value' })
+    expect(obj).toEqual(backup) // Original unchanged
+  })
+
+  it('should handle objects with null prototype', () => {
+    const nullProtoObj = Object.create(null)
+    nullProtoObj.key = 'value'
+    
+    const obj: { data: { key: string } } = { data: nullProtoObj }
+    const result = setIn(obj).data.key('updated')
+    
+    expect(result.data.key).toBe('updated')
+    // The cloned object will have Object.prototype, not null prototype
+    // This is expected behavior from the shallow clone operation
+    expect(Object.getPrototypeOf(result.data)).toBe(Object.prototype)
+  })
+
+  it('should handle primitive values in object positions', () => {
+    const obj = { primitive: 42 }
+    const backup = structuredClone(obj)
+
+    expect(() => {
+      // @ts-expect-error
+      setIn(obj).primitive.nonExistentProp('value')
+    }).toThrow('Cannot read property "nonExistentProp" of number')
+    expect(obj).toEqual(backup)
+  })
+
+  it('should handle boolean primitives', () => {
+    const obj = { flag: true }
+    const backup = structuredClone(obj)
+
+    expect(() => {
+      // @ts-expect-error  
+      setIn(obj).flag.toString('false')
+    }).toThrow('Cannot read property "toString" of boolean')
     expect(obj).toEqual(backup)
   })
 })

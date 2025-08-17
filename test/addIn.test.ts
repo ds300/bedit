@@ -1,5 +1,5 @@
 import { describe, it, expect } from './test-utils'
-import { addIn } from '../bedit.mjs'
+import { addIn } from '../src/bedit.mjs'
 
 describe('addIn', () => {
   it('should add items to an array', () => {
