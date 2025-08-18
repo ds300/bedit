@@ -2,6 +2,7 @@ import { expect, describe, it } from 'vitest'
 import { create, createStore } from 'zustand'
 import { beditify } from '../src/zustand.mjs'
 import { setIn, updateIn, addIn, setDevMode } from '../src/bedit.mjs'
+import { $beditStateContainer } from '../src/symbols.mjs'
 
 setDevMode(true)
 
@@ -52,11 +53,10 @@ describe('beditify', () => {
       const store = create(() => createInitialState())
       const wrappedStore = beditify(store)
 
-      const symbol = Symbol.for('__bedit_state_container__')
-      expect(symbol in wrappedStore).toBe(true)
-      expect(wrappedStore[symbol]).toBeDefined()
-      expect(typeof wrappedStore[symbol].get).toBe('function')
-      expect(typeof wrappedStore[symbol].set).toBe('function')
+      expect($beditStateContainer in wrappedStore).toBe(true)
+      expect(wrappedStore[$beditStateContainer]).toBeDefined()
+      expect(typeof wrappedStore[$beditStateContainer].get).toBe('function')
+      expect(typeof wrappedStore[$beditStateContainer].set).toBe('function')
     })
   })
 

@@ -215,7 +215,7 @@ abstract class BeditCommand {
  * the type (e.g., replacing an object with a primitive).
  *
  * Preconditions: All parent paths in the target path must exist
- * Postconditions: Target path has the new value, parent structure is preserved
+ * Post-conditions: Target path has the new value, parent structure is preserved
  */
 class SetInCommand extends BeditCommand {
   readonly type = 'setIn'
@@ -243,9 +243,9 @@ class SetInCommand extends BeditCommand {
   async executeOnReal(state: any): Promise<any> {
     await Promise.resolve() // Async delay
     // Build the setIn call dynamically
-    let target = setIn(state)
+    let target = setIn(state) as any
     for (const segment of this.path) {
-      target = target[segment as any]
+      target = target[segment]
     }
     return target(this.value)
   }
@@ -288,9 +288,9 @@ class UpdateInCommand extends BeditCommand {
 
   async executeOnReal(state: any): Promise<any> {
     await Promise.resolve() // Async delay
-    let target = updateIn(state)
+    let target = updateIn(state) as any
     for (const segment of this.path) {
-      target = target[segment as any]
+      target = target[segment]
     }
     return target(this.updater)
   }
@@ -379,11 +379,13 @@ class DeleteInCommand extends BeditCommand {
 
   async executeOnReal(state: any): Promise<any> {
     await Promise.resolve() // Async delay
-    let target = deleteIn(state)
-    for (const segment of this.path) {
-      target = target[segment as any]
+    let target = deleteIn(state) as any
+    // Navigate to the parent, then pass the final key as argument
+    for (let i = 0; i < this.path.length - 1; i++) {
+      target = target[this.path[i]]
     }
-    return target()
+    const finalKey = this.path[this.path.length - 1]
+    return target(finalKey)
   }
 
   async executeOnModel(modelState: any): Promise<void> {
@@ -419,9 +421,9 @@ class EditInCommand extends BeditCommand {
 
   async executeOnReal(state: any): Promise<any> {
     await Promise.resolve() // Async delay
-    let target = editIn(state)
+    let target = editIn(state) as any
     for (const segment of this.path) {
-      target = target[segment as any]
+      target = target[segment]
     }
 
     // Execute editIn with a function that applies all sub-commands
@@ -474,7 +476,7 @@ class EditInCommand extends BeditCommand {
  * Takes a sequence of sub-commands and applies them within a single edit() call.
  *
  * Preconditions: None (operates on root)
- * Postconditions: All sub-commands applied to cloned state
+ * Post-conditions: All sub-commands applied to cloned state
  */
 class EditCommand extends BeditCommand {
   readonly type = 'edit'
@@ -1086,7 +1088,7 @@ describe('Model-Based Tests', () => {
             command.validate(modelState, currentRealState)
           } catch (error) {
             console.log(
-              `Command ${command.type} failed on path [${command.path}]: ${error.message}`,
+              `Command ${command.type} failed on path [${command.path}]: ${(error as any).message}`,
             )
             console.log(
               'State when failed:',
@@ -1134,7 +1136,7 @@ describe('Phase 3: Async Operations', () => {
 
     async executeOnReal(state: any): Promise<any> {
       await Promise.resolve() // Simulate async delay
-      let setter = setIn(state)
+      let setter = setIn(state) as any
       for (const segment of this.path) {
         setter = setter[segment]
       }
@@ -1173,7 +1175,7 @@ describe('Phase 3: Async Operations', () => {
 
     async executeOnReal(state: any): Promise<any> {
       await Promise.resolve() // Simulate async delay
-      let updater = updateIn(state)
+      let updater = updateIn(state) as any
       for (const segment of this.path) {
         updater = updater[segment]
       }

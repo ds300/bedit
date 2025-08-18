@@ -15,7 +15,7 @@ import {
   addIn,
   deleteIn,
   setDevMode,
-} from '../src/bedit.mts'
+} from '../src/bedit.mjs'
 
 setDevMode(true)
 
@@ -725,7 +725,7 @@ describe('edit', () => {
       const result = edit(obj, async (draft) => {
         await delay(1)
         addIn(draft).tags('nodejs')
-        deleteIn(draft).tags.key('react')()
+        deleteIn(draft).tags('react')
         resolved = true
       })
 

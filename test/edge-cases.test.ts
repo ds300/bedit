@@ -96,15 +96,19 @@ describe('edge cases', () => {
 
   it('should handle null/undefined in isPlainObject checks', () => {
     // Test null properties - should not affect cloning behavior
-    const obj: { nullProp: string | null, undefinedProp: string | undefined, validProp: { nested: string } } = { 
-      nullProp: null, 
-      undefinedProp: undefined, 
-      validProp: { nested: 'value' } 
+    const obj: {
+      nullProp: string | null
+      undefinedProp: string | undefined
+      validProp: { nested: string }
+    } = {
+      nullProp: null,
+      undefinedProp: undefined,
+      validProp: { nested: 'value' },
     }
     const backup = structuredClone(obj)
-    
+
     const result = setIn(obj).nullProp('not null')
-    
+
     expect(result.nullProp).toBe('not null')
     expect(result.undefinedProp).toBe(undefined)
     expect(result.validProp).toEqual({ nested: 'value' })
@@ -114,10 +118,10 @@ describe('edge cases', () => {
   it('should handle objects with null prototype', () => {
     const nullProtoObj = Object.create(null)
     nullProtoObj.key = 'value'
-    
+
     const obj: { data: { key: string } } = { data: nullProtoObj }
     const result = setIn(obj).data.key('updated')
-    
+
     expect(result.data.key).toBe('updated')
     // The cloned object will have Object.prototype, not null prototype
     // This is expected behavior from the shallow clone operation
@@ -140,7 +144,7 @@ describe('edge cases', () => {
     const backup = structuredClone(obj)
 
     expect(() => {
-      // @ts-expect-error  
+      // @ts-expect-error
       setIn(obj).flag.toString('false')
     }).toThrow('Cannot read property "toString" of boolean')
     expect(obj).toEqual(backup)

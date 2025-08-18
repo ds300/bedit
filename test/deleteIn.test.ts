@@ -14,7 +14,7 @@ describe('deleteIn', () => {
     const mutable = structuredClone(obj)
     delete (mutable as any).age
 
-    const result = deleteIn(obj).age()
+    const result = deleteIn(obj)('age')
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -34,7 +34,7 @@ describe('deleteIn', () => {
     const mutable = structuredClone(obj)
     delete (mutable.user.profile as any).email
 
-    const result = deleteIn(obj).user.profile.email()
+    const result = deleteIn(obj).user.profile('email')
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -52,7 +52,7 @@ describe('deleteIn', () => {
     const mutable = structuredClone(obj)
     mutable.users.splice(1, 1)
 
-    const result = deleteIn(obj).users[1]()
+    const result = deleteIn(obj).users(1)
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -64,7 +64,7 @@ describe('deleteIn', () => {
     const mutable = structuredClone(obj)
     ;(mutable.a.b.c.d.e.f.g.h.i as any) = {}
 
-    const result = deleteIn(obj).a.b.c.d.e.f.g.h.i.j()
+    const result = deleteIn(obj).a.b.c.d.e.f.g.h.i('j')
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -86,8 +86,8 @@ describe('deleteIn', () => {
     delete (mutable.user.profile as any).email
     delete (mutable.user.profile as any).phone
 
-    let result = deleteIn(obj).user.profile.email()
-    result = deleteIn(result).user.profile.phone()
+    let result = deleteIn(obj).user.profile('email')
+    result = deleteIn(result).user.profile('phone')
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -105,7 +105,7 @@ describe('deleteIn', () => {
     const mutable = structuredClone(obj)
     delete (mutable.data[1] as any).extra
 
-    const result = deleteIn(obj).data[1].extra()
+    const result = deleteIn(obj).data[1]('extra')
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -117,7 +117,7 @@ describe('deleteIn', () => {
     const mutable = structuredClone(obj)
     delete (mutable.data[0][1] as any).value
 
-    const result = deleteIn(obj).data[0][1].value()
+    const result = deleteIn(obj).data[0][1]('value')
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -128,7 +128,7 @@ describe('deleteIn', () => {
     const backup = structuredClone(obj)
     const mutable = structuredClone(obj)
 
-    const result = deleteIn(obj).items[0]()
+    const result = deleteIn(obj).items(0)
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -150,8 +150,8 @@ describe('deleteIn', () => {
     delete (mutable1.user.profile as any).name
     delete (mutable2.user.profile as any).email
 
-    const result1 = deleteIn(obj).user.profile.name()
-    const result2 = deleteIn(obj).user.profile.email()
+    const result1 = deleteIn(obj).user.profile('name')
+    const result2 = deleteIn(obj).user.profile('email')
 
     expect(result1).toEqual(mutable1)
     expect(result2).toEqual(mutable2)
@@ -164,8 +164,8 @@ describe('deleteIn', () => {
 
     expect(() => {
       // @ts-expect-error
-      deleteIn(obj).user.name()
-    }).toThrow('Cannot read property "name" of null')
+      deleteIn(obj).user('name')
+    }).toThrow('Cannot convert undefined or null to object')
     expect(obj).toEqual(backup)
   })
 
@@ -185,7 +185,7 @@ describe('deleteIn', () => {
     const mutable = structuredClone(obj)
     delete (mutable.data as any).null
 
-    const result = deleteIn(obj).data.null()
+    const result = deleteIn(obj).data('null')
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -201,7 +201,7 @@ describe('deleteIn', () => {
     const mutable = structuredClone(obj)
     delete (mutable as any)['1']
 
-    const result = deleteIn(obj)['1']()
+    const result = deleteIn(obj)('1')
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -218,7 +218,7 @@ describe('deleteIn', () => {
     const mutable = structuredClone(obj)
     mutable.foo.delete('bar')
 
-    const result = deleteIn(obj).foo.key('bar')()
+    const result = deleteIn(obj).foo('bar')
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -240,7 +240,7 @@ describe('deleteIn', () => {
     const mutable = structuredClone(obj)
     mutable.data.get('users')!.delete('user1')
 
-    const result = deleteIn(obj).data.key('users').key('user1')()
+    const result = deleteIn(obj).data.key('users')('user1')
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -259,7 +259,7 @@ describe('deleteIn', () => {
     const mutable = structuredClone(obj)
     mutable[0].bar.delete('extra')
 
-    const result = deleteIn(obj)[0].bar.key('extra')()
+    const result = deleteIn(obj)[0].bar('extra')
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -286,10 +286,9 @@ describe('deleteIn', () => {
     const mutable = structuredClone(obj)
     mutable.config.get('settings')!.get('features')!.delete('feature1')
 
-    const result = deleteIn(obj)
-      .config.key('settings')
-      .key('features')
-      .key('feature1')()
+    const result = deleteIn(obj).config.key('settings').key('features')(
+      'feature1',
+    )
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -311,7 +310,21 @@ describe('deleteIn', () => {
     const mutable = structuredClone(obj)
     mutable.data.get('items')!.delete('item1')
 
-    const result = deleteIn(obj).data.key('items').key('item1')()
+    const result = deleteIn(obj).data.key('items')('item1')
+
+    expect(result).toEqual(mutable)
+    expect(obj).toEqual(backup)
+  })
+
+  it('should delete from sets', () => {
+    const obj = {
+      tags: new Set(['a', 'b', 'c']),
+    }
+    const backup = structuredClone(obj)
+    const mutable = structuredClone(obj)
+    mutable.tags.delete('b')
+
+    const result = deleteIn(obj).tags('b')
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)

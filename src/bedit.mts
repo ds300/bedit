@@ -52,13 +52,15 @@ type Updatable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
   ? { key: (k: K) => Updatable<V, Root> }
   : T extends ReadonlyArray<infer U>
     ? { [key: number]: Updatable<U, Root> }
-    : PrimitiveOrImmutableBuiltin extends T
-      ? never
-      : {
-          [k in keyof T]: T[k] extends object
-            ? Updatable<T[k], Root>
-            : (update: Updater<DeepReadonly<T[k]>>) => Root
-        }) &
+    : T extends ReadonlySet<any>
+      ? (update: Updater<DeepReadonly<T>>) => Root
+      : PrimitiveOrImmutableBuiltin extends T
+        ? never
+        : {
+            [k in keyof T]: T[k] extends object
+              ? Updatable<T[k], Root>
+              : (update: Updater<DeepReadonly<T[k]>>) => Root
+          }) &
   ((update: Updater<DeepReadonly<T>>) => Root)
 
 type Settable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
@@ -91,20 +93,23 @@ type ShallowMutatable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
     mutate: F,
   ) => ReturnType<F> extends Promise<any> ? Promise<Root> : Root)
 
-type Deletable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
-  ? { key: (k: K) => Deletable<V, Root> }
-  : T extends ReadonlyArray<infer U>
-    ? { [key: number]: Deletable<U, Root> }
-    : T extends ReadonlySet<infer V>
-      ? { key: (k: V) => () => Root }
-      : PrimitiveOrImmutableBuiltin extends T
-        ? never
-        : {
-            [k in keyof T]: T[k] extends object
-              ? Deletable<T[k], Root>
-              : () => Root
-          }) &
-  (() => Root)
+type Deletable<T, Root = T> =
+  T extends ReadonlyMap<infer K, infer V>
+    ? { key: (k: K) => Deletable<V, Root>; (key: K, ...more: K[]): Root }
+    : T extends ReadonlyArray<infer U>
+      ? {
+          [key: number]: Deletable<U, Root>
+          (key: number, ...more: number[]): Root
+        }
+      : T extends ReadonlySet<infer V>
+        ? (key: V, ...more: V[]) => Root
+        : PrimitiveOrImmutableBuiltin extends T
+          ? never
+          : ((key: keyof T, ...more: (keyof T)[]) => Root) & {
+              [k in keyof T]: T[k] extends object
+                ? Deletable<T[k], Root>
+                : never
+            }
 
 type Addable<T, Root = T> =
   T extends ReadonlyMap<infer K, infer V>
@@ -357,7 +362,19 @@ function frame(parent: Frame | null): Frame {
       apply(_target, _thisArg, args) {
         try {
           let value: any = DELETE_VALUE
-          if (type === SET) {
+          if (type === DELETE) {
+            value = clone(obj)
+            if (obj instanceof Map || obj instanceof Set) {
+              args.forEach((arg) => value.delete(arg))
+            } else if (Array.isArray(value)) {
+              args
+                .map(Number)
+                .sort((a, b) => a - b)
+                .forEach((arg) => value.splice(arg, 1))
+            } else {
+              args.forEach((arg) => delete value[arg])
+            }
+          } else if (type === SET) {
             value = args[0]
           } else if (type === UPDATE) {
             value = args[0](obj)

@@ -12,10 +12,10 @@ describe('error handling fallbacks', () => {
 
   it('should handle missing Error.captureStackTrace', () => {
     const originalCaptureStackTrace = Error.captureStackTrace
-    
+
     // @ts-expect-error
     delete Error.captureStackTrace
-    
+
     try {
       expect(() => {
         const obj = { user: 'not an object' }
@@ -30,21 +30,21 @@ describe('error handling fallbacks', () => {
   it('should handle Error.captureStackTrace with different implementations', () => {
     const originalCaptureStackTrace = Error.captureStackTrace
     let captureStackTraceCalled = false
-    
+
     // Mock a different implementation
     Error.captureStackTrace = (error: Error) => {
       captureStackTraceCalled = true
       // Simulate some stack trace manipulation
       error.stack = 'Mocked stack trace'
     }
-    
+
     try {
       expect(() => {
         const obj = { data: null }
         // @ts-expect-error
         setIn(obj).data.prop('value')
       }).toThrow('Cannot read property "prop" of null')
-      
+
       expect(captureStackTraceCalled).toBe(true)
     } finally {
       Error.captureStackTrace = originalCaptureStackTrace
@@ -53,26 +53,26 @@ describe('error handling fallbacks', () => {
 
   it('should handle Error.captureStackTrace throwing errors', () => {
     const originalCaptureStackTrace = Error.captureStackTrace
-    
+
     // Skip this test if Error.captureStackTrace is not available
     if (!originalCaptureStackTrace) {
       return
     }
-    
+
     // Mock Error.captureStackTrace to not throw, just log instead
     let captureStackTraceAttempted = false
     Error.captureStackTrace = () => {
       captureStackTraceAttempted = true
       // Don't throw, just mark that it was attempted
     }
-    
+
     try {
       expect(() => {
         const obj = { user: undefined }
         // @ts-expect-error
         setIn(obj).user.profile.name('John')
       }).toThrow('Cannot read property "profile" of undefined')
-      
+
       // Verify that captureStackTrace was attempted
       expect(captureStackTraceAttempted).toBe(true)
     } finally {
@@ -82,10 +82,10 @@ describe('error handling fallbacks', () => {
 
   it('should handle environments with null Error.captureStackTrace', () => {
     const originalCaptureStackTrace = Error.captureStackTrace
-    
+
     // @ts-expect-error
     Error.captureStackTrace = null
-    
+
     try {
       expect(() => {
         const obj = { count: 42 }
@@ -99,10 +99,10 @@ describe('error handling fallbacks', () => {
 
   it('should handle environments with undefined Error.captureStackTrace', () => {
     const originalCaptureStackTrace = Error.captureStackTrace
-    
+
     // @ts-expect-error
     Error.captureStackTrace = undefined
-    
+
     try {
       expect(() => {
         const obj = { flag: true }
@@ -115,10 +115,10 @@ describe('error handling fallbacks', () => {
 
   it('should preserve error messages without Error.captureStackTrace', () => {
     const originalCaptureStackTrace = Error.captureStackTrace
-    
+
     // @ts-expect-error
     delete Error.captureStackTrace
-    
+
     try {
       let thrownError: Error | null = null
       try {
@@ -128,9 +128,11 @@ describe('error handling fallbacks', () => {
       } catch (error) {
         thrownError = error as Error
       }
-      
+
       expect(thrownError).toBeInstanceOf(TypeError)
-      expect(thrownError?.message).toContain('Cannot read property "value" of null')
+      expect(thrownError?.message).toContain(
+        'Cannot read property "value" of null',
+      )
     } finally {
       Error.captureStackTrace = originalCaptureStackTrace
     }
@@ -138,19 +140,19 @@ describe('error handling fallbacks', () => {
 
   it('should handle complex nested errors without Error.captureStackTrace', () => {
     const originalCaptureStackTrace = Error.captureStackTrace
-    
+
     // @ts-expect-error
     delete Error.captureStackTrace
-    
+
     try {
-      const obj = { 
-        level1: { 
-          level2: { 
-            level3: 'string instead of object' 
-          } 
-        } 
+      const obj = {
+        level1: {
+          level2: {
+            level3: 'string instead of object',
+          },
+        },
       }
-      
+
       expect(() => {
         // @ts-expect-error
         setIn(obj).level1.level2.level3.level4.value('test')
@@ -162,20 +164,20 @@ describe('error handling fallbacks', () => {
 
   it('should handle symbol property errors without Error.captureStackTrace', () => {
     const originalCaptureStackTrace = Error.captureStackTrace
-    
+
     // @ts-expect-error
     delete Error.captureStackTrace
-    
+
     try {
       const symbolProp = Symbol('testProp')
       const obj = { [symbolProp]: null }
-      
+
       expect(() => {
         // @ts-expect-error
         setIn(obj)[symbolProp].nested('value')
       }).toThrow('Cannot read property "nested" of null')
     } finally {
-      Error.captureStackTrace = originalCaptureStackTrace  
+      Error.captureStackTrace = originalCaptureStackTrace
     }
   })
 
@@ -183,22 +185,26 @@ describe('error handling fallbacks', () => {
     // This test verifies normal operation when captureStackTrace exists
     let stackTraceCaptured = false
     const originalCaptureStackTrace = Error.captureStackTrace
-    
+
     if (originalCaptureStackTrace) {
       Error.captureStackTrace = (error: Error, constructorOpt?: Function) => {
         stackTraceCaptured = true
         return originalCaptureStackTrace.call(Error, error, constructorOpt)
       }
-      
+
       try {
         expect(() => {
           const obj = { data: null }
           // @ts-expect-error
           setIn(obj).data.items[0]('value')
         }).toThrow('Cannot read property "items" of null')
-        
+
         // In Node.js environments, this should be called
-        if (typeof process !== 'undefined' && process.versions && process.versions.node) {
+        if (
+          typeof process !== 'undefined' &&
+          process.versions &&
+          process.versions.node
+        ) {
           expect(stackTraceCaptured).toBe(true)
         }
       } finally {

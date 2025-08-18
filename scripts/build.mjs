@@ -1,6 +1,8 @@
-import { readFileSync, writeFileSync } from 'fs'
+import { rmSync } from 'fs'
 import { preprocessFileSync } from 'preprocess'
 import { execSync } from 'child_process'
+
+rmSync('dist', { recursive: true, force: true })
 
 preprocessFileSync(
   'src/bedit.mts',
@@ -13,4 +15,4 @@ preprocessFileSync(
   { type: 'js' },
 )
 
-execSync('tsc', { stdio: 'inherit' })
+execSync('tsc --project tsconfig.build.json', { stdio: 'inherit', shell: true })

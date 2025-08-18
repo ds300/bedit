@@ -223,28 +223,28 @@ Delete a nested property.
 
 ```ts
 import { deleteIn } from 'bedit'
-const nextState = deleteIn({ a: { b: { c: 1 } } }).a.b.c()
+const nextState = deleteIn({ a: { b: { c: 1 } } }).a.b.c
 // nextState = {a: {b: {}}}
 ```
 
-It uses .splice on arrays, to avoid leaving a hole behind.
+For arrays, pass the index as an argument:
 
 ```ts
-const nextState = deleteIn({ a: { b: [1, 2, 3] } }).a.b[1]()
+const nextState = deleteIn({ a: { b: [1, 2, 3] } }).a.b(1)
 // nextState = {a: {b: [1, 3]}}
 ```
 
-It works on maps too.
+For maps, pass the key as an argument:
 
 ```ts
-const nextState = deleteIn({ a: { b: new Map([['c', 1]]) } }).a.b.key('c')()
+const nextState = deleteIn({ a: { b: new Map([['c', 1]]) } }).a.b('c')
 // nextState = {a: {b: Map([])}}
 ```
 
-And sets.
+For sets, pass the value as an argument:
 
 ```ts
-const nextState = deleteIn({ a: { b: new Set(['c', 'd']) } }).a.b.key('c')()
+const nextState = deleteIn({ a: { b: new Set(['c', 'd']) } }).a.b('c')
 // nextState = {a: {b: Set(['d'])}}
 ```
 

@@ -10,11 +10,12 @@ interface ZustandStoreish<T> {
 type GetState<S> = S extends { getState: () => infer T } ? T : never
 
 // Type for the enhanced store with mutator functions
-type BeditifiedStore<
-  S extends ZustandStoreish<any>,
-> = S & BeditStateContainer<GetState<S>>
+type BeditifiedStore<S extends ZustandStoreish<any>> = S &
+  BeditStateContainer<GetState<S>>
 
-export function beditify<S extends ZustandStoreish<any>>(store: S): BeditifiedStore<S> {
+export function beditify<S extends ZustandStoreish<any>>(
+  store: S,
+): BeditifiedStore<S> {
   // Start with the enhanced store and add the bedit state container symbol
   const enhancedStore = store as any
   enhancedStore[$beditStateContainer] = {
