@@ -44,8 +44,13 @@ const nextState = edit(state, (draft) => {
   setIn(draft).user.preferences.theme('light')
   setIn(draft).todos[2].completed(true)
 
-  // Use `updateIn` to apply a function to a value (without cloning it first).
+  // Use `updateIn` to apply a function to a value.
   updateIn(draft).todos[1].title((title) => title.toUpperCase() + '!!!')
+
+  // `updateIn` can also be used to call methods on collections.
+  updateIn(draft).todos.push({ id: '3', title: 'Buy bread', completed: false })
+  updateIn(draft).todos.filter((todo) => !todo.completed)
+  updateIn(draft).todos.sort((a, b) => a.title.localeCompare(b.title))
 
   // Use `editIn` to edit a shallow clone of a subtree.
   editIn(draft).todos[0]((todo) => {
@@ -70,11 +75,9 @@ const nextState = editIn(state).todos[1]((todo) => {
 })
 ```
 
-There's also `addIn` for adding items to arrays and sets, and `deleteIn` for guess what. See [the full API](#api) for details.
-
 ## Maps
 
-Use `.key(k)` to modify values inside a `Map`.
+Use `.key(k)` to drill into values inside a `Map`.
 
 ```ts
 const state = {
@@ -217,65 +220,13 @@ editIn({ a: { b: { c: 1 } } })((obj) => {
 })
 ```
 
-### `deleteIn`
-
-Delete a nested property.
-
-```ts
-import { deleteIn } from 'bedit'
-const nextState = deleteIn({ a: { b: { c: 1 } } }).a.b.c
-// nextState = {a: {b: {}}}
-```
-
-For arrays, pass the index as an argument:
-
-```ts
-const nextState = deleteIn({ a: { b: [1, 2, 3] } }).a.b(1)
-// nextState = {a: {b: [1, 3]}}
-```
-
-For maps, pass the key as an argument:
-
-```ts
-const nextState = deleteIn({ a: { b: new Map([['c', 1]]) } }).a.b('c')
-// nextState = {a: {b: Map([])}}
-```
-
-For sets, pass the value as an argument:
-
-```ts
-const nextState = deleteIn({ a: { b: new Set(['c', 'd']) } }).a.b('c')
-// nextState = {a: {b: Set(['d'])}}
-```
-
-### `addIn`
-
-Add items to arrays and sets.
-
-```ts
-import { addIn } from 'bedit'
-
-// Add to arrays (via .push())
-const newUsers = addIn({ users: [{ name: 'John' }, { name: 'Jane' }] }).users({
-  name: 'Bob',
-})
-// newUsers = [{ name: 'John' }, { name: 'Jane' }, { name: 'Bob' }]
-
-// Add to Sets
-const newTags = addIn({ tags: new Set(['admin', 'user']) }).tags(
-  'moderator',
-  'vip',
-)
-// newTags = { tags: Set(['admin', 'user', 'moderator', 'vip']) }
-```
-
 ## Zustand Integration
 
 bedit provides integration with [Zustand](https://github.com/pmndrs/zustand) stores. Simply beditify your store and use bedit functions directly:
 
 ```ts
 import { beditify } from 'bedit/zustand'
-import { setIn, updateIn, addIn } from 'bedit'
+import { setIn, updateIn } from 'bedit'
 import { create } from 'zustand'
 
 const useStore = create(() => ({
@@ -290,7 +241,7 @@ const store = beditify(useStore)
 // Use bedit functions directly on the store
 setIn(store).user.name('Jane')
 updateIn(store).count((c) => c + 1)
-addIn(store).todos({ id: 1, text: 'Learn bedit' })
+updateIn(store).todos.push({ id: 1, text: 'Learn bedit' })
 
 // Write your own helper functions as needed
 const increment = (n: number) => {

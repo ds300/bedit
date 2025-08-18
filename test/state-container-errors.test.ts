@@ -4,7 +4,6 @@ import {
   updateIn,
   editIn,
   edit,
-  deleteIn,
   setDevMode,
 } from '../src/bedit.mjs'
 import { $beditStateContainer } from '../src/symbols.mjs'
@@ -200,25 +199,4 @@ describe('state container error handling', () => {
     }).toThrow('Count cannot be negative')
   })
 
-  it('should handle state container errors in deleteIn operations', () => {
-    const container = {
-      get: () => ({ required: 'value', optional: 'other' }),
-      set: (newState: { required: string; optional: string }) => {
-        if (!('required' in newState)) {
-          throw new Error('Required property cannot be deleted')
-        }
-      },
-    }
-    const obj = { [$beditStateContainer]: container }
-
-    // This should work
-    const result1 = deleteIn(obj)('optional')
-    expect(result1.hasOwnProperty('optional')).toBe(false)
-    expect(result1.required).toBe('value')
-
-    // This should throw
-    expect(() => {
-      deleteIn(obj)('required')
-    }).toThrow('Required property cannot be deleted')
-  })
 })

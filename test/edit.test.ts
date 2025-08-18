@@ -7,15 +7,7 @@ import {
   createUserArray,
   createDeepNested,
 } from './test-utils'
-import {
-  edit,
-  setIn,
-  updateIn,
-  editIn,
-  addIn,
-  deleteIn,
-  setDevMode,
-} from '../src/bedit.mjs'
+import { edit, setIn, updateIn, editIn, setDevMode } from '../src/bedit.mjs'
 
 setDevMode(true)
 
@@ -724,8 +716,8 @@ describe('edit', () => {
       let resolved = false
       const result = edit(obj, async (draft) => {
         await delay(1)
-        addIn(draft).tags('nodejs')
-        deleteIn(draft).tags('react')
+        updateIn(draft).tags.add('nodejs')
+        updateIn(draft).tags.delete('react')
         resolved = true
       })
 
@@ -746,7 +738,7 @@ describe('edit', () => {
       let resolved = false
       const result = await edit(obj, async (draft) => {
         await delay(1)
-        addIn(draft).users({ name: 'Bob', age: 40 })
+        updateIn(draft).users.push({ name: 'Bob', age: 40 })
         setIn(draft).users[0].name('Johnny')
         resolved = true
       })

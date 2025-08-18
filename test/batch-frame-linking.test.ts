@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { editIn, edit, setIn, setDevMode, addIn } from '../src/bedit.mjs'
+import { editIn, edit, setIn, setDevMode, updateIn } from '../src/bedit.mjs'
 
 describe('batch frame linking', () => {
   beforeEach(() => {
@@ -84,7 +84,7 @@ describe('batch frame linking', () => {
       return await editIn(level1).level2(async (level2) => {
         return await editIn(level2).level3(async (level3) => {
           return await editIn(level3).level4(async (level4) => {
-            addIn(level4).data('d')
+            updateIn(level4).data.push('d')
             level4.newProp = 'added'
             return level4
           })

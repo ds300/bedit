@@ -1,7 +1,7 @@
 import { expect, describe, it } from 'vitest'
 import { create, createStore } from 'zustand'
 import { beditify } from '../src/zustand.mjs'
-import { setIn, updateIn, addIn, setDevMode } from '../src/bedit.mjs'
+import { setIn, updateIn, setDevMode } from '../src/bedit.mjs'
 import { $beditStateContainer } from '../src/symbols.mjs'
 
 setDevMode(true)
@@ -45,7 +45,7 @@ describe('beditify', () => {
       updateIn(wrappedStore).nested.value((v) => v.toUpperCase())
       expect(wrappedStore.getState().nested.value).toBe('TEST')
 
-      addIn(wrappedStore).users({ id: 99, name: 'Test User' })
+      updateIn(wrappedStore).users.push({ id: 99, name: 'Test User' })
       expect(wrappedStore.getState().users).toHaveLength(3)
     })
 

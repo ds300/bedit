@@ -1,15 +1,7 @@
 import { describe, beforeEach, afterEach, expect } from 'vitest'
 import { test } from '@fast-check/vitest'
 import * as fc from 'fast-check'
-import {
-  setIn,
-  updateIn,
-  editIn,
-  deleteIn,
-  addIn,
-  edit,
-  setDevMode,
-} from '../src/bedit.mjs'
+import { setIn, updateIn, editIn, edit, setDevMode } from '../src/bedit.mjs'
 
 // Configure for model-based testing
 fc.configureGlobal({ numRuns: process.env.CI ? 2000 : 50 })
@@ -102,23 +94,6 @@ class StateHelper {
   }
 
   /**
-   * Get valid paths for addIn (arrays and sets only)
-   */
-  static getValidAddInPaths(state: any): (string | number)[][] {
-    return this.getAllPaths(state).filter((path) => {
-      const value = this.getValueAtPath(state, path)
-      return Array.isArray(value) || value instanceof Set
-    })
-  }
-
-  /**
-   * Get valid paths for deleteIn (any path except root)
-   */
-  static getValidDeleteInPaths(state: any): (string | number)[][] {
-    return this.getAllPaths(state).filter((path) => path.length > 0)
-  }
-
-  /**
    * Get valid paths for editIn (objects, arrays, maps, sets)
    */
   static getValidEditInPaths(state: any): (string | number)[][] {
@@ -126,28 +101,6 @@ class StateHelper {
       const value = this.getValueAtPath(state, path)
       return value != null && typeof value === 'object'
     })
-  }
-
-  /**
-   * Apply deleteIn operation to model state by removing the property
-   */
-  static applyDeleteIn(modelState: any, path: (string | number)[]): void {
-    if (path.length === 0) return // Can't delete root
-
-    let current = modelState
-    for (let i = 0; i < path.length - 1; i++) {
-      current = current[path[i]]
-      if (current == null) return // Path doesn't exist
-    }
-
-    const lastSegment = path[path.length - 1]
-    if (Array.isArray(current)) {
-      current.splice(Number(lastSegment), 1)
-    } else if (current instanceof Map || current instanceof Set) {
-      current.delete(lastSegment)
-    } else {
-      delete current[lastSegment]
-    }
   }
 
   static setValueAtPath(obj: any, path: (string | number)[], value: any): void {
@@ -307,90 +260,6 @@ class UpdateInCommand extends BeditCommand {
       current = current[this.path[i]]
     }
     current[this.path[this.path.length - 1]] = newValue
-  }
-}
-
-/**
- * Command for bedit's addIn operation - adds items to arrays and sets.
- *
- * AddIn appends items to collections. For arrays, items are pushed to the end.
- * For sets, items are added (duplicates ignored by Set semantics).
- *
- * Preconditions: Target path must exist and be an array or set
- * Postconditions: Collection contains the new items, length/size updated accordingly
- */
-class AddInCommand extends BeditCommand {
-  readonly type = 'addIn'
-
-  constructor(
-    readonly path: (string | number)[],
-    readonly items: any[],
-  ) {
-    super()
-  }
-
-  canExecute(state: any): boolean {
-    if (!StateHelper.pathExists(state, this.path)) return false
-    const value = StateHelper.getValueAtPath(state, this.path)
-    return Array.isArray(value) || value instanceof Set
-  }
-
-  async executeOnReal(state: any): Promise<any> {
-    await Promise.resolve() // Async delay
-    let target: any = addIn(state)
-    for (const segment of this.path) {
-      target = target[segment]
-    }
-    return target(...this.items)
-  }
-
-  async executeOnModel(modelState: any): Promise<void> {
-    await Promise.resolve() // Async delay
-    // Get the target collection and add items
-    const collection = StateHelper.getValueAtPath(modelState, this.path)
-
-    if (Array.isArray(collection)) {
-      collection.push(...this.items)
-    } else if (collection instanceof Set) {
-      this.items.forEach((item) => collection.add(item))
-    }
-  }
-}
-
-/**
- * Command for bedit's deleteIn operation - removes properties at any depth.
- *
- * DeleteIn removes the property at the target path. For arrays, it removes the
- * element at the index. For maps/sets, it deletes the key.
- *
- * Preconditions: Target path must exist
- * Postconditions: Property is removed, parent structure is preserved
- */
-class DeleteInCommand extends BeditCommand {
-  readonly type = 'deleteIn'
-
-  constructor(readonly path: (string | number)[]) {
-    super()
-  }
-
-  canExecute(state: any): boolean {
-    return this.path.length > 0 && StateHelper.pathExists(state, this.path)
-  }
-
-  async executeOnReal(state: any): Promise<any> {
-    await Promise.resolve() // Async delay
-    let target = deleteIn(state) as any
-    // Navigate to the parent, then pass the final key as argument
-    for (let i = 0; i < this.path.length - 1; i++) {
-      target = target[this.path[i]]
-    }
-    const finalKey = this.path[this.path.length - 1]
-    return target(finalKey)
-  }
-
-  async executeOnModel(modelState: any): Promise<void> {
-    await Promise.resolve() // Async delay
-    StateHelper.applyDeleteIn(modelState, this.path)
   }
 }
 
@@ -569,12 +438,6 @@ describe('Model-Based Tests', () => {
       true,
     )
     expect(updateInPaths.some((p: any) => p.join('.') === 'user')).toBe(false) // object, not primitive
-
-    // addIn can target arrays and sets only
-    const addInPaths = StateHelper.getValidAddInPaths(state)
-    expect(addInPaths.some((p: any) => p.join('.') === 'items')).toBe(true)
-    expect(addInPaths.some((p: any) => p.join('.') === 'tags')).toBe(true)
-    expect(addInPaths.some((p: any) => p.join('.') === 'user')).toBe(false) // not array/set
   })
 
   test('SetInCommand executes and validates correctly', async () => {
@@ -614,33 +477,6 @@ describe('Model-Based Tests', () => {
     command.validate(modelState, result)
   })
 
-  test('AddInCommand executes and validates correctly', async () => {
-    const state = { items: ['a', 'b'], tags: new Set(['admin']) }
-
-    // Test array addition
-    const arrayModelState = structuredClone(state)
-    const arrayCommand = new AddInCommand(['items'], ['c', 'd'])
-    expect(arrayCommand.canExecute(state)).toBe(true)
-
-    let result = await arrayCommand.executeOnReal(state)
-    await arrayCommand.executeOnModel(arrayModelState)
-
-    expect(result.items).toEqual(['a', 'b', 'c', 'd'])
-    arrayCommand.validate(arrayModelState, result)
-
-    // Test set addition
-    const setModelState = structuredClone(state)
-    const setCommand = new AddInCommand(['tags'], ['user', 'moderator'])
-    expect(setCommand.canExecute(state)).toBe(true)
-
-    result = await setCommand.executeOnReal(state)
-    await setCommand.executeOnModel(setModelState)
-
-    expect(result.tags.has('user')).toBe(true)
-    expect(result.tags.has('moderator')).toBe(true)
-    setCommand.validate(setModelState, result)
-  })
-
   test('Commands correctly validate preconditions', () => {
     const state = { user: { name: 'John' }, items: ['a'] }
 
@@ -651,8 +487,6 @@ describe('Model-Based Tests', () => {
     expect(
       new UpdateInCommand(['user', 'name'], (s: string) => s).canExecute(state),
     ).toBe(true)
-    expect(new AddInCommand(['items'], ['b']).canExecute(state)).toBe(true)
-
     // Invalid commands
     expect(
       new SetInCommand(['nonexistent', 'prop'], 'value').canExecute(state),
@@ -660,49 +494,6 @@ describe('Model-Based Tests', () => {
     expect(
       new UpdateInCommand(['user'], (obj: any) => obj).canExecute(state),
     ).toBe(false) // object, not primitive
-    expect(new AddInCommand(['user'], ['item']).canExecute(state)).toBe(false) // not array/set
-  })
-
-  test('DeleteInCommand executes and validates correctly', async () => {
-    const state = {
-      user: { name: 'John', age: 30 },
-      items: ['a', 'b', 'c'],
-      config: new Map([
-        ['theme', 'dark'],
-        ['debug', 'true'],
-      ]),
-      tags: new Set(['admin', 'user']),
-    }
-
-    // Test object property deletion
-    const objModelState = structuredClone(state)
-    const objCommand = new DeleteInCommand(['user', 'age'])
-    expect(objCommand.canExecute(state)).toBe(true)
-
-    let result = await objCommand.executeOnReal(state)
-    await objCommand.executeOnModel(objModelState)
-
-    expect(result.user.name).toBe('John')
-    expect(result.user.age).toBeUndefined()
-    objCommand.validate(objModelState, result)
-
-    // Test array element deletion
-    const arrModelState = structuredClone(state)
-    const arrCommand = new DeleteInCommand(['items', 1])
-
-    result = await arrCommand.executeOnReal(state)
-    await arrCommand.executeOnModel(arrModelState)
-
-    expect(result.items).toEqual(['a', 'c'])
-    arrCommand.validate(arrModelState, result)
-
-    // Test Map key deletion
-    const mapModelState = structuredClone(state)
-    const mapCommand = new DeleteInCommand(['config'])
-
-    result = await mapCommand.executeOnReal(state)
-    await mapCommand.executeOnModel(mapModelState)
-    // Note: deleteIn on maps needs .key() syntax, this tests the path validation
   })
 
   test('EditInCommand executes and validates correctly', async () => {
@@ -731,7 +522,7 @@ describe('Model-Based Tests', () => {
     const arrModelState = structuredClone(state)
     const arrCommand = new EditInCommand(
       ['items'],
-      [new AddInCommand([], ['d']), new SetInCommand([0], 'modified')],
+      [new SetInCommand([0], 'modified'), new SetInCommand([3], 'd')],
     )
 
     result = await arrCommand.executeOnReal(state)
@@ -751,7 +542,7 @@ describe('Model-Based Tests', () => {
     const modelState = structuredClone(state)
     const command = new EditCommand([
       new SetInCommand(['user', 'name'], 'Jane'),
-      new AddInCommand(['items'], ['c']),
+      new EditInCommand(['items'], [new SetInCommand([2], 'c')]),
       new UpdateInCommand(['count'], (n: number) => n + 10),
       new SetInCommand(['newProp'], 'added'),
     ])
@@ -813,8 +604,8 @@ describe('Model-Based Tests', () => {
   test('Mixed operation types with complex state', async () => {
     const state = {
       users: [
-        { id: 1, name: 'Alice', tags: new Set(['admin']) },
-        { id: 2, name: 'Bob', posts: ['Hello', 'World'] },
+        { id: 1, name: 'Alice', tags: new Set(['admin', 'moderator', 'user']) },
+        { id: 2, name: 'Bob', posts: ['Hello', 'World', 'New post'] },
       ],
       config: new Map([
         ['theme', 'dark'],
@@ -827,10 +618,6 @@ describe('Model-Based Tests', () => {
     let model = structuredClone(state)
 
     const commands = [
-      // Add to set
-      new AddInCommand(['users', 0, 'tags'], ['moderator', 'user']),
-      // Add to array
-      new AddInCommand(['users', 1, 'posts'], ['New post']),
       // Update array element
       new UpdateInCommand(['counters', 0], (n: number) => n * 2),
       // Edit user object with command sequence
@@ -986,25 +773,6 @@ describe('Model-Based Tests', () => {
 
     if (safeUpdaters.length > 0) {
       commands.push(fc.oneof(...safeUpdaters))
-    }
-
-    // Safe AddIn commands
-    const addInPaths = StateHelper.getValidAddInPaths(state)
-    if (addInPaths.length > 0) {
-      commands.push(
-        fc
-          .record({
-            path: fc.constantFrom(...addInPaths),
-            items: fc.array(
-              fc.oneof(
-                fc.string({ maxLength: 5 }),
-                fc.integer({ min: 0, max: 10 }),
-              ),
-              { minLength: 1, maxLength: 2 },
-            ),
-          })
-          .map(({ path, items }) => new AddInCommand(path, items)),
-      )
     }
 
     // Simple fallback

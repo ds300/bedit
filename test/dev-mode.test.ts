@@ -5,7 +5,6 @@ import {
   editIn,
   edit,
   setDevMode,
-  addIn,
 } from '../src/bedit.mjs'
 
 describe('Dev Mode', () => {
@@ -182,7 +181,7 @@ describe('Dev Mode', () => {
 
     const result = edit(obj, (draft) => {
       setIn(draft).config.key('debug')({ color: 'light' })
-      addIn(draft).tags('typescript')
+      updateIn(draft).tags.add('typescript')
     })
 
     expect(Object.isFrozen(result)).toBe(true)

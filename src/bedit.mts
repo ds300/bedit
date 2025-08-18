@@ -12,6 +12,48 @@ export type DeepReadonly<T> =
           ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
           : T
 
+type ArrayMethods =
+  | 'push'
+  | 'pop'
+  | 'shift'
+  | 'unshift'
+  | 'splice'
+  | 'sort'
+  | 'reverse'
+  | 'concat'
+  | 'slice'
+  | 'map'
+  | 'filter'
+
+type UpdatingArrayMethods<Elem, Root> = {
+  [k in ArrayMethods]: Array<Elem>[k] extends (...args: infer Args) => infer R
+    ? (...args: Args) => Root
+    : never
+}
+
+const immutableArrayMethods: ReadonlySet<ArrayMethods> = new Set<ArrayMethods>([
+  'concat',
+  'slice',
+  'map',
+  'filter',
+])
+
+type MapMethods = 'set' | 'get' | 'delete' | 'clear'
+
+type UpdatingMapMethods<Key, Value, Root> = {
+  [k in MapMethods]: Map<Key, Value>[k] extends (...args: infer Args) => infer R
+    ? (...args: Args) => Root
+    : never
+}
+
+type SetMethods = 'add' | 'delete' | 'clear'
+
+type UpdatingSetMethods<Elem, Root> = {
+  [k in SetMethods]: Set<Elem>[k] extends (...args: infer Args) => infer R
+    ? (...args: Args) => Root
+    : never
+}
+
 /**
  * Editable<T> makes the top-level properties of T mutable,
  * but all child properties (or elements, for arrays/maps/sets) are readonly.
@@ -49,11 +91,11 @@ type PrimitiveOrImmutableBuiltin =
   | Symbol
 
 type Updatable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
-  ? { key: (k: K) => Updatable<V, Root> }
+  ? { key: (k: K) => Updatable<V, Root> } & UpdatingMapMethods<K, V, Root>
   : T extends ReadonlyArray<infer U>
-    ? { [key: number]: Updatable<U, Root> }
-    : T extends ReadonlySet<any>
-      ? (update: Updater<DeepReadonly<T>>) => Root
+    ? { [key: number]: Updatable<U, Root> } & UpdatingArrayMethods<U, Root>
+    : T extends ReadonlySet<infer U>
+      ? UpdatingSetMethods<U, Root>
       : PrimitiveOrImmutableBuiltin extends T
         ? never
         : {
@@ -80,59 +122,26 @@ type ShallowMutatable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
   ? { key: (k: K) => ShallowMutatable<V, Root> }
   : T extends ReadonlyArray<infer U>
     ? { [key: number]: ShallowMutatable<U, Root> }
-    : PrimitiveOrImmutableBuiltin extends T
-      ? never
-      : {
-          [k in keyof T]: T[k] extends object
-            ? ShallowMutatable<T[k], Root>
-            : <F extends Mutator<T[k]>>(
-                mutate: F,
-              ) => ReturnType<F> extends Promise<any> ? Promise<Root> : Root
-        }) &
+    : T extends ReadonlySet<any>
+      ? <F extends Mutator<T>>(
+          mutate: F,
+        ) => ReturnType<F> extends Promise<any> ? Promise<Root> : Root
+      : PrimitiveOrImmutableBuiltin extends T
+        ? never
+        : {
+            [k in keyof T]: T[k] extends object
+              ? ShallowMutatable<T[k], Root>
+              : <F extends Mutator<T[k]>>(
+                  mutate: F,
+                ) => ReturnType<F> extends Promise<any> ? Promise<Root> : Root
+          }) &
   (<F extends Mutator<T>>(
     mutate: F,
   ) => ReturnType<F> extends Promise<any> ? Promise<Root> : Root)
 
-type Deletable<T, Root = T> =
-  T extends ReadonlyMap<infer K, infer V>
-    ? { key: (k: K) => Deletable<V, Root>; (key: K, ...more: K[]): Root }
-    : T extends ReadonlyArray<infer U>
-      ? {
-          [key: number]: Deletable<U, Root>
-          (key: number, ...more: number[]): Root
-        }
-      : T extends ReadonlySet<infer V>
-        ? (key: V, ...more: V[]) => Root
-        : PrimitiveOrImmutableBuiltin extends T
-          ? never
-          : ((key: keyof T, ...more: (keyof T)[]) => Root) & {
-              [k in keyof T]: T[k] extends object
-                ? Deletable<T[k], Root>
-                : never
-            }
-
-type Addable<T, Root = T> =
-  T extends ReadonlyMap<infer K, infer V>
-    ? { key: (k: K) => Addable<V, Root> }
-    : T extends ReadonlySet<infer V>
-      ? (...args: V[]) => Root
-      : T extends ReadonlyArray<infer V>
-        ? ((...args: V[]) => Root) & Record<number, Addable<V, Root>>
-        : PrimitiveOrImmutableBuiltin extends T
-          ? () => Root
-          : {
-              [k in keyof T]: T[k] extends object
-                ? Addable<T[k], Root>
-                : () => Root
-            }
-
 const SET = 0 as const
 const UPDATE = 1 as const
-const MUTATE = 2 as const
-const DELETE = 3 as const
-const ADD = 4 as const
-
-const DELETE_VALUE = {}
+const EDIT = 2 as const
 
 /**
  * Enables or disables development mode for the bedit library.
@@ -170,7 +179,7 @@ let devMode = false
 const frozenObjects = new WeakSet<object>()
 
 function freezeObject(obj: any): any {
-  if (!devMode || !obj || typeof obj !== 'object' || obj == DELETE_VALUE) {
+  if (!devMode || !obj || typeof obj !== 'object') {
     return obj
   }
 
@@ -261,20 +270,10 @@ function frame(parent: Frame | null): Frame {
 
   function set(obj: any, key: string | number, value: any): any {
     const cloned = clone(obj)
-    if (value === DELETE_VALUE) {
-      if (Array.isArray(cloned)) {
-        cloned.splice(Number(key), 1)
-      } else if (cloned instanceof Map || cloned instanceof Set) {
-        cloned.delete(key)
-      } else {
-        delete cloned[key]
-      }
+    if (cloned instanceof Map) {
+      cloned.set(key, value)
     } else {
-      if (cloned instanceof Map) {
-        cloned.set(key, value)
-      } else {
-        cloned[key] = value
-      }
+      cloned[key] = value
     }
     // @ifndef PRODUCTION
     if (devMode && !clonedObjects) {
@@ -321,29 +320,11 @@ function frame(parent: Frame | null): Frame {
             )
             throw Error.captureStackTrace?.(error, getTrap) ?? error
           }
-          if (obj instanceof Map) {
-            if (prop !== 'key') {
-              throw new TypeError(
-                `Cannot edit property ${JSON.stringify(String(prop))} of Map or Set. Use .key() instead.`,
-              )
-            }
+          if (obj instanceof Map && prop === 'key') {
             return (k: any) => {
               keyPath[i] = k
               objPath[i] = obj
               obj = obj.get(k)
-              i++
-              return result.$
-            }
-          } else if (obj instanceof Set) {
-            if (prop !== 'key') {
-              throw new TypeError(
-                `Cannot edit property ${JSON.stringify(String(prop))} of Map or Set. Use .key() instead.`,
-              )
-            }
-            return (k: any) => {
-              keyPath[i] = k
-              objPath[i] = obj
-              obj = null
               i++
               return result.$
             }
@@ -361,24 +342,33 @@ function frame(parent: Frame | null): Frame {
       },
       apply(_target, _thisArg, args) {
         try {
-          let value: any = DELETE_VALUE
-          if (type === DELETE) {
-            value = clone(obj)
-            if (obj instanceof Map || obj instanceof Set) {
-              args.forEach((arg) => value.delete(arg))
-            } else if (Array.isArray(value)) {
-              args
-                .map(Number)
-                .sort((a, b) => a - b)
-                .forEach((arg) => value.splice(arg, 1))
-            } else {
-              args.forEach((arg) => delete value[arg])
-            }
-          } else if (type === SET) {
+          let value: any = undefined
+          if (type === SET) {
             value = args[0]
           } else if (type === UPDATE) {
-            value = args[0](obj)
-          } else if (type === MUTATE) {
+            if (typeof obj === 'function') {
+              const parent = objPath[i - 1]
+              if (
+                parent instanceof Map ||
+                parent instanceof Set ||
+                Array.isArray(parent)
+              ) {
+                if (!immutableArrayMethods.has(keyPath[i - 1])) {
+                  value = clone(parent)
+                  obj.call(value, ...args)
+                } else {
+                  value = obj.call(parent, ...args)
+                }
+                i--
+                objPath[i] = undefined
+                keyPath[i] = undefined
+              } else {
+                value = args[0](obj)
+              }
+            } else {
+              value = args[0](obj)
+            }
+          } else if (type === EDIT) {
             const fn = args[0]
             if (obj == null || typeof obj !== 'object') {
               value = obj
@@ -422,16 +412,8 @@ function frame(parent: Frame | null): Frame {
                 releaseBatchFrame(currentBatchFrame)
               }
             }
-          } else if (type === ADD) {
-            value = clone(obj)
-            if (Array.isArray(value)) {
-              value.push(...args)
-            } else if (value instanceof Set) {
-              args.forEach((arg) => value.add(arg))
-            } else {
-              throw new Error(`Cannot add to ${obj?.constructor?.name}`)
-            }
           }
+
           // @ifndef PRODUCTION
           if (devMode && !clonedObjects) {
             value = freezeObject(value)
@@ -461,12 +443,7 @@ function frame(parent: Frame | null): Frame {
 // set up a tiny pool of four frames. we only need one frame per level
 // of nested setIn/updateIn/editIn calls.
 let top: Frame | null = frame(frame(frame(frame(null))))
-type FrameType =
-  | typeof SET
-  | typeof UPDATE
-  | typeof MUTATE
-  | typeof DELETE
-  | typeof ADD
+type FrameType = typeof SET | typeof UPDATE | typeof EDIT
 
 function getFrame(root: any, type: FrameType): Frame {
   if (top == null) {
@@ -596,43 +573,6 @@ export const updateIn = <T,>(t: T | BeditStateContainer<T>): Updatable<T> =>
   getFrame(t, UPDATE).$
 
 /**
- * Allows immutably deleting properties at any depth in a value.
- *
- * @template T - The type of the input value
- * @param t - The value to create a deleter for
- * @returns A deleter object that allows deleting properties at any depth
- *
- * @example
- * ```typescript
- * const user = { name: 'John', age: 30, email: 'john@example.com' }
- * const newUser = deleteIn(user).email()
- * // Result: { name: 'John', age: 30 }
- *
- * // Nested objects
- * const state = { user: { profile: { name: 'John', email: 'john@example.com' } } }
- * const newState = deleteIn(state).user.profile.email()
- * // Result: { user: { profile: { name: 'John' } } }
- *
- * // Arrays
- * const users = [{ name: 'John' }, { name: 'Jane' }, { name: 'Bob' }]
- * const newUsers = deleteIn(users)[1]()
- * // Result: [{ name: 'John' }, { name: 'Bob' }]
- *
- * // Maps
- * const config = new Map([['theme', 'dark'], ['debug', true]])
- * const newConfig = deleteIn(config).key('debug')()
- * // Result: Map([['theme', 'dark']])
- *
- * // Nested maps
- * const data = new Map([['users', new Map([['user1', { name: 'John' }]])]])
- * const newData = deleteIn(data).key('users').key('user1')()
- * // Result: Map([['users', new Map([])]])
- * ```
- */
-export const deleteIn = <T,>(t: T | BeditStateContainer<T>): Deletable<T> =>
-  getFrame(t, DELETE).$
-
-/**
  * Allows immutably mutating properties at any depth in a value using functions.
  * This performs shallow cloning for better performance - only the target object is cloned,
  * while nested objects maintain their references.
@@ -673,7 +613,7 @@ export const deleteIn = <T,>(t: T | BeditStateContainer<T>): Deletable<T> =>
  */
 export const editIn = <T,>(
   t: T | BeditStateContainer<T>,
-): ShallowMutatable<T> => getFrame(t, MUTATE).$
+): ShallowMutatable<T> => getFrame(t, EDIT).$
 
 /**
  * Allows performing multiple mutations on a value at once while minimizing the
@@ -750,41 +690,3 @@ export function edit<T, Fn extends Mutator<T>>(
 ): ReturnType<Fn> extends Promise<any> ? Promise<T> : T {
   return editIn(t)(fn)
 }
-
-/**
- * Allows immutably adding items to arrays and Sets at any depth in a value.
- *
- * @template T - The type of the input value
- * @param t - The value to create an adder for
- * @returns An adder object that allows adding items to arrays and Sets at any depth
- *
- * @example
- * ```typescript
- * // Adding to arrays
- * const users = [{ name: 'John' }, { name: 'Jane' }]
- * const newUsers = addIn(users)({ name: 'Bob' })
- * // Result: [{ name: 'John' }, { name: 'Jane' }, { name: 'Bob' }]
- *
- * // Adding to Sets
- * const tags = new Set(['admin', 'user'])
- * const newTags = addIn(tags)('moderator', 'vip')
- * // Result: Set(['admin', 'user', 'moderator', 'vip'])
- *
- * // Nested arrays
- * const state = { users: [{ name: 'John', tags: ['admin'] }] }
- * const newState = addIn(state).users[0].tags('moderator', 'vip')
- * // Result: { users: [{ name: 'John', tags: ['admin', 'moderator', 'vip'] }] }
- *
- * // Nested Sets
- * const state = { categories: { tech: new Set(['js', 'ts']) } }
- * const newState = addIn(state).categories.tech('react', 'vue')
- * // Result: { categories: { tech: Set(['js', 'ts', 'react', 'vue']) } }
- *
- * // Maps with nested Sets
- * const state = { users: new Map([['user1', { tags: new Set(['admin']) }]]) }
- * const newState = addIn(state).users.key('user1').tags('moderator')
- * // Result: { users: Map([['user1', { tags: Set(['admin', 'moderator']) }]]) }
- * ```
- */
-export const addIn = <T,>(t: T | BeditStateContainer<T>): Addable<T> =>
-  getFrame(t, ADD).$

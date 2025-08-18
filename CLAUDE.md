@@ -24,10 +24,8 @@ bedit is an immutable state utility library for TypeScript that serves as an alt
 ### Core APIs
 
 - `setIn(obj).path.to.prop(value)` - Set values at any depth
-- `updateIn(obj).path.to.prop(fn)` - Update values using functions
+- `updateIn(obj).path.to.prop(fn)` - Update values using functions (also supports method calls on collections)
 - `editIn(obj).path.to.prop(fn)` - Shallow clone and mutate specific subtrees
-- `deleteIn(obj).path.to.prop()` - Delete properties at any depth
-- `addIn(obj).path.to.array(items...)` - Add items to arrays/sets
 - `edit(obj, fn)` - Batch mutations for optimal performance
 
 ### State Container Integration
@@ -145,13 +143,15 @@ bedit's core design principle is that nested properties in draft objects are **r
 
    // ✅ Correct - use bedit functions
    const functions = {
-     addUser: (draft, user) => addIn(draft).users(user),
+     addUser: (draft, user) => updateIn(draft).users.push(user),
    }
    ```
 
 ### Common Patterns
 
-- Use `addIn(draft).array(item)` instead of `draft.array.push(item)`
+- Use `updateIn(draft).array.push(item)` instead of `draft.array.push(item)`
+- Use `updateIn(draft).set.add(item)` for adding to Sets
+- Use `updateIn(draft).map.delete('key')` for deleting from Maps
 - Use `setIn(draft).nested.prop(value)` instead of `draft.nested.prop = value`
 - Use `updateIn(draft).prop(fn)` for functional updates
 - Use `editIn(draft).subtree(fn)` to edit shallow clones of subtrees
