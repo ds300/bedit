@@ -23,7 +23,7 @@
     }
   },
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run --typecheck",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "build": "node scripts/build.mjs",

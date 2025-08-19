@@ -324,7 +324,7 @@ describe('updateIn method calls', () => {
         ])
       }
       
-      const result = updateIn(obj).groups.key('users').push('dave')
+      const result = updateIn(obj).groups.key('users').push('dave')!
       
       expect(result.groups.get('users')).toEqual(['charlie', 'dave'])
       expect(result.groups.get('admins')).toEqual(['alice', 'bob'])

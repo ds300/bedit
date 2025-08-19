@@ -60,7 +60,7 @@ describe('Map/Set error handling', () => {
     const result1 = setIn(obj).data.key('key2')('value2')
     expect(result1.data.get('key2')).toBe('value2')
 
-    const result2 = updateIn(obj).data.key('key1')((val) => val.toUpperCase())
+    const result2 = updateIn(obj).data.key('key1')((val) => val.toUpperCase())!
     expect(result2.data.get('key1')).toBe('VALUE1')
   })
 

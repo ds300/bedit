@@ -4,3 +4,4 @@ node_modules
 dist
 bedit.production.mts
 coverage
+tsconfig.vitest-temp.json

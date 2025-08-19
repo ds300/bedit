@@ -241,4 +241,21 @@ describe('updateIn', () => {
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
   })
+
+  it('should handle optional properties', () => {
+    const obj: { name: string; age?: number } = { name: 'John' }
+    const backup = structuredClone(obj)
+    const mutable = structuredClone(obj)
+    mutable.age = 1
+
+    const result = updateIn(obj).age((age) => (age == null ? 0 : age + 1))
+    expect(result?.age).toEqual(0)
+    expect(obj).toEqual(backup)
+  })
+
+  it('should handle nested optional objects', () => {
+    const obj: { user?: { name: string; age?: number } } = {}
+
+    const result = updateIn(obj).user.age((age) => (age == null ? 0 : age + 1))
+  })
 })

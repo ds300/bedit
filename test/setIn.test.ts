@@ -7,7 +7,7 @@ import {
   createUserArray,
   createDeepNested,
 } from './test-utils'
-import { setIn } from '../src/bedit.mjs'
+import { setIn, updateIn } from '../src/bedit.mjs'
 
 describe('setIn', () => {
   it('should set a top-level property', () => {
@@ -213,5 +213,27 @@ describe('setIn', () => {
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
+  })
+
+  it('should work on optional properties', () => {
+    const obj: { name: string; age?: number; buns?: string[] } = {
+      name: 'John',
+      buns: [],
+    }
+    const backup = structuredClone(obj)
+
+    const result = setIn(obj).age(1)
+    expect(result).toEqual({ name: 'John', age: 1 })
+    expect(obj).toEqual(backup)
+
+    const result2 = setIn(obj).buns[1]('ho')
+    expect(result2).toEqual({ name: 'John', age: 1, buns: ['bacon'] })
+    expect(obj).toEqual(backup)
+  })
+
+  it('should return maybe undefined when setting a property inside a map', () => {
+    const obj = new Map<string, { b: number }>()
+    const result = setIn(obj).key('a').b(2)
+    expect(result).toEqual(undefined)
   })
 })

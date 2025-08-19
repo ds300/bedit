@@ -1,11 +1,5 @@
 import { describe, beforeEach, afterEach, test, expect } from 'vitest'
-import {
-  setIn,
-  updateIn,
-  editIn,
-  edit,
-  setDevMode,
-} from '../src/bedit.mjs'
+import { setIn, updateIn, editIn, edit, setDevMode } from '../src/bedit.mjs'
 
 describe('Dev Mode', () => {
   beforeEach(() => {
@@ -96,7 +90,7 @@ describe('Dev Mode', () => {
   })
 
   test('should handle arrays correctly', () => {
-    const arr = [1 as number, 2, { a: 3 }] as const
+    const arr = [1 as number, 2, { a: 3 }] as Array<number | { a: number }>
 
     const result = setIn(arr)[0](10)
 
@@ -104,10 +98,10 @@ describe('Dev Mode', () => {
     expect(Object.isFrozen(result[2])).toBe(true)
     expect(result[0]).toBe(10)
     expect(result[1]).toBe(2)
-    expect(result[2].a).toBe(3)
+    expect(result[2]).toEqual({ a: 3 })
   })
 
-  test('should freeze Map keys and values in dev mode', () => {
+  test('should freeze Map values in dev mode', () => {
     const map = new Map([
       ['key1', { value: 1 }],
       ['key2', { value: 2 }],
@@ -155,7 +149,7 @@ describe('Dev Mode', () => {
 
     const result = updateIn(obj).config.key('theme')((theme) =>
       theme.toUpperCase(),
-    )
+    )!
 
     expect(Object.isFrozen(result)).toBe(true)
     expect(Object.isFrozen(result.config)).toBe(true)

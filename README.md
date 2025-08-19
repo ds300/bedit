@@ -183,6 +183,14 @@ const nextState = updateIn({ a: { b: { c: 1 } } }).a.b.c((c) => c + 4)
 // nextState = {a: {b: {c: 5}}}
 ```
 
+Or call a method on a collection.
+
+```ts
+const nextState = updateIn({ nums: [1, 2, 3] }).nums.push(4)
+// nextState = {nums: [1, 2, 3, 4]}
+```
+
+
 ### `editIn`
 
 Edit a shallow clone of a subtree.
@@ -219,6 +227,13 @@ editIn({ a: { b: { c: 1 } } })((obj) => {
   obj.a = { b: { c: 3 } }
 })
 ```
+
+## Quirks
+
+- Nullability
+- Type refinement
+- setIn(obj).key('blah')(blah) vs updateIn(obj).set('blah', blah)
+
 
 ## Zustand Integration
 

@@ -1,8 +1,9 @@
 import { _shallowClone, isPlainObject } from './utils.mjs'
 import { $beditStateContainer, BeditStateContainer } from './symbols.mjs'
 
-export type DeepReadonly<T> =
-  T extends ReadonlyArray<infer U>
+export type DeepReadonly<T> = T extends PrimitiveOrImmutableBuiltin
+  ? T
+  : T extends ReadonlyArray<infer U>
     ? ReadonlyArray<DeepReadonly<U>>
     : T extends ReadonlyMap<infer K, infer V>
       ? ReadonlyMap<K, DeepReadonly<V>>
@@ -74,7 +75,7 @@ export type Editable<T> =
           : // Primitives: just T
             T
 
-type Updater<T> = (val: T) => T
+type Updater<Input, Output = Input> = (val: Input) => Output
 type Mutator<T> = (
   val: Editable<T>,
 ) => void | T | Editable<T> | Promise<void | T | Editable<T>>
@@ -90,36 +91,47 @@ type PrimitiveOrImmutableBuiltin =
   | Error
   | Symbol
 
-type Updatable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
-  ? { key: (k: K) => Updatable<V, Root> } & UpdatingMapMethods<K, V, Root>
-  : T extends ReadonlyArray<infer U>
-    ? { [key: number]: Updatable<U, Root> } & UpdatingArrayMethods<U, Root>
-    : T extends ReadonlySet<infer U>
-      ? UpdatingSetMethods<U, Root>
-      : PrimitiveOrImmutableBuiltin extends T
-        ? never
-        : {
-            [k in keyof T]: T[k] extends object
-              ? Updatable<T[k], Root>
-              : (update: Updater<DeepReadonly<T[k]>>) => Root
-          }) &
-  ((update: Updater<DeepReadonly<T>>) => Root)
+export type Updatable<T, Root = T, ReturnType = Root, IsOptional = never> = ((
+  update: Updater<DeepReadonly<T>, T | DeepReadonly<T> | IsOptional>,
+) => ReturnType) &
+  (T extends ReadonlyMap<infer K, infer V>
+    ? {
+        key: (k: K) => Updatable<V, undefined | Root>
+      } & UpdatingMapMethods<K, V, Root>
+    : T extends ReadonlyArray<infer U>
+      ? { [key: number]: Updatable<U, Root> } & UpdatingArrayMethods<U, Root>
+      : T extends ReadonlySet<infer U>
+        ? UpdatingSetMethods<U, Root>
+        : PrimitiveOrImmutableBuiltin extends T
+          ? {}
+          : {
+              [k in keyof T]-?: Updatable<
+                Exclude<T[k], undefined>,
+                Extract<T[k], null | undefined> | Root,
+                undefined extends T[k] ? Root | undefined : Root,
+                undefined extends T[k] ? undefined : never
+              >
+            })
 
-type Settable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
-  ? { key: (k: K) => Settable<V, Root> }
-  : T extends ReadonlyArray<infer U>
-    ? { [key: number]: Settable<U, Root> }
-    : PrimitiveOrImmutableBuiltin extends T
-      ? never
-      : {
-          [k in keyof T]: T[k] extends object
-            ? Settable<T[k], Root>
-            : (val: T[k]) => Root
-        }) &
-  ((val: T) => Root)
+export type Settable<T, Root = T, ReturnType = Root> = ((
+  val: T,
+) => ReturnType) &
+  (T extends ReadonlyMap<infer K, infer V>
+    ? { key: (k: K) => Settable<V, Root | undefined, Root> }
+    : T extends ReadonlyArray<infer U>
+      ? { [index: number]: Settable<U, Root> }
+      : PrimitiveOrImmutableBuiltin extends T
+        ? {}
+        : {
+            [k in keyof T]-?: Settable<
+              T[k],
+              Extract<T[k], null | undefined> | Root,
+              Root
+            >
+          })
 
 type ShallowMutatable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
-  ? { key: (k: K) => ShallowMutatable<V, Root> }
+  ? { key: (k: K) => ShallowMutatable<V, Root | undefined> }
   : T extends ReadonlyArray<infer U>
     ? { [key: number]: ShallowMutatable<U, Root> }
     : T extends ReadonlySet<any>
@@ -129,8 +141,8 @@ type ShallowMutatable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
       : PrimitiveOrImmutableBuiltin extends T
         ? never
         : {
-            [k in keyof T]: T[k] extends object
-              ? ShallowMutatable<T[k], Root>
+            [k in keyof T]-?: T[k] extends object
+              ? ShallowMutatable<T[k], Extract<T[k], null | undefined> | Root>
               : <F extends Mutator<T[k]>>(
                   mutate: F,
                 ) => ReturnType<F> extends Promise<any> ? Promise<Root> : Root
