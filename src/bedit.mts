@@ -68,7 +68,7 @@ export type Editable<T> =
       ? Map<K, DeepReadonly<V>>
       : // Set: mutable set, but elements are readonly
         T extends ReadonlySet<infer U>
-        ? Set<DeepReadonly<U>>
+        ? Set<U>
         : // Object: mutable top-level, but child properties are readonly
           T extends object
           ? { -readonly [K in keyof T]: DeepReadonly<T[K]> }
@@ -76,9 +76,7 @@ export type Editable<T> =
             T
 
 type Updater<Input, Output = Input> = (val: Input) => Output
-type Mutator<T> = (
-  val: Editable<T>,
-) => void | T | Editable<T> | Promise<void | T | Editable<T>>
+type Mutator<T> = (val: Editable<T>) => void | Promise<void>
 
 type PrimitiveOrImmutableBuiltin =
   | string
@@ -91,9 +89,9 @@ type PrimitiveOrImmutableBuiltin =
   | Error
   | Symbol
 
-export type Updatable<T, Root = T, ReturnType = Root, IsOptional = never> = ((
+export type Updatable<T, Root = T, Result = Root, IsOptional = never> = ((
   update: Updater<DeepReadonly<T>, T | DeepReadonly<T> | IsOptional>,
-) => ReturnType) &
+) => Result) &
   (T extends ReadonlyMap<infer K, infer V>
     ? {
         key: (k: K) => Updatable<V, undefined | Root>
@@ -102,7 +100,7 @@ export type Updatable<T, Root = T, ReturnType = Root, IsOptional = never> = ((
       ? { [key: number]: Updatable<U, Root> } & UpdatingArrayMethods<U, Root>
       : T extends ReadonlySet<infer U>
         ? UpdatingSetMethods<U, Root>
-        : PrimitiveOrImmutableBuiltin extends T
+        : T extends PrimitiveOrImmutableBuiltin
           ? {}
           : {
               [k in keyof T]-?: Updatable<
@@ -113,14 +111,12 @@ export type Updatable<T, Root = T, ReturnType = Root, IsOptional = never> = ((
               >
             })
 
-export type Settable<T, Root = T, ReturnType = Root> = ((
-  val: T,
-) => ReturnType) &
+export type Settable<T, Root = T, Result = Root> = ((val: T) => Result) &
   (T extends ReadonlyMap<infer K, infer V>
     ? { key: (k: K) => Settable<V, Root | undefined, Root> }
     : T extends ReadonlyArray<infer U>
       ? { [index: number]: Settable<U, Root> }
-      : PrimitiveOrImmutableBuiltin extends T
+      : T extends PrimitiveOrImmutableBuiltin
         ? {}
         : {
             [k in keyof T]-?: Settable<
@@ -130,26 +126,28 @@ export type Settable<T, Root = T, ReturnType = Root> = ((
             >
           })
 
-type ShallowMutatable<T, Root = T> = (T extends ReadonlyMap<infer K, infer V>
-  ? { key: (k: K) => ShallowMutatable<V, Root | undefined> }
-  : T extends ReadonlyArray<infer U>
-    ? { [key: number]: ShallowMutatable<U, Root> }
-    : T extends ReadonlySet<any>
-      ? <F extends Mutator<T>>(
-          mutate: F,
-        ) => ReturnType<F> extends Promise<any> ? Promise<Root> : Root
-      : PrimitiveOrImmutableBuiltin extends T
-        ? never
-        : {
-            [k in keyof T]-?: T[k] extends object
-              ? ShallowMutatable<T[k], Extract<T[k], null | undefined> | Root>
-              : <F extends Mutator<T[k]>>(
-                  mutate: F,
-                ) => ReturnType<F> extends Promise<any> ? Promise<Root> : Root
-          }) &
-  (<F extends Mutator<T>>(
-    mutate: F,
-  ) => ReturnType<F> extends Promise<any> ? Promise<Root> : Root)
+type ShallowMutatable<T, Root = T, Result = Root> = (<F extends Mutator<T>>(
+  mutate: F,
+) => ReturnType<F> extends Promise<any>
+  ? Promise<Exclude<Result, undefined>> | Extract<Result, undefined>
+  : Result) &
+  (T extends ReadonlyMap<infer K, infer V>
+    ? { key: (k: K) => ShallowMutatable<V, Root | undefined> }
+    : T extends ReadonlyArray<infer U>
+      ? { [key: number]: ShallowMutatable<U, Root> }
+      : T extends ReadonlySet<any>
+        ? <F extends Mutator<T>>(
+            mutate: F,
+          ) => ReturnType<F> extends Promise<any> ? Promise<Root> : Root
+        : T extends PrimitiveOrImmutableBuiltin
+          ? never
+          : {
+              [k in keyof T]-?: ShallowMutatable<
+                Exclude<T[k], undefined>,
+                Extract<T[k], null | undefined> | Root,
+                undefined extends T[k] ? Root | undefined : Root
+              >
+            })
 
 const SET = 0 as const
 const UPDATE = 1 as const
@@ -700,5 +698,5 @@ export function edit<T, Fn extends Mutator<T>>(
   t: T | BeditStateContainer<T>,
   fn: Fn,
 ): ReturnType<Fn> extends Promise<any> ? Promise<T> : T {
-  return editIn(t)(fn)
+  return editIn(t)(fn) as any
 }
