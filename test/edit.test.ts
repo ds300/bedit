@@ -7,7 +7,14 @@ import {
   createUserArray,
   createDeepNested,
 } from './test-utils'
-import { edit, setIn, updateIn, editIn, setDevMode } from '../src/bedit.mjs'
+import {
+  edit,
+  setIn,
+  updateIn,
+  editIn,
+  setDevMode,
+  key,
+} from '../src/bedit.mjs'
 
 setDevMode(true)
 
@@ -138,7 +145,7 @@ describe('edit', () => {
       editIn(draft).config((config) => {
         config.set('theme', { color: 'light' })
       })
-      editIn(draft).config.key('debug')((config) => {
+      editIn(draft).config[key]('debug')((config) => {
         config.enabled = true
       })
     })
@@ -169,7 +176,7 @@ describe('edit', () => {
     mutable.data.tags.add('typescript')
 
     const result = edit(obj, (draft) => {
-      setIn(draft).data.config.key('debug')({ color: 'light' })
+      setIn(draft).data.config[key]('debug')({ color: 'light' })
       editIn(draft).data.tags((tags) => {
         tags.add('typescript')
       })
@@ -470,8 +477,8 @@ describe('edit', () => {
     mutable.foo.set('new', 'value')
 
     const result = edit(obj, (draft) => {
-      setIn(draft).foo.key('bar')('qux')
-      setIn(draft).foo.key('new')('value')
+      setIn(draft).foo[key]('bar')('qux')
+      setIn(draft).foo[key]('new')('value')
     })
 
     expect(result).toEqual(mutable)
@@ -492,9 +499,9 @@ describe('edit', () => {
     mutable.data.get('users')!.set('user2', { name: 'Bob', age: 35 })
 
     const result = edit(obj, (draft) => {
-      setIn(draft).data.key('users').key('user1').name('Jane')
-      setIn(draft).data.key('users').key('user1').age(25)
-      setIn(draft).data.key('users').key('user2')({ name: 'Bob', age: 35 })
+      setIn(draft).data[key]('users')[key]('user1').name('Jane')
+      setIn(draft).data[key]('users')[key]('user1').age(25)
+      setIn(draft).data[key]('users')[key]('user2')({ name: 'Bob', age: 35 })
     })
 
     expect(result).toEqual(mutable)
@@ -509,8 +516,8 @@ describe('edit', () => {
     mutable[0].bar.set('extra', 'value')
 
     const result = edit(obj, (draft) => {
-      setIn(draft)[0].bar.key('foo')('new')
-      setIn(draft)[0].bar.key('extra')('value')
+      setIn(draft)[0].bar[key]('foo')('new')
+      setIn(draft)[0].bar[key]('extra')('value')
     })
 
     expect(result).toEqual(mutable)
@@ -543,16 +550,16 @@ describe('edit', () => {
 
     const result = edit(obj, (draft) => {
       setIn(draft)
-        .config.key('settings')
-        .key('features')
-        .key('feature1')
+        .config[key]('settings')
+        [key]('features')
+        [key]('feature1')
         .enabled(false)
       setIn(draft)
-        .config.key('settings')
-        .key('features')
-        .key('feature1')
+        .config[key]('settings')
+        [key]('features')
+        [key]('feature1')
         .count(2)
-      setIn(draft).config.key('settings').key('features').key('feature2')({
+      setIn(draft).config[key]('settings')[key]('features')[key]('feature2')({
         enabled: true,
         count: 1,
       })
@@ -570,15 +577,15 @@ describe('edit', () => {
 
     const result = edit(obj, (draft) => {
       // First modification - should clone
-      setIn(draft).foo.key('bar')('qux')
+      setIn(draft).foo[key]('bar')('qux')
       mapRef = draft.foo
 
       // Second modification - should reuse the same map
-      setIn(draft).foo.key('new')('value')
+      setIn(draft).foo[key]('new')('value')
       expect(draft.foo).toBe(mapRef)
 
       // Third modification - should still reuse
-      setIn(draft).foo.key('another')('item')
+      setIn(draft).foo[key]('another')('item')
       expect(draft.foo).toBe(mapRef)
     })
 
@@ -690,8 +697,8 @@ describe('edit', () => {
       let resolved = false
       const result = edit(obj, async (draft) => {
         await delay(1)
-        setIn(draft).config.key('theme')('light')
-        setIn(draft).config.key('version')('1.0.0')
+        setIn(draft).config[key]('theme')('light')
+        setIn(draft).config[key]('version')('1.0.0')
         resolved = true
       })
 
@@ -788,25 +795,6 @@ describe('edit', () => {
         loading: false,
         error: null,
       })
-      expect(obj).toEqual(backup)
-    })
-
-    it('should handle async mutations returning values', async () => {
-      const obj = createSimpleUser()
-      const backup = structuredClone(obj)
-
-      let resolved = false
-      const result = edit(obj, async (_draft) => {
-        await delay(1)
-        resolved = true
-        return { name: 'Jane', age: 25 }
-      })
-
-      expect(resolved).toBe(false)
-      await result
-
-      expect(resolved).toBe(true)
-      expect(await result).toEqual({ name: 'Jane', age: 25 })
       expect(obj).toEqual(backup)
     })
 

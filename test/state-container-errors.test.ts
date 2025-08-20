@@ -5,6 +5,7 @@ import {
   editIn,
   edit,
   setDevMode,
+  key,
 } from '../src/bedit.mjs'
 import { $beditStateContainer } from '../src/symbols.mjs'
 
@@ -50,10 +51,11 @@ describe('state container error handling', () => {
     }
     const obj = { [$beditStateContainer]: container }
 
-    expect(() => {
-      // @ts-expect-error
-      setIn(obj).prop('value')
-    }).toThrow('Cannot read property "prop" of null')
+    // @ts-expect-error
+    const result = setIn(obj).prop('value')
+
+    expect(result).toBeUndefined()
+    expect(container.set).not.toHaveBeenCalled()
   })
 
   it('should handle state container get() returning undefined', () => {
@@ -63,10 +65,11 @@ describe('state container error handling', () => {
     }
     const obj = { [$beditStateContainer]: container }
 
-    expect(() => {
-      // @ts-expect-error
-      setIn(obj).prop('value')
-    }).toThrow('Cannot read property "prop" of undefined')
+    // @ts-expect-error
+    const result = setIn(obj).prop('value')
+
+    expect(result).toBeUndefined()
+    expect(container.set).not.toHaveBeenCalled()
   })
 
   it('should handle state container get() returning non-object', () => {
@@ -79,7 +82,7 @@ describe('state container error handling', () => {
     expect(() => {
       // @ts-expect-error
       setIn(obj).prop('value')
-    }).toThrow('Cannot read property "prop" of string')
+    }).toThrow('Cannot edit property "prop" of string')
   })
 
   it('should handle async state container operations with errors', async () => {
@@ -92,9 +95,9 @@ describe('state container error handling', () => {
     const obj = { [$beditStateContainer]: container }
 
     await expect(async () => {
-      await editIn(obj).value(async (val) => {
+      await editIn(obj)(async (draft) => {
         await new Promise((resolve) => setTimeout(resolve, 1))
-        return val + 1
+        draft.value += 1
       })
     }).rejects.toThrow('Async set error')
   })
@@ -163,18 +166,18 @@ describe('state container error handling', () => {
     const obj = { [$beditStateContainer]: container }
 
     // This should work
-    const result1 = setIn(obj).cache.key('key2')('value2')
+    const result1 = setIn(obj).cache[key]('key2')('value2')
     expect(result1.cache.get('key2')).toBe('value2')
     expect(state.cache.get('key2')).toBe('value2')
 
     // Add more items to test the limit
     for (let i = 3; i <= 5; i++) {
-      setIn(obj).cache.key(`key${i}`)(`value${i}`)
+      setIn(obj).cache[key](`key${i}`)(`value${i}`)
     }
 
     // This should throw (exceeds limit)
     expect(() => {
-      setIn(obj).cache.key('key6')('value6')
+      setIn(obj).cache[key]('key6')('value6')
     }).toThrow('Cache size limit exceeded')
   })
 
@@ -198,5 +201,4 @@ describe('state container error handling', () => {
       updateIn(obj).count((count) => -1)
     }).toThrow('Count cannot be negative')
   })
-
 })

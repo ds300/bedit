@@ -1,5 +1,5 @@
 import { describe, bench, expect, afterEach } from 'vitest'
-import { edit, editIn, setIn } from '../src/bedit.production.mts'
+import { edit, editIn, key, setIn } from '../src/bedit.production.mts'
 import {
   produce,
   enableMapSet,
@@ -365,7 +365,7 @@ describe('shallow Map clone with 5 elements', () => {
   })
 
   bench('bedit – setIn', () => {
-    result = setIn(data).key('a')(Math.random())
+    result = setIn(data)[key]('a')(Math.random())
   })
 
   bench('bedit - editIn', () => {
@@ -398,7 +398,7 @@ describe('shallow Map clone with 10,000 elements', () => {
   })
 
   bench('bedit – setIn', () => {
-    result = setIn(data).key('key0')(Math.random())
+    result = setIn(data)[key]('key0')(Math.random())
   })
 
   bench('bedit - editIn', () => {
@@ -551,29 +551,29 @@ describe('complex nested structure with Maps and Sets using mutate', () => {
   bench('bedit', () => {
     result = edit(data, (draft) => {
       // Update user1's name
-      setIn(draft).users.key('user1').name('John Doe')
+      setIn(draft).users[key]('user1').name('John Doe')
       // Add a new tag to user1
       editIn(draft)
-        .users.key('user1')
+        .users[key]('user1')
         .tags((tags) => {
           tags.add('vip')
         })
       // Add a like to user1's first post
       editIn(draft)
-        .users.key('user1')
+        .users[key]('user1')
         .posts[0].likes((likes) => {
           likes.add('user5')
         })
       // Update user2's theme preference
-      setIn(draft).users.key('user2').preferences.theme('auto')
+      setIn(draft).users[key]('user2').preferences.theme('auto')
       // Add a new subscriber to tech category
       editIn(draft)
-        .categories.key('tech')
+        .categories[key]('tech')
         .subscribers((subs) => {
           subs.add('user3')
         })
       // Update global post limit
-      setIn(draft).settings.global.limits.key('posts_per_day')(15)
+      setIn(draft).settings.global.limits[key]('posts_per_day')(15)
       // Add a new global feature
       editIn(draft).settings.global.features((features) => {
         features.add('analytics')

@@ -1,5 +1,5 @@
 import { expectTypeOf, describe, it } from 'vitest'
-import { setIn } from '../src/bedit.mjs'
+import { key, setIn } from '../src/bedit.mjs'
 
 describe('optional properties', () => {
   type Obj = {
@@ -223,7 +223,7 @@ describe('Map properties', () => {
   }
 
   it('should set Map value by key', () => {
-    const result = setIn(config).settings.key('theme')('light')
+    const result = setIn(config).settings[key]('theme')('light')
     expectTypeOf(result).toEqualTypeOf<Config>()
   })
 
@@ -263,15 +263,17 @@ describe('Maps within optional nested objects', () => {
 
   it('should return undefined when setting Map values by key in optional objects', () => {
     const connectionResult =
-      setIn(serviceConfig).database.connections.key('primary')('localhost:5432')
+      setIn(serviceConfig).database.connections[key]('primary')(
+        'localhost:5432',
+      )
     expectTypeOf(connectionResult).toEqualTypeOf<ServiceConfig | undefined>()
 
     const settingResult =
-      setIn(serviceConfig).database.optionalCache.settings.key('timeout')(5000)
+      setIn(serviceConfig).database.optionalCache.settings[key]('timeout')(5000)
     expectTypeOf(settingResult).toEqualTypeOf<ServiceConfig | undefined>()
 
     const fallbackResult =
-      setIn(serviceConfig).database.optionalCache.fallbacks.key('redis')(true)
+      setIn(serviceConfig).database.optionalCache.fallbacks[key]('redis')(true)
     expectTypeOf(fallbackResult).toEqualTypeOf<ServiceConfig | undefined>()
   })
 
@@ -298,11 +300,12 @@ describe('Maps within optional nested objects', () => {
     )
     expectTypeOf(optionalSet).toEqualTypeOf<DeepMapNested | undefined>()
 
-    const dataKeySet = setIn(deepMap).level1.level2.level3.data.key('key1')(100)
+    const dataKeySet =
+      setIn(deepMap).level1.level2.level3.data[key]('key1')(100)
     expectTypeOf(dataKeySet).toEqualTypeOf<DeepMapNested | undefined>()
 
     const optionalKeySet =
-      setIn(deepMap).level1.level2.level3.optionalData.key(1)('value1')
+      setIn(deepMap).level1.level2.level3.optionalData[key](1)('value1')
     expectTypeOf(optionalKeySet).toEqualTypeOf<DeepMapNested | undefined>()
   })
 
@@ -320,7 +323,7 @@ describe('Maps within optional nested objects', () => {
     )
     expectTypeOf(sessionSet).toEqualTypeOf<ComplexMapConfig | undefined>()
 
-    const sessionKeySet = setIn(complexConfig).cache.userSessions.key(
+    const sessionKeySet = setIn(complexConfig).cache.userSessions[key](
       'session1',
     )({
       userId: 123,
@@ -328,7 +331,7 @@ describe('Maps within optional nested objects', () => {
     })
     expectTypeOf(sessionKeySet).toEqualTypeOf<ComplexMapConfig | undefined>()
 
-    const metricsKeySet = setIn(complexConfig).cache.optionalMetrics.key(
+    const metricsKeySet = setIn(complexConfig).cache.optionalMetrics[key](
       'page-views',
     )({
       count: 100,
@@ -463,6 +466,124 @@ describe('Sets within optional nested objects', () => {
   })
 })
 
+describe('root collection objects', () => {
+  // Tests for Maps/Arrays/Sets as root objects
+  const rootArray = ['a', 'b', 'c']
+  const rootMap = new Map([
+    ['key1', 'value1'],
+    ['key2', 'value2'],
+  ])
+  const rootSet = new Set(['item1', 'item2'])
+
+  it('should work with Array as root object', () => {
+    expectTypeOf(setIn(rootArray)[0]('new')).toMatchTypeOf<string[]>()
+    expectTypeOf(setIn(rootArray)(rootArray)).toMatchTypeOf<string[]>()
+    expectTypeOf(setIn(rootArray)(['new', 'array'])).toMatchTypeOf<string[]>()
+  })
+
+  it('should work with Map as root object', () => {
+    expectTypeOf(setIn(rootMap)[key]('key1')('newValue')).toMatchTypeOf<
+      Map<string, string>
+    >()
+    expectTypeOf(setIn(rootMap)(rootMap)).toMatchTypeOf<Map<string, string>>()
+    expectTypeOf(
+      setIn(rootMap)(new Map([['newKey', 'newValue']])),
+    ).toMatchTypeOf<Map<string, string>>()
+  })
+
+  it('should work with Set as root object', () => {
+    expectTypeOf(setIn(rootSet)(rootSet)).toMatchTypeOf<Set<string>>()
+    expectTypeOf(setIn(rootSet)(new Set(['newSet']))).toMatchTypeOf<
+      Set<string>
+    >()
+  })
+})
+
+describe('nullable root collection objects', () => {
+  // Nullable Maps/Arrays/Sets as root objects
+  const nullableArray: string[] | null = ['a', 'b']
+  const nullableMap: Map<string, string> | null = new Map([['key', 'value']])
+  const nullableSet: Set<string> | null = new Set(['item'])
+
+  it('should work with nullable Array as root', () => {
+    // Should support same operations as normal array but return Root | undefined
+    expectTypeOf(setIn(nullableArray)[0]('new')).toMatchTypeOf<
+      string[] | undefined
+    >()
+    expectTypeOf(setIn(nullableArray)(nullableArray)).toMatchTypeOf<
+      string[] | undefined
+    >()
+    expectTypeOf(setIn(nullableArray)(['new', 'array'])).toMatchTypeOf<
+      string[] | undefined
+    >()
+  })
+
+  it('should work with nullable Map as root', () => {
+    // Should support same operations as normal map but return Root | undefined
+    expectTypeOf(setIn(nullableMap)[key]('key')('newValue')).toMatchTypeOf<
+      Map<string, string> | undefined
+    >()
+    expectTypeOf(setIn(nullableMap)(nullableMap)).toMatchTypeOf<
+      Map<string, string> | undefined
+    >()
+    expectTypeOf(
+      setIn(nullableMap)(new Map([['newKey', 'newValue']])),
+    ).toMatchTypeOf<Map<string, string> | undefined>()
+  })
+
+  it('should work with nullable Set as root', () => {
+    // Should support same operations as normal set but return Root | undefined
+    expectTypeOf(setIn(nullableSet)(nullableSet)).toMatchTypeOf<
+      Set<string> | undefined
+    >()
+    expectTypeOf(setIn(nullableSet)(new Set(['newSet']))).toMatchTypeOf<
+      Set<string> | undefined
+    >()
+  })
+})
+
+describe('undefinable root collection objects', () => {
+  // Undefinable Maps/Arrays/Sets as root objects
+  const undefinableArray: string[] | undefined = ['a', 'b']
+  const undefinableMap: Map<string, string> | undefined = new Map([
+    ['key', 'value'],
+  ])
+  const undefinableSet: Set<string> | undefined = new Set(['item'])
+
+  it('should work with undefinable Array as root', () => {
+    expectTypeOf(setIn(undefinableArray)[0]('new')).toMatchTypeOf<
+      string[] | undefined
+    >()
+    expectTypeOf(setIn(undefinableArray)(undefinableArray)).toMatchTypeOf<
+      string[] | undefined
+    >()
+    expectTypeOf(setIn(undefinableArray)(['new', 'array'])).toMatchTypeOf<
+      string[] | undefined
+    >()
+  })
+
+  it('should work with undefinable Map as root', () => {
+    expectTypeOf(setIn(undefinableMap)[key]('key')('newValue')).toMatchTypeOf<
+      Map<string, string> | undefined
+    >()
+    expectTypeOf(setIn(undefinableMap)(undefinableMap)).toMatchTypeOf<
+      Map<string, string> | undefined
+    >()
+    expectTypeOf(
+      setIn(undefinableMap)(new Map([['newKey', 'newValue']])),
+    ).toMatchTypeOf<Map<string, string> | undefined>()
+  })
+
+  it('should work with undefinable Set as root', () => {
+    expectTypeOf(setIn(undefinableSet)(undefinableSet)).toMatchTypeOf<
+      Set<string> | undefined
+    >()
+    expectTypeOf(setIn(undefinableSet)(new Set(['newSet']))).toMatchTypeOf<
+      Set<string> | undefined
+    >()
+  })
+})
+
 describe('type error counterexamples', () => {
   type TestObj = {
     name: string
@@ -499,13 +620,13 @@ describe('type error counterexamples', () => {
 
     it('should error when using wrong method types on collections', () => {
       expectTypeOf(setIn(obj).config).not.toHaveProperty('push')
-      expectTypeOf(setIn(obj).config).toHaveProperty('key')
+      expectTypeOf(setIn(obj).config).toHaveProperty(key)
 
-      expectTypeOf(setIn(obj).items).not.toHaveProperty('key')
+      expectTypeOf(setIn(obj).items).not.toHaveProperty(key)
       expectTypeOf(setIn(obj).items).toHaveProperty(0)
 
       expectTypeOf(setIn(obj).groups).not.toHaveProperty('set')
-      expectTypeOf(setIn(obj).groups).not.toHaveProperty('key')
+      expectTypeOf(setIn(obj).groups).not.toHaveProperty(key)
     })
   })
 
@@ -545,8 +666,8 @@ describe('type error counterexamples', () => {
         .parameter(0)
         .not.toMatchTypeOf<Map<string, string>>()
 
-      expectTypeOf(setIn(obj).config.key('test')).toBeCallableWith(true)
-      expectTypeOf(setIn(obj).config.key('test'))
+      expectTypeOf(setIn(obj).config[key]('test')).toBeCallableWith(true)
+      expectTypeOf(setIn(obj).config[key]('test'))
         .parameter(0)
         .not.toMatchTypeOf<string>()
     })
@@ -585,11 +706,11 @@ describe('type error counterexamples', () => {
 
   describe('Map key type errors', () => {
     it('should error when using wrong Map key types', () => {
-      expectTypeOf(setIn(obj).config.key).toBeCallableWith('validKey')
-      expectTypeOf(setIn(obj).config.key)
+      expectTypeOf(setIn(obj).config[key]).toBeCallableWith('validKey')
+      expectTypeOf(setIn(obj).config[key])
         .parameter(0)
         .not.toMatchTypeOf<number>()
-      expectTypeOf(setIn(obj).config.key)
+      expectTypeOf(setIn(obj).config[key])
         .parameter(0)
         .not.toMatchTypeOf<boolean>()
     })

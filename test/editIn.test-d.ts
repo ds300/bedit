@@ -1,5 +1,5 @@
 import { expectTypeOf, describe, it } from 'vitest'
-import { editIn } from '../src/bedit.mjs'
+import { editIn, key } from '../src/bedit.mjs'
 
 describe('optional object properties', () => {
   type Obj = {
@@ -297,7 +297,7 @@ describe('Map properties', () => {
   })
 
   it('should edit Map value by key', () => {
-    const result = editIn(config).users.key('user1')((draft) => {
+    const result = editIn(config).users[key]('user1')((draft) => {
       expectTypeOf(draft).toEqualTypeOf<{ name: string; age: number }>()
       draft.name = 'Jane'
       draft.age = 31
@@ -346,7 +346,7 @@ describe('Maps within optional nested objects', () => {
   })
 
   it('should return undefined when editing Map values by key in optional objects', () => {
-    const connectionResult = editIn(serviceConfig).database.users.key('user1')(
+    const connectionResult = editIn(serviceConfig).database.users[key]('user1')(
       (draft) => {
         expectTypeOf(draft).toEqualTypeOf<{ name: string; age: number }>()
         draft.name = 'Jane'
@@ -584,6 +584,189 @@ describe('async mutators', () => {
       draft.push('value')
     })
     expectTypeOf(asyncResult).toEqualTypeOf<Promise<TestObj> | undefined>()
+  })
+})
+
+describe('root collection objects', () => {
+  // Tests for Maps/Arrays/Sets as root objects
+  const rootArray = ['a', 'b', 'c']
+  const rootMap = new Map([
+    ['key1', 'value1'],
+    ['key2', 'value2'],
+  ])
+  const rootSet = new Set(['item1', 'item2'])
+
+  it('should work with Array as root object', () => {
+    const result1 = editIn(rootArray)((draft) => {
+      expectTypeOf(draft).toEqualTypeOf<Array<Readonly<string>>>()
+      draft.push('new')
+      draft[0] = 'modified'
+    })
+    expectTypeOf(result1).toMatchTypeOf<string[]>()
+
+    // Should support element access for object elements and return root type
+    const result2 = editIn([{ a: 2 }])[0]((draft) => {
+      expectTypeOf(draft).toEqualTypeOf<{ a: number }>()
+      draft.a = 3
+    })
+    expectTypeOf(result2).toMatchTypeOf<{ a: number }[]>()
+
+    // Cannot call editIn on primitive elements - should be never
+    expectTypeOf(editIn(rootArray)[0]).toEqualTypeOf<never>()
+  })
+
+  it('should work with Map as root object', () => {
+    const result1 = editIn(rootMap)((draft) => {
+      expectTypeOf(draft).toEqualTypeOf<Map<string, string>>()
+      draft.set('newKey', 'newValue')
+      draft.delete('key1')
+    })
+    expectTypeOf(result1).toMatchTypeOf<Map<string, string>>()
+
+    // Cannot call editIn on primitive Map values - should be never
+    expectTypeOf(editIn(rootMap)[key]('key1')).toEqualTypeOf<never>()
+
+    // But can call on object Map values
+    const objectMap = new Map([['key1', { name: 'test' }]])
+    const result2 = editIn(objectMap)[key]('key1')((draft) => {
+      expectTypeOf(draft).toEqualTypeOf<{ name: string }>()
+      draft.name = 'updated'
+    })
+    expectTypeOf(result2).toMatchTypeOf<
+      Map<string, { name: string }> | undefined
+    >()
+  })
+
+  it('should work with Set as root object', () => {
+    const result = editIn(rootSet)((draft) => {
+      expectTypeOf(draft).toEqualTypeOf<Set<string>>()
+      draft.add('newItem')
+      draft.delete('item1')
+    })
+    expectTypeOf(result).toMatchTypeOf<Set<string>>()
+  })
+})
+
+describe('nullable root collection objects', () => {
+  // Nullable Maps/Arrays/Sets as root objects
+  const nullableArray: string[] | null = ['a', 'b']
+  const nullableMap: Map<string, string> | null = new Map([['key', 'value']])
+  const nullableSet: Set<string> | null = new Set(['item'])
+
+  it('should work with nullable Array as root', () => {
+    const result1 = editIn(nullableArray)((draft) => {
+      expectTypeOf(draft).toEqualTypeOf<string[]>()
+      if (draft) {
+        draft.push('new')
+      }
+    })
+    expectTypeOf(result1).toMatchTypeOf<string[] | undefined>()
+
+    // Cannot call editIn on primitive elements - should be never
+    expectTypeOf(editIn(nullableArray)[0]).toEqualTypeOf<never>()
+
+    // But can call on object elements
+    const nullableObjectArray: { name: string }[] | null = [{ name: 'test' }]
+    const result2 = editIn(nullableObjectArray)[0]((draft) => {
+      expectTypeOf(draft).toEqualTypeOf<{ name: string }>()
+      draft.name = 'updated'
+    })
+    expectTypeOf(result2).toMatchTypeOf<{ name: string }[] | undefined>()
+  })
+
+  it('should work with nullable Map as root', () => {
+    const result1 = editIn(nullableMap)((draft) => {
+      expectTypeOf(draft).toEqualTypeOf<Map<string, string>>()
+      if (draft) {
+        draft.set('newKey', 'newValue')
+      }
+    })
+    expectTypeOf(result1).toMatchTypeOf<Map<string, string> | undefined>()
+
+    // Cannot call editIn on primitive Map values - should be never
+    expectTypeOf(editIn(nullableMap)[key]('key')).toEqualTypeOf<never>()
+
+    // But can call on object Map values
+    const nullableObjectMap: Map<string, { name: string }> | null = new Map([
+      ['key', { name: 'test' }],
+    ])
+    const result2 = editIn(nullableObjectMap)[key]('key')((draft) => {
+      expectTypeOf(draft).toEqualTypeOf<{ name: string }>()
+      draft.name = 'updated'
+    })
+    expectTypeOf(result2).toMatchTypeOf<
+      Map<string, { name: string }> | undefined
+    >()
+  })
+
+  it('should work with nullable Set as root', () => {
+    const result = editIn(nullableSet)((draft) => {
+      expectTypeOf(draft).toEqualTypeOf<Set<string>>()
+      if (draft) {
+        draft.add('newItem')
+      }
+    })
+    expectTypeOf(result).toMatchTypeOf<Set<string> | undefined>()
+  })
+})
+
+describe('undefinable root collection objects', () => {
+  // Undefinable Maps/Arrays/Sets as root objects
+  const undefinableArray: string[] | undefined = ['a', 'b']
+  const undefinableMap: Map<string, string> | undefined = new Map([
+    ['key', 'value'],
+  ])
+  const undefinableSet: Set<string> | undefined = new Set(['item'])
+
+  it('should work with undefinable Array as root', () => {
+    const result1 = editIn(undefinableArray)((draft) => {
+      expectTypeOf(draft).toEqualTypeOf<string[]>()
+      draft.push('new')
+    })
+    expectTypeOf(result1).toMatchTypeOf<string[] | undefined>()
+
+    // Cannot call editIn on primitive elements - should be never
+    expectTypeOf(editIn(undefinableArray)[0]).toEqualTypeOf<never>()
+
+    // But can call on object elements
+    const undefinableObjectArray: { name: string }[] | undefined = [
+      { name: 'test' },
+    ]
+    const result2 = editIn(undefinableObjectArray)[0]((draft) => {
+      expectTypeOf(draft).toEqualTypeOf<{ name: string }>()
+      draft.name = 'updated'
+    })
+    expectTypeOf(result2).toMatchTypeOf<{ name: string }[] | undefined>()
+  })
+
+  it('should work with undefinable Map as root', () => {
+    const result1 = editIn(undefinableMap)((draft) => {
+      expectTypeOf(draft).toEqualTypeOf<Map<string, string>>()
+      draft.set('newKey', 'newValue')
+    })
+    expectTypeOf(result1).toMatchTypeOf<Map<string, string> | undefined>()
+
+    // Cannot call editIn on primitive Map values - should be never
+    expectTypeOf(editIn(undefinableMap)[key]('key')).toEqualTypeOf<never>()
+
+    // But can call on object Map values
+    const undefinableObjectMap: Map<string, { name: string }> | undefined =
+      new Map([['key', { name: 'test' }]])
+    const result2 = editIn(undefinableObjectMap)[key]('key')((draft) => {
+      expectTypeOf(draft).toEqualTypeOf<{ name: string }>()
+      draft.name = 'updated'
+    })
+    expectTypeOf(result2).toMatchTypeOf<
+      Map<string, { name: string }> | undefined
+    >()
+  })
+
+  it('should work with undefinable Set as root', () => {
+    const result = editIn(undefinableSet)((draft) => {
+      expectTypeOf(draft).toEqualTypeOf<Set<string>>()
+      draft.add('newItem')
+    })
+    expectTypeOf(result).toMatchTypeOf<Set<string> | undefined>()
   })
 })
 

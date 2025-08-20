@@ -77,9 +77,10 @@ const nextState = editIn(state).todos[1]((todo) => {
 
 ## Maps
 
-Use `.key(k)` to drill into values inside a `Map`.
+Use `[key](k)` to drill into values inside a `Map`.
 
 ```ts
+import { key, setIn } from 'bedit'
 const state = {
   users: new Map([
     ['user1', { name: 'John', age: 30 }],
@@ -87,7 +88,7 @@ const state = {
   ]),
 }
 
-const nextState = setIn(state).users.key('user1').name('Wilberforce')
+const nextState = setIn(state).users[key]('user1').name('Wilberforce')
 ```
 
 ## Freezing objects at development time
@@ -190,7 +191,6 @@ const nextState = updateIn({ nums: [1, 2, 3] }).nums.push(4)
 // nextState = {nums: [1, 2, 3, 4]}
 ```
 
-
 ### `editIn`
 
 Edit a shallow clone of a subtree.
@@ -232,8 +232,7 @@ editIn({ a: { b: { c: 1 } } })((obj) => {
 
 - Nullability
 - Type refinement
-- setIn(obj).key('blah')(blah) vs updateIn(obj).set('blah', blah)
-
+- setIn(obj)[key]('blah')(blah) vs updateIn(obj).set('blah', blah)
 
 ## Zustand Integration
 

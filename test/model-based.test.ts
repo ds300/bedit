@@ -297,12 +297,10 @@ class EditInCommand extends BeditCommand {
 
     // Execute editIn with a function that applies all sub-commands
     return target(async (draft: any) => {
-      let current = draft
       for (const command of this.subCommands) {
         await Promise.resolve() // Async delay between operations
-        current = await command.executeOnReal(current)
+        await command.executeOnReal(draft)
       }
-      return current
     })
   }
 
@@ -365,12 +363,10 @@ class EditCommand extends BeditCommand {
     await Promise.resolve() // Async delay
     return edit(state, async (draft) => {
       // Apply each sub-command to the draft using real operations
-      let current = draft
       for (const command of this.subCommands) {
         await Promise.resolve() // Async delay between operations
-        current = await command.executeOnReal(current)
+        await command.executeOnReal(draft)
       }
-      return current
     })
   }
 
@@ -675,7 +671,7 @@ describe('Model-Based Tests', () => {
       (path) => {
         if (path.length === 0) return false
 
-        // Check if any parent is a Map or Set (requires .key() syntax)
+        // Check if any parent is a Map or Set (requires [key]() syntax)
         for (let i = 0; i < path.length - 1; i++) {
           const parentPath = path.slice(0, i + 1)
           const parentValue = StateHelper.getValueAtPath(state, parentPath)
@@ -729,7 +725,7 @@ describe('Model-Based Tests', () => {
       (path) => {
         if (path.length === 0) return false
 
-        // Check if any parent is a Map or Set (requires .key() syntax)
+        // Check if any parent is a Map or Set (requires [key]() syntax)
         for (let i = 0; i < path.length - 1; i++) {
           const parentPath = path.slice(0, i + 1)
           const parentValue = StateHelper.getValueAtPath(state, parentPath)

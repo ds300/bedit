@@ -7,7 +7,7 @@ import {
   createUserArray,
   createDeepNested,
 } from './test-utils'
-import { setIn, updateIn } from '../src/bedit.mjs'
+import { key, setIn } from '../src/bedit.mjs'
 
 describe('setIn', () => {
   it('should set a top-level property', () => {
@@ -70,14 +70,12 @@ describe('setIn', () => {
     expect(obj).toEqual(backup)
   })
 
-  it('should throw error when accessing property of null/undefined', () => {
-    const obj = { user: null }
+  it('should return undefined when accessing property of null/undefined', () => {
+    const obj = { user: null as null | { name: string } }
     const backup = structuredClone(obj)
 
-    expect(() => {
-      // @ts-expect-error
-      setIn(obj).user.name('John')
-    }).toThrow('Cannot read property "name" of null')
+    const result = setIn(obj).user.name('John')
+    expect(result).toBeUndefined()
     expect(obj).toEqual(backup)
   })
 
@@ -106,7 +104,7 @@ describe('setIn', () => {
     const mutable = structuredClone(obj)
     mutable.set('a', 2)
 
-    const result = setIn(obj).key('a')(2)
+    const result = setIn(obj)[key]('a')(2)
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -118,7 +116,7 @@ describe('setIn', () => {
     const mutable = structuredClone(obj)
     mutable.get('a')!.set('b', 2)
 
-    const result = setIn(obj).key('a').key('b')(2)
+    const result = setIn(obj)[key]('a')[key]('b')(2)
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -130,7 +128,7 @@ describe('setIn', () => {
     const mutable = structuredClone(obj)
     mutable.foo.set('bar', 'qux')
 
-    const result = setIn(obj).foo.key('bar')('qux')
+    const result = setIn(obj).foo[key]('bar')('qux')
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -142,7 +140,7 @@ describe('setIn', () => {
     const mutable = structuredClone(obj)
     mutable[0].bar.set('foo', ['new item'])
 
-    const result = setIn(obj)[0].bar.key('foo')(['new item'])
+    const result = setIn(obj)[0].bar[key]('foo')(['new item'])
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -158,7 +156,7 @@ describe('setIn', () => {
     const mutable = structuredClone(obj)
     mutable.data.users.get('user1')!.profile.set('name', 'Jane')
 
-    const result = setIn(obj).data.users.key('user1').profile.key('name')(
+    const result = setIn(obj).data.users[key]('user1').profile[key]('name')(
       'Jane',
     )
 
@@ -188,9 +186,9 @@ describe('setIn', () => {
       .set('feature1', { enabled: false, options: ['x', 'y'] })
 
     const result = setIn(obj)
-      .config.key('settings')
-      .key('features')
-      .key('feature1')({ enabled: false, options: ['x', 'y'] })
+      .config[key]('settings')
+      [key]('features')
+      [key]('feature1')({ enabled: false, options: ['x', 'y'] })
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -207,7 +205,7 @@ describe('setIn', () => {
     const mutable = structuredClone(obj)
     mutable[0].data.get('items')!.set('item1', { value: 'new' })
 
-    const result = setIn(obj)[0].data.key('items').key('item1')({
+    const result = setIn(obj)[0].data[key]('items')[key]('item1')({
       value: 'new',
     })
 
@@ -223,17 +221,17 @@ describe('setIn', () => {
     const backup = structuredClone(obj)
 
     const result = setIn(obj).age(1)
-    expect(result).toEqual({ name: 'John', age: 1 })
+    expect(result).toEqual({ name: 'John', age: 1, buns: [] })
     expect(obj).toEqual(backup)
 
-    const result2 = setIn(obj).buns[1]('ho')
-    expect(result2).toEqual({ name: 'John', age: 1, buns: ['bacon'] })
+    const result2 = setIn(obj).buns[0]('bacon')
+    expect(result2).toEqual({ name: 'John', buns: ['bacon'] })
     expect(obj).toEqual(backup)
   })
 
   it('should return maybe undefined when setting a property inside a map', () => {
     const obj = new Map<string, { b: number }>()
-    const result = setIn(obj).key('a').b(2)
+    const result = setIn(obj)[key]('a').b(2)
     expect(result).toEqual(undefined)
   })
 })

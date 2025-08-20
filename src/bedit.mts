@@ -1,6 +1,8 @@
 import { _shallowClone, isPlainObject } from './utils.mjs'
 import { $beditStateContainer, BeditStateContainer } from './symbols.mjs'
 
+export const key = Symbol.for('__bedit_key__')
+
 export type DeepReadonly<T> = T extends PrimitiveOrImmutableBuiltin
   ? T
   : T extends ReadonlyArray<infer U>
@@ -28,7 +30,9 @@ type ArrayMethods =
 
 type UpdatingArrayMethods<Elem, Root> = {
   [k in ArrayMethods]: Array<Elem>[k] extends (...args: infer Args) => infer R
-    ? (...args: Args) => Root
+    ? k extends 'map'
+      ? (mapper: (item: Elem, index: number, array: Elem[]) => Elem) => Root
+      : (...args: Args) => Root
     : never
 }
 
@@ -92,36 +96,40 @@ type PrimitiveOrImmutableBuiltin =
 export type Updatable<T, Root = T, Result = Root, IsOptional = never> = ((
   update: Updater<DeepReadonly<T>, T | DeepReadonly<T> | IsOptional>,
 ) => Result) &
-  (T extends ReadonlyMap<infer K, infer V>
+  (NonNullable<T> extends ReadonlyMap<infer K, infer V>
     ? {
-        key: (k: K) => Updatable<V, undefined | Root>
+        [key]: (k: K) => Updatable<V, undefined | Root>
       } & UpdatingMapMethods<K, V, Root>
-    : T extends ReadonlyArray<infer U>
-      ? { [key: number]: Updatable<U, Root> } & UpdatingArrayMethods<U, Root>
-      : T extends ReadonlySet<infer U>
+    : NonNullable<T> extends ReadonlyArray<infer U>
+      ? { [key: number]: Updatable<U, Root> } & UpdatingArrayMethods<
+          DeepReadonly<U>,
+          Root
+        >
+      : NonNullable<T> extends ReadonlySet<infer U>
         ? UpdatingSetMethods<U, Root>
-        : T extends PrimitiveOrImmutableBuiltin
+        : Exclude<T, never> extends PrimitiveOrImmutableBuiltin
           ? {}
           : {
-              [k in keyof T]-?: Updatable<
-                Exclude<T[k], undefined>,
-                Extract<T[k], null | undefined> | Root,
-                undefined extends T[k] ? Root | undefined : Root,
-                undefined extends T[k] ? undefined : never
+              [k in keyof NonNullable<T>]-?: Updatable<
+                Exclude<NonNullable<T>[k], undefined>,
+                Extract<NonNullable<T>[k], null | undefined> | Root,
+                undefined extends NonNullable<T>[k] ? Root | undefined : Root,
+                undefined extends NonNullable<T>[k] ? undefined : never
               >
             })
 
 export type Settable<T, Root = T, Result = Root> = ((val: T) => Result) &
-  (T extends ReadonlyMap<infer K, infer V>
-    ? { key: (k: K) => Settable<V, Root | undefined, Root> }
-    : T extends ReadonlyArray<infer U>
+  (NonNullable<T> extends ReadonlyMap<infer K, infer V>
+    ? { [key]: (k: K) => Settable<V, Root | undefined, Root> }
+    : NonNullable<T> extends ReadonlyArray<infer U>
       ? { [index: number]: Settable<U, Root> }
-      : T extends PrimitiveOrImmutableBuiltin
+      : // The pointless Exclude here actually prevents distribution over T members if it's a union
+        Exclude<T, never> extends PrimitiveOrImmutableBuiltin
         ? {}
         : {
-            [k in keyof T]-?: Settable<
-              T[k],
-              Extract<T[k], null | undefined> | Root,
+            [k in keyof NonNullable<T>]-?: Settable<
+              NonNullable<T>[k],
+              Extract<NonNullable<T>[k], null | undefined> | Root,
               Root
             >
           })
@@ -131,21 +139,21 @@ type ShallowMutatable<T, Root = T, Result = Root> = (<F extends Mutator<T>>(
 ) => ReturnType<F> extends Promise<any>
   ? Promise<Exclude<Result, undefined>> | Extract<Result, undefined>
   : Result) &
-  (T extends ReadonlyMap<infer K, infer V>
-    ? { key: (k: K) => ShallowMutatable<V, Root | undefined> }
-    : T extends ReadonlyArray<infer U>
+  (NonNullable<T> extends ReadonlyMap<infer K, infer V>
+    ? { [key]: (k: K) => ShallowMutatable<V, Root | undefined> }
+    : NonNullable<T> extends ReadonlyArray<infer U>
       ? { [key: number]: ShallowMutatable<U, Root> }
-      : T extends ReadonlySet<any>
+      : NonNullable<T> extends ReadonlySet<any>
         ? <F extends Mutator<T>>(
             mutate: F,
           ) => ReturnType<F> extends Promise<any> ? Promise<Root> : Root
-        : T extends PrimitiveOrImmutableBuiltin
+        : Exclude<T, never> extends PrimitiveOrImmutableBuiltin
           ? never
           : {
-              [k in keyof T]-?: ShallowMutatable<
-                Exclude<T[k], undefined>,
-                Extract<T[k], null | undefined> | Root,
-                undefined extends T[k] ? Root | undefined : Root
+              [k in keyof NonNullable<T>]-?: ShallowMutatable<
+                Exclude<NonNullable<T>[k], undefined>,
+                Extract<NonNullable<T>[k], null | undefined> | Root,
+                undefined extends NonNullable<T>[k] ? Root | undefined : Root
               >
             })
 
@@ -324,17 +332,17 @@ function frame(parent: Frame | null): Frame {
     $: new Proxy(() => {}, {
       get: function getTrap(_target, prop) {
         try {
-          if (obj == null || typeof obj !== 'object') {
+          if (obj != null && typeof obj !== 'object') {
             const error = new TypeError(
-              `Cannot read property ${JSON.stringify(String(prop))} of ${obj === null ? 'null' : typeof obj}`,
+              `Cannot edit property ${JSON.stringify(String(prop))} of ${typeof obj}`,
             )
             throw Error.captureStackTrace?.(error, getTrap) ?? error
           }
-          if (obj instanceof Map && prop === 'key') {
+          if (prop === key) {
             return (k: any) => {
               keyPath[i] = k
               objPath[i] = obj
-              obj = obj.get(k)
+              obj = obj?.get(k)
               i++
               return result.$
             }
@@ -342,7 +350,7 @@ function frame(parent: Frame | null): Frame {
 
           keyPath[i] = prop
           objPath[i] = obj
-          obj = obj[prop]
+          obj = obj?.[prop]
           i++
           return result.$
         } catch (e) {
@@ -354,8 +362,16 @@ function frame(parent: Frame | null): Frame {
         try {
           let value: any = undefined
           if (type === SET) {
+            if (i > 0 && objPath[i - 1] == null) {
+              resetAfterThrow()
+              return undefined
+            }
             value = args[0]
           } else if (type === UPDATE) {
+            if (obj === undefined) {
+              resetAfterThrow()
+              return undefined
+            }
             if (typeof obj === 'function') {
               const parent = objPath[i - 1]
               if (
@@ -379,9 +395,15 @@ function frame(parent: Frame | null): Frame {
               value = args[0](obj)
             }
           } else if (type === EDIT) {
+            if (obj == null) {
+              resetAfterThrow()
+              return undefined
+            }
             const fn = args[0]
-            if (obj == null || typeof obj !== 'object') {
-              value = obj
+            if (typeof obj !== 'object') {
+              throw new Error(
+                'editIn must be called on an object or collection',
+              )
             } else {
               value = clone(obj)
             }
@@ -396,10 +418,10 @@ function frame(parent: Frame | null): Frame {
 
                 return res
                   .then((res) => {
-                    if (typeof res === 'undefined') {
-                      res = value
+                    if (typeof res !== 'undefined') {
+                      throw new Error('editIn must not return a value')
                     }
-                    return (result.$ as any)(res)
+                    return (result.$ as any)(value)
                   })
                   .catch((e) => {
                     resetAfterThrow()
@@ -411,7 +433,9 @@ function frame(parent: Frame | null): Frame {
                   })
               }
 
-              value = typeof res === 'undefined' ? value : res
+              if (typeof res !== 'undefined') {
+                throw new Error('editIn must return a value')
+              }
               // @ifndef PRODUCTION
               if (devMode && clonedObjects == null) {
                 value = freezeObject(value)
@@ -540,7 +564,7 @@ function releaseBatchFrame(frame: BatchFrame) {
  *
  * // Maps
  * const config = new Map([['theme', 'dark']])
- * const newConfig = setIn(config).key('theme')('light')
+ * const newConfig = setIn(config)[key]('theme')('light')
  * // Result: Map([['theme', 'light']])
  * ```
  */
@@ -575,7 +599,7 @@ export const setIn = <T,>(t: T | BeditStateContainer<T>): Settable<T> =>
  *
  * // Maps with transformations
  * const config = new Map([['theme', 'dark']])
- * const newConfig = updateIn(config).key('theme')(theme => theme.toUpperCase())
+ * const newConfig = updateIn(config)[key]('theme')(theme => theme.toUpperCase())
  * // Result: Map([['theme', 'DARK']])
  * ```
  */

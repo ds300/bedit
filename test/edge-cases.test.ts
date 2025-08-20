@@ -1,5 +1,5 @@
 import { describe, it, expect } from './test-utils'
-import { setIn } from '../src/bedit.mjs'
+import { key, setIn } from '../src/bedit.mjs'
 
 describe('edge cases', () => {
   it('should handle empty objects', () => {
@@ -27,13 +27,11 @@ describe('edge cases', () => {
   })
 
   it('should handle undefined values in path', () => {
-    const obj = { user: { profile: undefined } }
+    const obj = { user: { profile: undefined as { name: string } | undefined } }
     const backup = structuredClone(obj)
 
-    expect(() => {
-      // @ts-expect-error
-      setIn(obj).user.profile.name('John')
-    }).toThrow('Cannot read property "name" of undefined')
+    const result = setIn(obj).user.profile.name('John')
+    expect(result).toBeUndefined()
     expect(obj).toEqual(backup)
   })
 
@@ -44,7 +42,7 @@ describe('edge cases', () => {
     expect(() => {
       // @ts-expect-error
       setIn(obj).user.name('John')
-    }).toThrow('Cannot read property "name" of string')
+    }).toThrow('Cannot edit property "name" of string')
     expect(obj).toEqual(backup)
   })
 
@@ -54,7 +52,7 @@ describe('edge cases', () => {
     const mutable = structuredClone(obj)
     mutable.data.set('new', 'value')
 
-    const result = setIn(obj).data.key('new')('value')
+    const result = setIn(obj).data[key]('new')('value')
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -66,20 +64,9 @@ describe('edge cases', () => {
     const mutable = structuredClone(obj)
     mutable.foo.set('bar', 'new value')
 
-    const result = setIn(obj).foo.key('bar')('new value')
+    const result = setIn(obj).foo[key]('bar')('new value')
 
     expect(result).toEqual(mutable)
-    expect(obj).toEqual(backup)
-  })
-
-  it('should handle maps with undefined keys', () => {
-    const obj = { foo: new Map([['bar', 'baz']]) }
-    const backup = structuredClone(obj)
-
-    expect(() => {
-      // @ts-expect-error
-      setIn(obj).foo.key('nonexistent').key('something')('value')
-    }).toThrow()
     expect(obj).toEqual(backup)
   })
 
@@ -87,10 +74,7 @@ describe('edge cases', () => {
     const obj = { data: null }
     const backup = structuredClone(obj)
 
-    expect(() => {
-      // @ts-expect-error
-      setIn(obj).data.key('foo')('value')
-    }).toThrow('Cannot read property "key" of null')
+    expect(setIn(obj).data[key]('foo')('value')).toBeUndefined()
     expect(obj).toEqual(backup)
   })
 
@@ -135,7 +119,7 @@ describe('edge cases', () => {
     expect(() => {
       // @ts-expect-error
       setIn(obj).primitive.nonExistentProp('value')
-    }).toThrow('Cannot read property "nonExistentProp" of number')
+    }).toThrow('Cannot edit property "nonExistentProp" of number')
     expect(obj).toEqual(backup)
   })
 
@@ -146,7 +130,7 @@ describe('edge cases', () => {
     expect(() => {
       // @ts-expect-error
       setIn(obj).flag.toString('false')
-    }).toThrow('Cannot read property "toString" of boolean')
+    }).toThrow('Cannot edit property "toString" of boolean')
     expect(obj).toEqual(backup)
   })
 })

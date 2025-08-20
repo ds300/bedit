@@ -41,19 +41,16 @@ describe('batch frame linking', () => {
       const userUpdate = editIn(draft).users[0](async (user) => {
         user.name = 'Jane'
         user.age = 31
-        return user
       })
 
       const settingsUpdate = editIn(draft).settings(async (settings) => {
         settings.theme = 'light'
         settings.debug = true
-        return settings
       })
 
       const metadataUpdate = editIn(draft).metadata(async (metadata) => {
         metadata.version = 2
         metadata.updated = new Date('2024-01-01')
-        return metadata
       })
 
       // Wait for all to complete
@@ -81,12 +78,12 @@ describe('batch frame linking', () => {
     }
 
     const result = await editIn(obj).level1(async (level1) => {
-      return await editIn(level1).level2(async (level2) => {
-        return await editIn(level2).level3(async (level3) => {
-          return await editIn(level3).level4(async (level4) => {
+      await editIn(level1).level2(async (level2) => {
+        await editIn(level2).level3(async (level3) => {
+          await editIn(level3).level4(async (level4) => {
             updateIn(level4).data.push('d')
             level4.newProp = 'added'
-            return level4
+            level4
           })
         })
       })
@@ -133,9 +130,8 @@ describe('batch frame linking', () => {
     await expect(async () => {
       await edit(obj, async (draft) => {
         // This should work
-        await editIn(draft).data(async (data) => {
-          data.value = 10
-          return data
+        await editIn(draft)(async (draft) => {
+          setIn(draft).data.value(10)
         })
 
         // This should throw an error
@@ -157,15 +153,21 @@ describe('batch frame linking', () => {
 
     // Multiple sequential operations that should reuse batch frames
     const result1 = await edit(obj1, async (draft) => {
-      await editIn(draft).value(async (val) => val * 10)
+      await editIn(draft)(async (draft) => {
+        draft.value *= 10
+      })
     })
 
     const result2 = await edit(obj2, async (draft) => {
-      await editIn(draft).value(async (val) => val * 20)
+      await editIn(draft)(async (draft) => {
+        draft.value *= 20
+      })
     })
 
     const result3 = await edit(obj3, async (draft) => {
-      await editIn(draft).value(async (val) => val * 30)
+      await editIn(draft)(async (draft) => {
+        draft.value *= 30
+      })
     })
 
     expect(result1.value).toBe(10)
@@ -195,14 +197,12 @@ describe('batch frame linking', () => {
       await editIn(draft).cache(async (cache) => {
         cache.set('key2', 'value2')
         cache.delete('key1')
-        return cache
       })
 
       // Async Set operation
       await editIn(draft).tags(async (tags) => {
         tags.add('tag3')
         tags.delete('tag1')
-        return tags
       })
     })
 

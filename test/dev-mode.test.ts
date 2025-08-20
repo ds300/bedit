@@ -1,5 +1,12 @@
 import { describe, beforeEach, afterEach, test, expect } from 'vitest'
-import { setIn, updateIn, editIn, edit, setDevMode } from '../src/bedit.mjs'
+import {
+  setIn,
+  updateIn,
+  editIn,
+  edit,
+  setDevMode,
+  key,
+} from '../src/bedit.mjs'
 
 describe('Dev Mode', () => {
   beforeEach(() => {
@@ -44,18 +51,8 @@ describe('Dev Mode', () => {
   test('should freeze objects after editIn when dev mode is enabled', () => {
     const obj = { a: 1, b: { c: 2 } }
 
-    const result = editIn(obj).a((x) => 3)
-
-    expect(Object.isFrozen(result)).toBe(true)
-    expect(Object.isFrozen(result.b)).toBe(true)
-    expect(result.a).toBe(3)
-  })
-
-  test('should freeze objects after editIn when dev mode is enabled', () => {
-    const obj = { a: 1, b: { c: 2 } }
-
-    const result = editIn(obj).a((x) => {
-      return 3
+    const result = editIn(obj)((obj) => {
+      obj.a = 3
     })
 
     expect(Object.isFrozen(result)).toBe(true)
@@ -107,7 +104,7 @@ describe('Dev Mode', () => {
       ['key2', { value: 2 }],
     ])
 
-    const result = setIn(map).key('key1')({ value: 3 })
+    const result = setIn(map)[key]('key1')({ value: 3 })
 
     expect(Object.isFrozen(result)).toBe(true)
     // Check that Map keys are frozen
@@ -126,7 +123,7 @@ describe('Dev Mode', () => {
       ]),
     }
 
-    const result = setIn(obj).config.key('theme')({ color: 'light' })
+    const result = setIn(obj).config[key]('theme')({ color: 'light' })
 
     expect(Object.isFrozen(result)).toBe(true)
     expect(Object.isFrozen(result.config)).toBe(true)
@@ -147,7 +144,7 @@ describe('Dev Mode', () => {
       tags: new Set(['react', 'typescript']),
     }
 
-    const result = updateIn(obj).config.key('theme')((theme) =>
+    const result = updateIn(obj).config[key]('theme')((theme) =>
       theme.toUpperCase(),
     )!
 
@@ -174,7 +171,7 @@ describe('Dev Mode', () => {
     }
 
     const result = edit(obj, (draft) => {
-      setIn(draft).config.key('debug')({ color: 'light' })
+      setIn(draft).config[key]('debug')({ color: 'light' })
       updateIn(draft).tags.add('typescript')
     })
 
@@ -198,7 +195,7 @@ describe('Dev Mode', () => {
     const map = new Map([['key', { nested: { value: 1 } }]])
     const obj = { map }
 
-    const result = setIn(obj).map.key('key')({ nested: { value: 2 } })
+    const result = setIn(obj).map[key]('key')({ nested: { value: 2 } })
 
     expect(Object.isFrozen(result.map.get('key'))).toBe(true)
     expect(result.map.get('key')).toEqual({ nested: { value: 2 } })
@@ -229,7 +226,7 @@ describe('Dev Mode', () => {
     const result = edit(obj, (draft) => {
       // Use setIn instead of editIn to avoid readonly issues
       setIn(draft).users[0]({ name: 'Jane', profile: { age: 31 } })
-      setIn(draft).settings.key('theme')({ color: 'light', size: 'medium' })
+      setIn(draft).settings[key]('theme')({ color: 'light', size: 'medium' })
 
       // For Set, use proper bedit operations
       const newTags = new Set([{ id: 2, name: 'urgent' }])
