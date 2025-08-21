@@ -4,7 +4,7 @@ You can integrate bedit with any state container by implementing the `BeditState
 
 ```ts
 import { $beditStateContainer, BeditStateContainer } from 'bedit/symbols'
-import { setIn, updateIn } from 'bedit'
+import { edit } from 'bedit'
 
 // Example: Custom Redux-like store
 class CustomStore<T> implements BeditStateContainer<T> {
@@ -39,9 +39,9 @@ const store = new CustomStore({
 })
 
 // Now bedit functions work directly with your store!
-setIn(store).count(42)
-setIn(store).user.name('Jane')
-updateIn(store).user.preferences.theme((theme) =>
+edit(store).count(42)
+edit(store).user.name('Jane')
+edit(store).user.preferences.theme((theme) =>
   theme === 'dark' ? 'light' : 'dark',
 )
 

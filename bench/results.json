@@ -32,7 +32,7 @@
             {
               "id": "1425595066_0_1",
               "sampleCount": 1687801,
-              "name": "bedit - editIn",
+              "name": "bedit - edit.batch",
               "rank": 2,
               "rme": 0.34068249423812064,
               "totalTime": 500.0002540001369,
@@ -129,7 +129,7 @@
             {
               "id": "1425595066_1_1",
               "sampleCount": 1444543,
-              "name": "bedit - editIn",
+              "name": "bedit - edit.batch",
               "rank": 2,
               "rme": 3.898548927345861,
               "totalTime": 500.0859729997874,
@@ -226,7 +226,7 @@
             {
               "id": "1425595066_2_1",
               "sampleCount": 1348619,
-              "name": "bedit - editIn",
+              "name": "bedit - edit.batch",
               "rank": 2,
               "rme": 0.7846258648169682,
               "totalTime": 500.0000260000397,
@@ -323,7 +323,7 @@
             {
               "id": "1425595066_3_1",
               "sampleCount": 59180,
-              "name": "bedit - editIn",
+              "name": "bedit - edit.batch",
               "rank": 2,
               "rme": 2.117814616493385,
               "totalTime": 500.08738599981916,
@@ -420,7 +420,7 @@
             {
               "id": "1425595066_4_1",
               "sampleCount": 154840,
-              "name": "bedit - editIn",
+              "name": "bedit - edit.batch",
               "rank": 2,
               "rme": 5.608696250091303,
               "totalTime": 500.0001010003143,
@@ -517,7 +517,7 @@
             {
               "id": "1425595066_5_1",
               "sampleCount": 714807,
-              "name": "bedit - editIn",
+              "name": "bedit - edit.batch",
               "rank": 1,
               "rme": 1.0516129438191055,
               "totalTime": 500.03408500074147,
@@ -614,7 +614,7 @@
             {
               "id": "1425595066_6_1",
               "sampleCount": 174732,
-              "name": "bedit - editIn",
+              "name": "bedit - edit.batch",
               "rank": 2,
               "rme": 0.8345869048121815,
               "totalTime": 500.0010930004282,
@@ -711,7 +711,7 @@
             {
               "id": "1425595066_7_1",
               "sampleCount": 853606,
-              "name": "bedit - editIn",
+              "name": "bedit - edit.batch",
               "rank": 2,
               "rme": 1.0061621208555567,
               "totalTime": 500.0003129988254,
@@ -808,7 +808,7 @@
             {
               "id": "1425595066_8_1",
               "sampleCount": 690,
-              "name": "bedit - editIn",
+              "name": "bedit - edit.batch",
               "rank": 1,
               "rme": 3.008103674002048,
               "totalTime": 500.1068989999585,
@@ -882,7 +882,7 @@
             {
               "id": "1425595066_9_0",
               "sampleCount": 1270083,
-              "name": "bedit - editIn",
+              "name": "bedit - edit.batch",
               "rank": 1,
               "rme": 0.9483172267135619,
               "totalTime": 500.0003759998326,
@@ -956,7 +956,7 @@
             {
               "id": "1425595066_10_0",
               "sampleCount": 3590,
-              "name": "bedit - editIn",
+              "name": "bedit - edit.batch",
               "rank": 1,
               "rme": 6.857260909597697,
               "totalTime": 500.0501590002568,

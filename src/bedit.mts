@@ -79,8 +79,8 @@ export type Editable<T> =
           : // Primitives: just T
             T
 
-type Updater<Input, Output = Input> = (val: Input) => Output
-type Mutator<T> = (val: Editable<T>) => void | Promise<void>
+export type Updater<Input, Output = Input> = (val: Input) => Output
+export type BatchFn<T> = (val: Editable<NonNullable<T>>) => void | Promise<void>
 
 type PrimitiveOrImmutableBuiltin =
   | string
@@ -93,73 +93,65 @@ type PrimitiveOrImmutableBuiltin =
   | Error
   | Symbol
 
-export type Updatable<T, Root = T, Result = Root, IsOptional = never> = ((
-  update: Updater<DeepReadonly<T>, T | DeepReadonly<T> | IsOptional>,
-) => Result) &
-  (NonNullable<T> extends ReadonlyMap<infer K, infer V>
-    ? {
-        [key]: (k: K) => Updatable<V, undefined | Root>
-      } & UpdatingMapMethods<K, V, Root>
-    : NonNullable<T> extends ReadonlyArray<infer U>
-      ? { [key: number]: Updatable<U, Root> } & UpdatingArrayMethods<
-          DeepReadonly<U>,
-          Root
-        >
-      : NonNullable<T> extends ReadonlySet<infer U>
-        ? UpdatingSetMethods<U, Root>
-        : Exclude<T, never> extends PrimitiveOrImmutableBuiltin
-          ? {}
-          : {
-              [k in keyof NonNullable<T>]-?: Updatable<
-                Exclude<NonNullable<T>[k], undefined>,
-                Extract<NonNullable<T>[k], null | undefined> | Root,
-                undefined extends NonNullable<T>[k] ? Root | undefined : Root,
-                undefined extends NonNullable<T>[k] ? undefined : never
-              >
-            })
-
-export type Settable<T, Root = T, Result = Root> = ((val: T) => Result) &
-  (NonNullable<T> extends ReadonlyMap<infer K, infer V>
-    ? { [key]: (k: K) => Settable<V, Root | undefined, Root> }
-    : NonNullable<T> extends ReadonlyArray<infer U>
-      ? { [index: number]: Settable<U, Root> }
-      : // The pointless Exclude here actually prevents distribution over T members if it's a union
+export type Updatable<
+  T,
+  Root = T,
+  Result = Root,
+  SetResult = Result,
+  IsOptional = never,
+> = {
+  (value: T | DeepReadonly<T> | IsOptional): SetResult
+  (update: Updater<DeepReadonly<T>, T | DeepReadonly<T> | IsOptional>): Result
+} & (NonNullable<T> extends ReadonlyMap<infer K, infer V>
+  ? {
+      [key]: (k: K) => Updatable<V, undefined | Root, undefined | Root, Root>
+    } & UpdatingMapMethods<K, V, Root>
+  : NonNullable<T> extends ReadonlyArray<infer U>
+    ? { [index: number]: Updatable<U, Root> } & UpdatingArrayMethods<
+        DeepReadonly<U>,
+        Root
+      >
+    : NonNullable<T> extends ReadonlySet<infer U>
+      ? UpdatingSetMethods<U, Root>
+      : // The seemingly pointless Exclude here actually prevents distribution
+        // over T's members if it's a union
         Exclude<T, never> extends PrimitiveOrImmutableBuiltin
         ? {}
         : {
-            [k in keyof NonNullable<T>]-?: Settable<
-              NonNullable<T>[k],
+            [k in keyof NonNullable<T>]-?: Updatable<
+              Exclude<NonNullable<T>[k], undefined>,
               Extract<NonNullable<T>[k], null | undefined> | Root,
-              Root
+              undefined extends NonNullable<T>[k] ? Root | undefined : Root,
+              Root,
+              undefined extends NonNullable<T>[k] ? undefined : never
             >
           })
 
-type ShallowMutatable<T, Root = T, Result = Root> = (<F extends Mutator<T>>(
+export type Batchable<T, Root = T, Result = Root> = (<F extends BatchFn<T>>(
   mutate: F,
 ) => ReturnType<F> extends Promise<any>
   ? Promise<Exclude<Result, undefined>> | Extract<Result, undefined>
   : Result) &
   (NonNullable<T> extends ReadonlyMap<infer K, infer V>
-    ? { [key]: (k: K) => ShallowMutatable<V, Root | undefined> }
+    ? { [key]: (k: K) => Batchable<V, Root | undefined> }
     : NonNullable<T> extends ReadonlyArray<infer U>
-      ? { [key: number]: ShallowMutatable<U, Root> }
+      ? { [key: number]: Batchable<U, Root> }
       : NonNullable<T> extends ReadonlySet<any>
-        ? <F extends Mutator<T>>(
+        ? <F extends BatchFn<T>>(
             mutate: F,
           ) => ReturnType<F> extends Promise<any> ? Promise<Root> : Root
         : Exclude<T, never> extends PrimitiveOrImmutableBuiltin
           ? never
           : {
-              [k in keyof NonNullable<T>]-?: ShallowMutatable<
+              [k in keyof NonNullable<T>]-?: Batchable<
                 Exclude<NonNullable<T>[k], undefined>,
                 Extract<NonNullable<T>[k], null | undefined> | Root,
                 undefined extends NonNullable<T>[k] ? Root | undefined : Root
               >
             })
 
-const SET = 0 as const
-const UPDATE = 1 as const
-const EDIT = 2 as const
+const EDIT = 1 as const
+const BATCH = 2 as const
 
 /**
  * Enables or disables development mode for the bedit library.
@@ -239,6 +231,9 @@ function updateChildren(obj: any, fn: (child: any) => any) {
   return obj
 }
 
+const isCollection = (obj: any) =>
+  obj instanceof Map || obj instanceof Set || Array.isArray(obj)
+
 interface Frame {
   /**
    * The proxy that is used to record paths
@@ -251,14 +246,14 @@ interface Frame {
   /**
    * The reset function used when acquiring a frame
    */
-  r: (root: any, type: FrameType) => void
+  r: (root: any, type: FrameType, isUpdate?: boolean) => void
 }
 function frame(parent: Frame | null): Frame {
   const keyPath = new Array(8)
   const objPath = new Array(8)
   let obj = null as any
   let i = 0
-  let type = SET as FrameType
+  let type = EDIT as FrameType
   let clonedObjects = null as null | Set<object>
 
   function release() {
@@ -303,8 +298,8 @@ function frame(parent: Frame | null): Frame {
   let complete = null as null | ((obj: any) => any)
   const result = {
     p: parent,
-    r: (root: any, _type: FrameType) => {
-      if ($beditStateContainer in root) {
+    r: (root: any, _type: FrameType, isUpdate?: boolean) => {
+      if (isUpdate && $beditStateContainer in root) {
         const container = root[$beditStateContainer]
         root = container.get()
         complete = (obj: any) => {
@@ -361,40 +356,42 @@ function frame(parent: Frame | null): Frame {
       apply(_target, _thisArg, args) {
         try {
           let value: any = undefined
-          if (type === SET) {
-            if (i > 0 && objPath[i - 1] == null) {
-              resetAfterThrow()
-              return undefined
-            }
-            value = args[0]
-          } else if (type === UPDATE) {
-            if (obj === undefined) {
-              resetAfterThrow()
-              return undefined
-            }
-            if (typeof obj === 'function') {
-              const parent = objPath[i - 1]
-              if (
-                parent instanceof Map ||
-                parent instanceof Set ||
-                Array.isArray(parent)
-              ) {
-                if (!immutableArrayMethods.has(keyPath[i - 1])) {
-                  value = clone(parent)
-                  obj.call(value, ...args)
-                } else {
-                  value = obj.call(parent, ...args)
-                }
-                i--
-                objPath[i] = undefined
-                keyPath[i] = undefined
+          if (type === EDIT) {
+            // if obj is a function and it's parent is an array/map/set,
+            // we need to clone the parent and call the function on it
+            // then we pop off the the last key and value from the keyPath and objPath
+            // and assign the result to value
+            const parent = objPath[i - 1]
+            if (typeof obj === 'function' && isCollection(parent)) {
+              if (!immutableArrayMethods.has(keyPath[i - 1])) {
+                value = clone(parent)
+                obj.call(value, ...args)
               } else {
-                value = args[0](obj)
+                value = obj.call(parent, ...args)
               }
-            } else {
+              i--
+              objPath[i] = undefined
+              keyPath[i] = undefined
+            }
+
+            // if args[0] is a function, we need to call it on obj and
+            // assign the result to value, as long as obj is not undefined
+            else if (typeof args[0] === 'function') {
+              if (obj === undefined) {
+                return resetAfterThrow()
+              }
               value = args[0](obj)
             }
-          } else if (type === EDIT) {
+
+            // if args[0] is not a function and obj's parent is defined,
+            // we can assign it to value
+            else {
+              if (i > 0 && parent == null) {
+                return resetAfterThrow()
+              }
+              value = args[0]
+            }
+          } else if (type === BATCH) {
             if (obj == null) {
               resetAfterThrow()
               return undefined
@@ -402,7 +399,7 @@ function frame(parent: Frame | null): Frame {
             const fn = args[0]
             if (typeof obj !== 'object') {
               throw new Error(
-                'editIn must be called on an object or collection',
+                'edit.batch must be called on an object or collection',
               )
             } else {
               value = clone(obj)
@@ -414,12 +411,12 @@ function frame(parent: Frame | null): Frame {
               const res = fn.call(currentBatchFrame, value)
               if (res instanceof Promise) {
                 isAsync = true
-                type = SET
+                type = EDIT
 
                 return res
                   .then((res) => {
                     if (typeof res !== 'undefined') {
-                      throw new Error('editIn must not return a value')
+                      throw new Error('edit.batch must not return a value')
                     }
                     return (result.$ as any)(value)
                   })
@@ -434,7 +431,7 @@ function frame(parent: Frame | null): Frame {
               }
 
               if (typeof res !== 'undefined') {
-                throw new Error('editIn must return a value')
+                throw new Error('edit.batch must return a value')
               }
               // @ifndef PRODUCTION
               if (devMode && clonedObjects == null) {
@@ -475,11 +472,11 @@ function frame(parent: Frame | null): Frame {
 }
 
 // set up a tiny pool of four frames. we only need one frame per level
-// of nested setIn/updateIn/editIn calls.
+// of nested edit calls.
 let top: Frame | null = frame(frame(frame(frame(null))))
-type FrameType = typeof SET | typeof UPDATE | typeof EDIT
+type FrameType = typeof EDIT | typeof BATCH
 
-function getFrame(root: any, type: FrameType): Frame {
+function getFrame(root: any, type: FrameType, isUpdate?: boolean): Frame {
   if (top == null) {
     const res = frame(null)
     res.r(root, type)
@@ -487,7 +484,7 @@ function getFrame(root: any, type: FrameType): Frame {
   }
   const ret = top
   top = ret.p
-  ret.r(root, type)
+  ret.r(root, type, isUpdate)
   return ret
 }
 
@@ -539,39 +536,6 @@ function releaseBatchFrame(frame: BatchFrame) {
 }
 
 /**
- * Allows immutably setting properties at any depth in a value.
- *
- * @template T - The type of the input value
- * @param t - The value to create a setter for
- * @returns A setter object that allows setting properties at any depth
- *
- * @example
- * ```typescript
- * const user = { name: 'John', age: 30 }
- * const newUser = setIn(user).name('Jane')
- * // Result: { name: 'Jane', age: 30 }
- * // Original user is unchanged
- *
- * // Nested objects
- * const state = { user: { profile: { name: 'John' } } }
- * const newState = setIn(state).user.profile.name('Jane')
- * // Result: { user: { profile: { name: 'Jane' } } }
- *
- * // Arrays
- * const users = [{ name: 'John' }, { name: 'Jane' }]
- * const newUsers = setIn(users)[0].name('Bob')
- * // Result: [{ name: 'Bob' }, { name: 'Jane' }]
- *
- * // Maps
- * const config = new Map([['theme', 'dark']])
- * const newConfig = setIn(config)[key]('theme')('light')
- * // Result: Map([['theme', 'light']])
- * ```
- */
-export const setIn = <T,>(t: T | BeditStateContainer<T>): Settable<T> =>
-  getFrame(t, SET).$
-
-/**
  * Allows immutably updating properties at any depth in a value using functions.
  *
  * @template T - The type of the input value
@@ -603,124 +567,38 @@ export const setIn = <T,>(t: T | BeditStateContainer<T>): Settable<T> =>
  * // Result: Map([['theme', 'DARK']])
  * ```
  */
-export const updateIn = <T,>(t: T | BeditStateContainer<T>): Updatable<T> =>
-  getFrame(t, UPDATE).$
+export const edit: (<T extends object>(
+  t: T | null | undefined,
+) => Updatable<T>) & {
+  batch: {
+    <T extends object>(
+      t: T | BeditStateContainer<T> | null | undefined,
+    ): Batchable<T>
+    <T extends object, Fn extends BatchFn<T>>(
+      t: T | BeditStateContainer<T> | null | undefined,
+      fn: Fn,
+    ): ReturnType<Fn> extends Promise<any> ? Promise<T> : T
+  }
+} = Object.assign((t: any) => getFrame(t, EDIT).$, {
+  batch: function batch(t: any, f?: any): any {
+    return f ? batch(t)(f) : getFrame(t, BATCH).$
+  },
+})
 
-/**
- * Allows immutably mutating properties at any depth in a value using functions.
- * This performs shallow cloning for better performance - only the target object is cloned,
- * while nested objects maintain their references.
- *
- * @template T - The type of the input value
- * @param t - The value to create a mutator for
- * @returns A mutator object that allows mutating properties at any depth using functions
- *
- * @example
- * ```typescript
- * const userState = { user: { name: 'John', profile: { age: 30, city: 'NYC' } } }
- *
- * // Shallow mutation - only the top-level object is cloned
- * const newUserState = editIn(userState).user(user => {
- *   user.name = 'Jane'
- *   // ❌ don't mutate nested objects! This would throw an error at dev time.
- *   // user.profile.age = 31
- * })
- * // Result: { user: { name: 'Jane', profile: { age: 30, city: 'NYC' } } }
- * // Original user.profile.age is still 30 (shared reference)
- *
- * // Arrays with shallow mutation
- * const usersState = { users: [{ name: 'John', details: { age: 30 } }] }
- * const newUsersState = editIn(usersState).users(users => {
- *   const user = users.pop()
- *   // Only the array itself is cloned, not the nested objects.
- *   // ❌ This would throw an error at dev time.
- *   // user.details.age = 31
- * })
- *
- * // Maps with shallow mutation
- * const config = { preferences: new Map([['theme', 'dark']]) }
- * const newConfig = editIn(config).preferences(prefs => {
- *   prefs.set('theme', 'light')
- * })
- * // Result: { preferences: Map([['theme', 'light']]) }
- * ```
- */
-export const editIn = <T,>(
-  t: T | BeditStateContainer<T>,
-): ShallowMutatable<T> => getFrame(t, EDIT).$
-
-/**
- * Allows performing multiple mutations on a value at once while minimizing the
- * number of clone operations that need to be performed under the hood.
- *
- * @template T - The type of the input value
- * @param t - The value to perform batch edits on
- * @param fn - A function that receives the cloned value and performs the desired mutations
- * @returns A new value with all the batch edits applied
- *
- * @example
- * ```typescript
- * const user = { name: 'John', age: 30, profile: { city: 'NYC' } }
- *
- * // Multiple mutations in a single batch
- * const newUser = edit(user, (user) => {
- *   user.name = 'Jane'
- *   user.age = 31
- *   user.profile.city = 'LA'
- *   user.profile.country = 'USA'
- * })
- * // Result: { name: 'Jane', age: 31, profile: { city: 'LA', country: 'USA' } }
- * // Original user remains unchanged
- *
- * // Complex batch operations
- * const state = { users: [{ name: 'John' }, { name: 'Jane' }] }
- * const newState = edit(state, (state) => {
- *   // Add a new user
- *   state.users.push({ name: 'Bob' })
- *
- *   // Update existing users
- *   state.users[0].name = 'John Doe'
- *   state.users[1].age = 25
- *
- *   // Add metadata
- *   state.lastUpdated = new Date()
- *   state.version = 2
- * })
- *
- * // Maps with batch edits
- * const config = new Map([['theme', 'dark'], ['debug', false]])
- * const newConfig = edit(config, (config) => {
- *   config.set('theme', 'light')
- *   config.set('debug', true)
- *   config.set('version', '1.0.0')
- * })
- *
- * // Arrays with batch edits
- * const numbers = [1, 2, 3, 4, 5]
- * const newNumbers = edit(numbers, (numbers) => {
- *   numbers.push(6, 7, 8)
- *   numbers[0] = 0
- *   numbers.splice(2, 1) // Remove element at index 2
- * })
- * // Result: [0, 2, 4, 5, 6, 7, 8]
- *
- * // Performance comparison
- * // Less efficient: multiple copies
- * const user1 = setIn(user).name('Jane')
- * const user2 = setIn(user1).age(31)
- * const user3 = setIn(user2).profile.city('LA')
- *
- * // More efficient: single copy with batch edits
- * const userBatch = edit(user, (user) => {
- *   user.name = 'Jane'
- *   user.age = 31
- *   user.profile.city = 'LA'
- * })
- * ```
- */
-export function edit<T, Fn extends Mutator<T>>(
-  t: T | BeditStateContainer<T>,
-  fn: Fn,
-): ReturnType<Fn> extends Promise<any> ? Promise<T> : T {
-  return editIn(t)(fn) as any
-}
+export const update: (<T extends object>(
+  t: BeditStateContainer<T>
+) => Updatable<T>) & {
+  batch: {
+    <T extends object>(
+      t: BeditStateContainer<T>,
+    ): Batchable<T>
+    <T extends object, Fn extends BatchFn<T>>(
+      t: BeditStateContainer<T>,
+      fn: Fn,
+    ): ReturnType<Fn> extends Promise<any> ? Promise<T> : T
+  }
+} = Object.assign((t: any) => getFrame(t, EDIT).$, {
+  batch: function batch(t: any, f?: any): any {
+    return f ? batch(t)(f) : getFrame(t, BATCH).$
+  },
+})

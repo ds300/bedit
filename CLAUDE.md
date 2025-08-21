@@ -23,10 +23,10 @@ bedit is an immutable state utility library for TypeScript that serves as an alt
 
 ### Core APIs
 
-- `setIn(obj).path.to.prop(value)` - Set values at any depth
-- `updateIn(obj).path.to.prop(fn)` - Update values using functions (also supports method calls on collections)
-- `editIn(obj).path.to.prop(fn)` - Shallow clone and mutate specific subtrees
-- `edit(obj, fn)` - Batch mutations for optimal performance
+- `edit(obj).path.to.prop(value)` - Set values at any depth
+- `edit(obj).path.to.prop(fn)` - Update values using functions (also supports method calls on collections)
+- `edit.batch(obj, fn)` - Batch mutations for optimal performance (2-arity)
+- `edit.batch(subObj, fn)` - Shallow clone and mutate specific subtrees (1-arity)
 
 ### State Container Integration
 
@@ -78,7 +78,7 @@ npm run benchmark:comprehensive  # Run comprehensive benchmarks
 - Core functionality tests for each API function
 - Edge case handling (edge-cases.test.ts)
 - Development mode validation (dev-mode.test.ts)
-- Batch editing scenarios (batchEdits.test.ts)
+- Batch edit.batchg scenarios (batchEdits.test.ts)
 - State container integration (stateContainer.test.ts)
 - Zustand integration (zustand.test.ts)
 
@@ -125,7 +125,7 @@ bedit's core design principle is that nested properties in draft objects are **r
 
 - ✅ **Top-level mutations**: `draft.count = 5` - Direct assignment to top-level properties is allowed
 - ❌ **Nested mutations**: `draft.user.name = 'John'` - TypeScript error and runtime error in dev mode
-- ✅ **Bedit functions**: `setIn(draft).user.name('John')` - Use bedit functions for nested mutations
+- ✅ **Bedit functions**: `edit(draft).user.name('John')` - Use bedit functions for nested mutations
 
 ### Testing Best Practices
 
@@ -143,15 +143,15 @@ bedit's core design principle is that nested properties in draft objects are **r
 
    // ✅ Correct - use bedit functions
    const functions = {
-     addUser: (draft, user) => updateIn(draft).users.push(user),
+     addUser: (draft, user) => edit(draft).users.push(user),
    }
    ```
 
 ### Common Patterns
 
-- Use `updateIn(draft).array.push(item)` instead of `draft.array.push(item)`
-- Use `updateIn(draft).set.add(item)` for adding to Sets
-- Use `updateIn(draft).map.delete('key')` for deleting from Maps
-- Use `setIn(draft).nested.prop(value)` instead of `draft.nested.prop = value`
-- Use `updateIn(draft).prop(fn)` for functional updates
-- Use `editIn(draft).subtree(fn)` to edit shallow clones of subtrees
+- Use `edit(draft).array.push(item)` instead of `draft.array.push(item)`
+- Use `edit(draft).set.add(item)` for adding to Sets
+- Use `edit(draft).map.delete('key')` for deleting from Maps
+- Use `edit(draft).nested.prop(value)` instead of `draft.nested.prop = value`
+- Use `edit(draft).prop(fn)` for functional updates
+- Use `edit.batch(draft.subtree, fn)` to edit shallow clones of subtrees

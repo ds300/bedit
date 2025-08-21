@@ -1,4 +1,3 @@
-import { Editable, edit } from './bedit.mjs'
 import { $beditStateContainer, BeditStateContainer } from './symbols.mjs'
 import { _shallowClone } from './utils.mjs'
 

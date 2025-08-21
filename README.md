@@ -1,13 +1,29 @@
 # bedit
 
-A weird (but kinda cool) immutable state utility for TypeScript.
+A tiny immutable state utility for TypeScript.
 
-It's like `immer` but:
+```ts
+import { edit } from 'bedit'
 
-- 🕵️‍♀️ No `Proxy` instances getting in the way when you're trying to debug.
-- 📈 10x faster (tbh [only 5x](#performance) but emotionally 10x)
-- 📉 Tiny (2kB minified)
-- 💅 An "innovative" API (your AI agent will enjoy the challenge)
+// Pass a value to assign
+edit({ settings: { theme: 'light' } }).settings.theme('dark')
+// => { settings: { theme: 'dark' } }
+
+// Pass a function to update
+edit({ user: { name: 'Nick Cave' } }).user.name(
+  (name) => name.toUpperCase() + '!!!',
+)
+// => { user: { name: 'NICK CAVE!!!' } }
+
+// Array, Map, and Set methods work too
+edit({ nums: [1, 2, 3] }).nums.push(4)
+// => { nums: [1, 2, 3, 4] }
+```
+
+- 📉 2kB minified
+- 📈 Fast [as heck](#performance)
+- 💅 Objectively cool (impress your AI agent)
+- ⚛️ Works with [React](./docs/react.md), [Zustand](./docs/zustand.md), and any other state management library
 
 ## Installation
 
@@ -17,10 +33,10 @@ npm install bedit
 
 ## Usage
 
-The `edit` function creates a shallow clone of the input, and passes it to a callback.
+The `edit.batch` function creates a shallow clone of the input, and passes it to a callback.
 
 ```ts
-import { edit, setIn, updateIn, editIn } from 'bedit'
+import { edit } from 'bedit'
 const state = {
   user: { name: 'Nick Cave', preferences: { theme: 'dark' } },
   todos: [
@@ -31,7 +47,7 @@ const state = {
   filter: 'all',
 }
 
-const nextState = edit(state, (draft) => {
+const nextState = edit.batch(state, (draft) => {
   // `draft` is a regular JS object, not a Proxy.
   // You can edit it at the top level.
   draft.filter = 'completed'
@@ -40,36 +56,36 @@ const nextState = edit(state, (draft) => {
   // ❌ Type error: `theme` is readonly
   draft.user.preferences.theme = 'light'
 
-  // Instead, call `setIn` on the draft object to assign deeply.
-  setIn(draft).user.preferences.theme('light')
-  setIn(draft).todos[2].completed(true)
+  // Instead, call `edit` on the draft object to assign deeply.
+  edit(draft).user.preferences.theme('light')
+  edit(draft).todos[2].completed(true)
 
-  // Use `updateIn` to apply a function to a value.
-  updateIn(draft).todos[1].title((title) => title.toUpperCase() + '!!!')
+  // Use `edit` with functions to apply transformations.
+  edit(draft).todos[1].title((title) => title.toUpperCase() + '!!!')
 
-  // `updateIn` can also be used to call methods on collections.
-  updateIn(draft).todos.push({ id: '3', title: 'Buy bread', completed: false })
-  updateIn(draft).todos.filter((todo) => !todo.completed)
-  updateIn(draft).todos.sort((a, b) => a.title.localeCompare(b.title))
+  // `edit` can also be used to call methods on collections.
+  edit(draft).todos.push({ id: '3', title: 'Buy bread', completed: false })
+  edit(draft).todos.filter((todo) => !todo.completed)
+  edit(draft).todos.sort((a, b) => a.title.localeCompare(b.title))
 
-  // Use `editIn` to edit a shallow clone of a subtree.
-  editIn(draft).todos[0]((todo) => {
+  // Use `edit.batch` with 1-arity to edit a shallow clone of a subtree.
+  edit.batch(draft.todos[0], (todo) => {
     todo.title = 'Do the dishes'
     todo.completed = false
   })
 })
 ```
 
-You can call `setIn` and friends on non-draft objects too, it will return a new state with the edit applied. This is useful if you only need to make one change at a time.
+You can call `edit` on non-draft objects too, it will return a new state with the edit applied. This is useful if you only need to make one change at a time.
 
 ```ts
-const nextState = setIn(state).user.name('Nicholas Cage')
+const nextState = edit(state).user.name('Nicholas Cage')
 ```
 
 Or if you only need to edit one level.
 
 ```ts
-const nextState = editIn(state).todos[1]((todo) => {
+const nextState = edit.batch(state.todos[1], (todo) => {
   todo.completed = false
   todo.title = todo.title.toUpperCase() + '!!!'
 })
@@ -80,7 +96,7 @@ const nextState = editIn(state).todos[1]((todo) => {
 Use `[key](k)` to drill into values inside a `Map`.
 
 ```ts
-import { key, setIn } from 'bedit'
+import { key, edit } from 'bedit'
 const state = {
   users: new Map([
     ['user1', { name: 'John', age: 30 }],
@@ -88,7 +104,7 @@ const state = {
   ]),
 }
 
-const nextState = setIn(state).users[key]('user1').name('Wilberforce')
+const nextState = edit(state).users[key]('user1').name('Wilberforce')
 ```
 
 ## Freezing objects at development time
@@ -134,7 +150,7 @@ https://github.com/ds300/bedit/tree/main/bench
 
   ```ts
   const foo = { bar: 'baz' }
-  const nextState = setIn(foo).bar('baz')
+  const nextState = edit(foo).bar('baz')
   newState !== foo // sadly true
   ```
 
@@ -144,11 +160,32 @@ https://github.com/ds300/bedit/tree/main/bench
 
 ### `edit`
 
-Edit a shallow clone of a value.
+Assign or update a value at a nested property.
 
 ```ts
 import { edit } from 'bedit'
-const nextState = edit(
+// Assign a value
+const nextState = edit({ a: { b: { c: 1 } } }).a.b.c(2)
+// nextState = {a: {b: {c: 2}}}
+
+// Update with a function
+const nextState = edit({ a: { b: { c: 1 } } }).a.b.c((c) => c + 4)
+// nextState = {a: {b: {c: 5}}}
+
+// Call methods on collections
+const nextState = edit({ nums: [1, 2, 3] }).nums.push(4)
+// nextState = {nums: [1, 2, 3, 4]}
+```
+
+### `edit.batch`
+
+Edit a shallow clone of a value using a callback function.
+
+#### 2-arity: Batch edit.batchg
+
+```ts
+import { edit } from 'bedit'
+const nextState = edit.batch(
   { name: 'John', preferences: { theme: 'dark' } },
   (draft) => {
     // ✅ No type error, safe to mutate the top-level draft object
@@ -157,82 +194,28 @@ const nextState = edit(
     // ❌ Type error: `theme` is readonly
     draft.preferences.theme = 'light'
 
-    // ✅ use `setIn(draft)` to mutate deeply and safely
-    setIn(draft).preferences.theme('light')
+    // ✅ use `edit(draft)` to mutate deeply and safely
+    edit(draft).preferences.theme('light')
   },
 )
 // nextState = {name: 'Jane', preferences: {theme: 'light'}}
 ```
 
-### `setIn`
-
-Assign a value to a nested property.
+#### 1-arity: Edit a subtree
 
 ```ts
-import { setIn } from 'bedit'
-const nextState = setIn({ a: { b: { c: 1 } } }).a.b.c(2)
-// nextState = {a: {b: {c: 2}}}
-```
-
-### `updateIn`
-
-Get the previous value (without cloning it) and return a new version.
-
-```ts
-import { updateIn } from 'bedit'
-const nextState = updateIn({ a: { b: { c: 1 } } }).a.b.c((c) => c + 4)
-// nextState = {a: {b: {c: 5}}}
-```
-
-Or call a method on a collection.
-
-```ts
-const nextState = updateIn({ nums: [1, 2, 3] }).nums.push(4)
-// nextState = {nums: [1, 2, 3, 4]}
-```
-
-### `editIn`
-
-Edit a shallow clone of a subtree.
-
-```ts
-import { editIn } from 'bedit'
-const nextState = editIn({ a: { b: { c: 1 } } }).a.b((b) => {
+import { edit } from 'bedit'
+const nextState = edit.batch({ a: { b: { c: 1 } } }.a.b, (b) => {
   b.c = 4
 })
-// nextState = {a: {b: {c: 4}}}
-```
-
-TypeScript will prevent you from making deep edits.
-
-```ts
-editIn({ a: { b: { c: 1 } } }).a((a) => {
-  // ❌ Type error: `c` is readonly
-  a.b.c = 3
-})
-```
-
-All bedit functions can be used inside an `editIn` block. If you call them on the root 'draft' object, you don't need to reassign the result.
-
-```ts
-editIn({ a: { b: { c: 1 } } }).a((a) => {
-  setIn(a).b.c(3)
-})
-```
-
-To mutate the root object, you can just not specify a path.
-
-```ts
-editIn({ a: { b: { c: 1 } } })((obj) => {
-  obj.a = { b: { c: 3 } }
-})
+// nextState would be applied to the parent object
 ```
 
 ## Quirks
 
 - Nullability
 - Type refinement
-- setIn(obj)[key]('blah')(blah) vs updateIn(obj).set('blah', blah)
+- edit(obj)[key]('blah')(blah) vs edit(obj).set('blah', blah)
 
 ## Zustand Integration
 
@@ -240,7 +223,7 @@ bedit provides integration with [Zustand](https://github.com/pmndrs/zustand) sto
 
 ```ts
 import { beditify } from 'bedit/zustand'
-import { setIn, updateIn } from 'bedit'
+import { edit } from 'bedit'
 import { create } from 'zustand'
 
 const useStore = create(() => ({
@@ -253,18 +236,18 @@ const useStore = create(() => ({
 const store = beditify(useStore)
 
 // Use bedit functions directly on the store
-setIn(store).user.name('Jane')
-updateIn(store).count((c) => c + 1)
-updateIn(store).todos.push({ id: 1, text: 'Learn bedit' })
+edit(store).user.name('Jane')
+edit(store).count((c) => c + 1)
+edit(store).todos.push({ id: 1, text: 'Learn bedit' })
 
 // Write your own helper functions as needed
 const increment = (n: number) => {
-  updateIn(store).count((c) => c + n)
+  edit(store).count((c) => c + n)
 }
 
 const loadUser = async (userId: string) => {
   const user = await fetch(`/api/users/${userId}`).then((r) => r.json())
-  setIn(store).user(user)
+  edit(store).user(user)
 }
 
 increment(5)

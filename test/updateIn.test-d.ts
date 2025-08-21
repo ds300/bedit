@@ -1,5 +1,5 @@
 import { expectTypeOf, describe, it } from 'vitest'
-import { key, updateIn } from '../src/bedit.mjs'
+import { key, edit } from '../src/bedit.mjs'
 
 describe('optional properties', () => {
   type Obj = {
@@ -11,12 +11,12 @@ describe('optional properties', () => {
   const obj: Obj = {}
 
   it('should return undefined if the property is optional', () => {
-    const result = updateIn(obj).key((key) => key.toUpperCase())
+    const result = edit(obj).key((key) => key.toUpperCase())
     expectTypeOf(result).toEqualTypeOf<Obj | undefined>()
   })
 
   it('should not pass undefined into the updater if the property is optional but not nullable', () => {
-    const result = updateIn(obj).key((key) => {
+    const result = edit(obj).key((key) => {
       expectTypeOf(key).toEqualTypeOf<string>()
       return key.toUpperCase()
     })
@@ -24,7 +24,7 @@ describe('optional properties', () => {
   })
 
   it('should pass null into the updater if the property is nullable', () => {
-    const result = updateIn(obj).nullableKey((key) => {
+    const result = edit(obj).nullableKey((key) => {
       expectTypeOf(key).toEqualTypeOf<string | null>()
       return key?.toUpperCase() ?? null
     })
@@ -32,7 +32,7 @@ describe('optional properties', () => {
   })
 
   it('should pass null (but not undefined) into the updater if the property is nullable and undefined', () => {
-    const result = updateIn(obj).maybeUndefinedNullableKey((key) => {
+    const result = edit(obj).maybeUndefinedNullableKey((key) => {
       expectTypeOf(key).toEqualTypeOf<string | null>()
       if (Math.random() > 0.5) {
         return 'string'
@@ -63,7 +63,7 @@ describe('required properties', () => {
   }
 
   it('should accept updater for required string property', () => {
-    const result = updateIn(obj).name((name) => {
+    const result = edit(obj).name((name) => {
       expectTypeOf(name).toEqualTypeOf<string>()
       return name.toUpperCase()
     })
@@ -71,7 +71,7 @@ describe('required properties', () => {
   })
 
   it('should accept updater for required number property', () => {
-    const result = updateIn(obj).age((age) => {
+    const result = edit(obj).age((age) => {
       expectTypeOf(age).toEqualTypeOf<number>()
       return age + 1
     })
@@ -79,7 +79,7 @@ describe('required properties', () => {
   })
 
   it('should accept updater for required boolean property', () => {
-    const result = updateIn(obj).isActive((active) => {
+    const result = edit(obj).isActive((active) => {
       expectTypeOf(active).toEqualTypeOf<boolean>()
       return !active
     })
@@ -87,7 +87,7 @@ describe('required properties', () => {
   })
 
   it('should pass null into the updater for nullable property', () => {
-    const result = updateIn(obj).nullableValue((value) => {
+    const result = edit(obj).nullableValue((value) => {
       expectTypeOf(value).toEqualTypeOf<string | null>()
       return value?.toUpperCase() ?? null
     })
@@ -95,7 +95,7 @@ describe('required properties', () => {
   })
 
   it('should not pass undefined into the updater if the property is required and undefined-able', () => {
-    const result = updateIn(obj).maybeUndefinedValue((value) => {
+    const result = edit(obj).maybeUndefinedValue((value) => {
       expectTypeOf(value).toEqualTypeOf<string>()
       return value.toUpperCase()
     })
@@ -122,7 +122,7 @@ describe('nested object properties', () => {
   }
 
   it('should update nested required property', () => {
-    const result = updateIn(user).profile.name((name) => {
+    const result = edit(user).profile.name((name) => {
       expectTypeOf(name).toEqualTypeOf<string>()
       return name.toUpperCase()
     })
@@ -130,7 +130,7 @@ describe('nested object properties', () => {
   })
 
   it('should update nested optional property', () => {
-    const result = updateIn(user).profile.settings((settings) => {
+    const result = edit(user).profile.settings((settings) => {
       expectTypeOf(settings).toEqualTypeOf<
         Readonly<{
           theme: 'light' | 'dark'
@@ -143,7 +143,7 @@ describe('nested object properties', () => {
   })
 
   it('should update deeply nested optional property', () => {
-    const result = updateIn(user).profile.settings.theme((theme) => {
+    const result = edit(user).profile.settings.theme((theme) => {
       expectTypeOf(theme).toEqualTypeOf<'light' | 'dark'>()
       return theme === 'light' ? 'dark' : 'light'
     })
@@ -151,7 +151,7 @@ describe('nested object properties', () => {
   })
 
   it('should update optional nested object', () => {
-    const result = updateIn(user).metadata((metadata) => {
+    const result = edit(user).metadata((metadata) => {
       expectTypeOf(metadata).toEqualTypeOf<
         Readonly<{
           lastLogin: Date
@@ -173,7 +173,7 @@ describe('array properties', () => {
   }
 
   it('should update array element by index', () => {
-    const result = updateIn(todoList).todos[0]((todo) => {
+    const result = edit(todoList).todos[0]((todo) => {
       expectTypeOf(todo).toEqualTypeOf<
         Readonly<{
           id: number
@@ -187,7 +187,7 @@ describe('array properties', () => {
   })
 
   it('should update nested property in array element', () => {
-    const result = updateIn(todoList).todos[0].completed((completed) => {
+    const result = edit(todoList).todos[0].completed((completed) => {
       expectTypeOf(completed).toEqualTypeOf<boolean>()
       return !completed
     })
@@ -195,14 +195,14 @@ describe('array properties', () => {
   })
 
   it('should call array methods and return root type', () => {
-    const pushResult = updateIn(todoList).todos.push({
+    const pushResult = edit(todoList).todos.push({
       id: 2,
       text: 'New todo',
       completed: false,
     })
     expectTypeOf(pushResult).toEqualTypeOf<TodoList>()
 
-    const mapResult = updateIn(todoList).todos.map((todo) => ({
+    const mapResult = edit(todoList).todos.map((todo) => ({
       ...todo,
       completed: true,
     }))
@@ -210,7 +210,7 @@ describe('array properties', () => {
   })
 
   it('should update optional array property', () => {
-    const result = updateIn(todoList).tags((tags) => {
+    const result = edit(todoList).tags((tags) => {
       expectTypeOf(tags).toEqualTypeOf<Readonly<string[]>>()
       return [...tags, 'urgent']
     })
@@ -218,21 +218,21 @@ describe('array properties', () => {
   })
 
   it('should return undefined when calling array methods on optional arrays', () => {
-    const pushResult = updateIn(todoList).tags.push('urgent')
+    const pushResult = edit(todoList).tags.push('urgent')
     expectTypeOf(pushResult).toEqualTypeOf<TodoList | undefined>()
 
-    const popResult = updateIn(todoList).tags.pop()
+    const popResult = edit(todoList).tags.pop()
     expectTypeOf(popResult).toEqualTypeOf<TodoList | undefined>()
 
-    const mapResult = updateIn(todoList).tags.map((tag) => tag.toUpperCase())
+    const mapResult = edit(todoList).tags.map((tag) => tag.toUpperCase())
     expectTypeOf(mapResult).toEqualTypeOf<TodoList | undefined>()
 
-    const filterResult = updateIn(todoList).tags.filter((tag) => tag.length > 3)
+    const filterResult = edit(todoList).tags.filter((tag) => tag.length > 3)
     expectTypeOf(filterResult).toEqualTypeOf<TodoList | undefined>()
   })
 
   it('should return undefined when accessing optional array elements', () => {
-    const result = updateIn(todoList).tags[0]((tag) => {
+    const result = edit(todoList).tags[0]((tag) => {
       expectTypeOf(tag).toEqualTypeOf<string>()
       return tag.toUpperCase()
     })
@@ -258,29 +258,29 @@ describe('arrays within optional nested objects', () => {
 
   it('should return undefined when calling methods on arrays in optional objects', () => {
     // Array in required nested property of optional object
-    const prefsResult = updateIn(profile).user.preferences.push('dark-mode')
+    const prefsResult = edit(profile).user.preferences.push('dark-mode')
     expectTypeOf(prefsResult).toEqualTypeOf<UserProfile | undefined>()
 
-    const prefsMapResult = updateIn(profile).user.preferences.map((p) =>
+    const prefsMapResult = edit(profile).user.preferences.map((p) =>
       p.toUpperCase(),
     )
     expectTypeOf(prefsMapResult).toEqualTypeOf<UserProfile | undefined>()
 
     // Array in optional nested property of optional object
-    const bookmarksResult = updateIn(profile).user.optionalLists.bookmarks.push(
+    const bookmarksResult = edit(profile).user.optionalLists.bookmarks.push(
       'https://example.com',
     )
     expectTypeOf(bookmarksResult).toEqualTypeOf<UserProfile | undefined>()
   })
 
   it('should return undefined when accessing array elements in optional objects', () => {
-    const prefResult = updateIn(profile).user.preferences[0]((pref) => {
+    const prefResult = edit(profile).user.preferences[0]((pref) => {
       expectTypeOf(pref).toEqualTypeOf<string>()
       return pref.toUpperCase()
     })
     expectTypeOf(prefResult).toEqualTypeOf<UserProfile | undefined>()
 
-    const bookmarkResult = updateIn(profile).user.optionalLists.bookmarks[0](
+    const bookmarkResult = edit(profile).user.optionalLists.bookmarks[0](
       (bookmark) => {
         expectTypeOf(bookmark).toEqualTypeOf<string>()
         return bookmark.toUpperCase()
@@ -290,19 +290,19 @@ describe('arrays within optional nested objects', () => {
   })
 
   it('should return undefined when updating arrays in optional objects', () => {
-    const prefsUpdate = updateIn(profile).user.preferences((prefs) => {
+    const prefsUpdate = edit(profile).user.preferences((prefs) => {
       expectTypeOf(prefs).toEqualTypeOf<Readonly<string[]>>()
       return [...prefs, 'new-preference']
     })
     expectTypeOf(prefsUpdate).toEqualTypeOf<UserProfile | undefined>()
 
-    const groupsUpdate = updateIn(profile).groups.admin((admin) => {
+    const groupsUpdate = edit(profile).groups.admin((admin) => {
       expectTypeOf(admin).toEqualTypeOf<Readonly<string[]>>()
       return [...admin, 'new-admin']
     })
     expectTypeOf(groupsUpdate).toEqualTypeOf<UserProfile | undefined>()
 
-    const memberUpdate = updateIn(profile).groups.member((members) => {
+    const memberUpdate = edit(profile).groups.member((members) => {
       expectTypeOf(members).toEqualTypeOf<Readonly<string[]>>()
       return [...members, 'new-member']
     })
@@ -322,14 +322,13 @@ describe('arrays within optional nested objects', () => {
     }
     const deep: DeepNested = {}
 
-    const itemsPush = updateIn(deep).level1.level2.level3.items.push('new-item')
+    const itemsPush = edit(deep).level1.level2.level3.items.push('new-item')
     expectTypeOf(itemsPush).toEqualTypeOf<DeepNested | undefined>()
 
-    const optionalPush =
-      updateIn(deep).level1.level2.level3.optionalItems.push(42)
+    const optionalPush = edit(deep).level1.level2.level3.optionalItems.push(42)
     expectTypeOf(optionalPush).toEqualTypeOf<DeepNested | undefined>()
 
-    const itemUpdate = updateIn(deep).level1.level2.level3.items[0]((item) => {
+    const itemUpdate = edit(deep).level1.level2.level3.items[0]((item) => {
       expectTypeOf(item).toEqualTypeOf<string>()
       return item.toUpperCase()
     })
@@ -343,11 +342,11 @@ describe('Map properties', () => {
     optionalMappings?: Map<number, boolean>
   }
   const config: Config = {
-    settings: new Map([['theme', 'dark']]),
+    settings: new Map([['blah', 'dark']]),
   }
 
   it('should update Map value by key', () => {
-    const result = updateIn(config).settings[key]('theme')((value) => {
+    const result = edit(config).settings[key]('theme')((value) => {
       expectTypeOf(value).toEqualTypeOf<string>()
       return value.toUpperCase()
     })
@@ -355,15 +354,15 @@ describe('Map properties', () => {
   })
 
   it('should call Map methods and return root type', () => {
-    const setResult = updateIn(config).settings.set('newKey', 'newValue')
+    const setResult = edit(config).settings.set('newKey', 'newValue')
     expectTypeOf(setResult).toEqualTypeOf<Config>()
 
-    const deleteResult = updateIn(config).settings.delete('oldKey')
+    const deleteResult = edit(config).settings.delete('oldKey')
     expectTypeOf(deleteResult).toEqualTypeOf<Config>()
   })
 
   it('should update optional Map property', () => {
-    const result = updateIn(config).optionalMappings((mappings) => {
+    const result = edit(config).optionalMappings((mappings) => {
       expectTypeOf(mappings).toEqualTypeOf<ReadonlyMap<number, boolean>>()
       return new Map([[1, true]])
     })
@@ -371,18 +370,18 @@ describe('Map properties', () => {
   })
 
   it('should return undefined when calling Map methods on optional Maps', () => {
-    const setResult = updateIn(config).optionalMappings.set(1, true)
+    const setResult = edit(config).optionalMappings.set(1, true)
     expectTypeOf(setResult).toEqualTypeOf<Config | undefined>()
 
-    const deleteResult = updateIn(config).optionalMappings.delete(1)
+    const deleteResult = edit(config).optionalMappings.delete(1)
     expectTypeOf(deleteResult).toEqualTypeOf<Config | undefined>()
 
-    const clearResult = updateIn(config).optionalMappings.clear()
+    const clearResult = edit(config).optionalMappings.clear()
     expectTypeOf(clearResult).toEqualTypeOf<Config | undefined>()
   })
 
   it('should return undefined when accessing optional Map values by key', () => {
-    const result = updateIn(config).optionalMappings[key](1)((value) => {
+    const result = edit(config).optionalMappings[key](1)((value) => {
       expectTypeOf(value).toEqualTypeOf<boolean>()
       return !value
     })
@@ -408,31 +407,29 @@ describe('Maps within optional nested objects', () => {
 
   it('should return undefined when calling methods on Maps in optional objects', () => {
     // Map in required nested property of optional object
-    const connectionsSet = updateIn(serviceConfig).database.connections.set(
+    const connectionsSet = edit(serviceConfig).database.connections.set(
       'primary',
       'localhost:5432',
     )
     expectTypeOf(connectionsSet).toEqualTypeOf<ServiceConfig | undefined>()
 
     const connectionsDelete =
-      updateIn(serviceConfig).database.connections.delete('backup')
+      edit(serviceConfig).database.connections.delete('backup')
     expectTypeOf(connectionsDelete).toEqualTypeOf<ServiceConfig | undefined>()
 
     // Map in optional nested property of optional object
-    const fallbacksSet = updateIn(
+    const fallbacksSet = edit(
       serviceConfig,
     ).database.optionalCache.fallbacks.set('redis', true)
     expectTypeOf(fallbacksSet).toEqualTypeOf<ServiceConfig | undefined>()
 
     const fallbacksDelete =
-      updateIn(serviceConfig).database.optionalCache.fallbacks.delete(
-        'memcached',
-      )
+      edit(serviceConfig).database.optionalCache.fallbacks.delete('memcached')
     expectTypeOf(fallbacksDelete).toEqualTypeOf<ServiceConfig | undefined>()
   })
 
   it('should return undefined when accessing Map values by key in optional objects', () => {
-    const connectionResult = updateIn(serviceConfig).database.connections[key](
+    const connectionResult = edit(serviceConfig).database.connections[key](
       'primary',
     )((conn) => {
       expectTypeOf(conn).toEqualTypeOf<string>()
@@ -440,17 +437,17 @@ describe('Maps within optional nested objects', () => {
     })
     expectTypeOf(connectionResult).toEqualTypeOf<ServiceConfig | undefined>()
 
-    const settingResult = updateIn(
-      serviceConfig,
-    ).database.optionalCache.settings[key]('timeout')((timeout) => {
+    const settingResult = edit(serviceConfig).database.optionalCache.settings[
+      key
+    ]('timeout')((timeout) => {
       expectTypeOf(timeout).toEqualTypeOf<number>()
       return timeout * 2
     })
     expectTypeOf(settingResult).toEqualTypeOf<ServiceConfig | undefined>()
 
-    const fallbackResult = updateIn(
-      serviceConfig,
-    ).database.optionalCache.fallbacks[key]('redis')((enabled) => {
+    const fallbackResult = edit(serviceConfig).database.optionalCache.fallbacks[
+      key
+    ]('redis')((enabled) => {
       expectTypeOf(enabled).toEqualTypeOf<boolean>()
       return !enabled
     })
@@ -458,7 +455,7 @@ describe('Maps within optional nested objects', () => {
   })
 
   it('should return undefined when updating Maps in optional objects', () => {
-    const connectionsUpdate = updateIn(serviceConfig).database.connections(
+    const connectionsUpdate = edit(serviceConfig).database.connections(
       (connections) => {
         expectTypeOf(connections).toEqualTypeOf<ReadonlyMap<string, string>>()
         return new Map([...connections, ['backup', 'localhost:5433']])
@@ -466,15 +463,13 @@ describe('Maps within optional nested objects', () => {
     )
     expectTypeOf(connectionsUpdate).toEqualTypeOf<ServiceConfig | undefined>()
 
-    const endpointsUpdate = updateIn(serviceConfig).api.endpoints(
-      (endpoints) => {
-        expectTypeOf(endpoints).toEqualTypeOf<ReadonlyMap<string, string>>()
-        return new Map([...endpoints, ['health', '/api/health']])
-      },
-    )
+    const endpointsUpdate = edit(serviceConfig).api.endpoints((endpoints) => {
+      expectTypeOf(endpoints).toEqualTypeOf<ReadonlyMap<string, string>>()
+      return new Map([...endpoints, ['health', '/api/health']])
+    })
     expectTypeOf(endpointsUpdate).toEqualTypeOf<ServiceConfig | undefined>()
 
-    const headersUpdate = updateIn(serviceConfig).api.headers((headers) => {
+    const headersUpdate = edit(serviceConfig).api.headers((headers) => {
       expectTypeOf(headers).toEqualTypeOf<ReadonlyMap<string, string>>()
       return new Map([...headers, ['Content-Type', 'application/json']])
     })
@@ -494,26 +489,26 @@ describe('Maps within optional nested objects', () => {
     }
     const deepMap: DeepMapNested = {}
 
-    const dataSet = updateIn(deepMap).level1.level2.level3.data.set('key1', 100)
+    const dataSet = edit(deepMap).level1.level2.level3.data.set('key1', 100)
     expectTypeOf(dataSet).toEqualTypeOf<DeepMapNested | undefined>()
 
-    const optionalSet = updateIn(deepMap).level1.level2.level3.optionalData.set(
+    const optionalSet = edit(deepMap).level1.level2.level3.optionalData.set(
       1,
       'value1',
     )
     expectTypeOf(optionalSet).toEqualTypeOf<DeepMapNested | undefined>()
 
-    const dataKeyUpdate = updateIn(deepMap).level1.level2.level3.data[key](
-      'key1',
-    )((value) => {
-      expectTypeOf(value).toEqualTypeOf<number>()
-      return value * 2
-    })
+    const dataKeyUpdate = edit(deepMap).level1.level2.level3.data[key]('key1')(
+      (value) => {
+        expectTypeOf(value).toEqualTypeOf<number>()
+        return value * 2
+      },
+    )
     expectTypeOf(dataKeyUpdate).toEqualTypeOf<DeepMapNested | undefined>()
 
-    const optionalKeyUpdate = updateIn(
-      deepMap,
-    ).level1.level2.level3.optionalData[key](1)((value) => {
+    const optionalKeyUpdate = edit(deepMap).level1.level2.level3.optionalData[
+      key
+    ](1)((value) => {
       expectTypeOf(value).toEqualTypeOf<string>()
       return value.toUpperCase()
     })
@@ -529,16 +524,13 @@ describe('Maps within optional nested objects', () => {
     }
     const complexConfig: ComplexMapConfig = {}
 
-    const sessionSet = updateIn(complexConfig).cache.userSessions.set(
-      'session1',
-      {
-        userId: 123,
-        expiry: new Date(),
-      },
-    )
+    const sessionSet = edit(complexConfig).cache.userSessions.set('session1', {
+      userId: 123,
+      expiry: new Date(),
+    })
     expectTypeOf(sessionSet).toEqualTypeOf<ComplexMapConfig | undefined>()
 
-    const sessionUpdate = updateIn(complexConfig).cache.userSessions[key](
+    const sessionUpdate = edit(complexConfig).cache.userSessions[key](
       'session1',
     )((session) => {
       expectTypeOf(session).toEqualTypeOf<
@@ -548,7 +540,7 @@ describe('Maps within optional nested objects', () => {
     })
     expectTypeOf(sessionUpdate).toEqualTypeOf<ComplexMapConfig | undefined>()
 
-    const metricsKeyUpdate = updateIn(complexConfig).cache.optionalMetrics[key](
+    const metricsKeyUpdate = edit(complexConfig).cache.optionalMetrics[key](
       'page-views',
     )((metric) => {
       expectTypeOf(metric).toEqualTypeOf<
@@ -570,18 +562,18 @@ describe('Set properties', () => {
   }
 
   it('should call Set methods and return root type', () => {
-    const addResult = updateIn(userGroups).groups.add('moderator')
+    const addResult = edit(userGroups).groups.add('moderator')
     expectTypeOf(addResult).toEqualTypeOf<UserGroups>()
 
-    const deleteResult = updateIn(userGroups).groups.delete('user')
+    const deleteResult = edit(userGroups).groups.delete('user')
     expectTypeOf(deleteResult).toEqualTypeOf<UserGroups>()
 
-    const clearResult = updateIn(userGroups).groups.clear()
+    const clearResult = edit(userGroups).groups.clear()
     expectTypeOf(clearResult).toEqualTypeOf<UserGroups>()
   })
 
   it('should update optional Set property', () => {
-    const result = updateIn(userGroups).optionalTags((tags) => {
+    const result = edit(userGroups).optionalTags((tags) => {
       expectTypeOf(tags).toEqualTypeOf<ReadonlySet<number>>()
       return new Set([1, 2, 3])
     })
@@ -589,13 +581,13 @@ describe('Set properties', () => {
   })
 
   it('should return undefined when calling Set methods on optional Sets', () => {
-    const addResult = updateIn(userGroups).optionalTags.add(42)
+    const addResult = edit(userGroups).optionalTags.add(42)
     expectTypeOf(addResult).toEqualTypeOf<UserGroups | undefined>()
 
-    const deleteResult = updateIn(userGroups).optionalTags.delete(1)
+    const deleteResult = edit(userGroups).optionalTags.delete(1)
     expectTypeOf(deleteResult).toEqualTypeOf<UserGroups | undefined>()
 
-    const clearResult = updateIn(userGroups).optionalTags.clear()
+    const clearResult = edit(userGroups).optionalTags.clear()
     expectTypeOf(clearResult).toEqualTypeOf<UserGroups | undefined>()
   })
 })
@@ -618,38 +610,35 @@ describe('Sets within optional nested objects', () => {
 
   it('should return undefined when calling methods on Sets in optional objects', () => {
     // Set in required nested property of optional object
-    const activeUsersAdd =
-      updateIn(permissions).users.activeUsers.add('user123')
+    const activeUsersAdd = edit(permissions).users.activeUsers.add('user123')
     expectTypeOf(activeUsersAdd).toEqualTypeOf<PermissionSystem | undefined>()
 
     const activeUsersDelete =
-      updateIn(permissions).users.activeUsers.delete('user456')
+      edit(permissions).users.activeUsers.delete('user456')
     expectTypeOf(activeUsersDelete).toEqualTypeOf<
       PermissionSystem | undefined
     >()
 
     // Set in optional nested property of optional object
     const moderatorsAdd =
-      updateIn(permissions).users.optionalGroups.moderators.add('mod123')
+      edit(permissions).users.optionalGroups.moderators.add('mod123')
     expectTypeOf(moderatorsAdd).toEqualTypeOf<PermissionSystem | undefined>()
 
     const moderatorsDelete =
-      updateIn(permissions).users.optionalGroups.moderators.delete('mod456')
+      edit(permissions).users.optionalGroups.moderators.delete('mod456')
     expectTypeOf(moderatorsDelete).toEqualTypeOf<PermissionSystem | undefined>()
   })
 
   it('should return undefined when updating Sets in optional objects', () => {
-    const activeUsersUpdate = updateIn(permissions).users.activeUsers(
-      (users) => {
-        expectTypeOf(users).toEqualTypeOf<ReadonlySet<string>>()
-        return new Set([...users, 'newUser'])
-      },
-    )
+    const activeUsersUpdate = edit(permissions).users.activeUsers((users) => {
+      expectTypeOf(users).toEqualTypeOf<ReadonlySet<string>>()
+      return new Set([...users, 'newUser'])
+    })
     expectTypeOf(activeUsersUpdate).toEqualTypeOf<
       PermissionSystem | undefined
     >()
 
-    const adminsUpdate = updateIn(permissions).users.optionalGroups.admins(
+    const adminsUpdate = edit(permissions).users.optionalGroups.admins(
       (admins) => {
         expectTypeOf(admins).toEqualTypeOf<ReadonlySet<string>>()
         return new Set([...admins, 'newAdmin'])
@@ -657,15 +646,13 @@ describe('Sets within optional nested objects', () => {
     )
     expectTypeOf(adminsUpdate).toEqualTypeOf<PermissionSystem | undefined>()
 
-    const publicUpdate = updateIn(permissions).resources.publicAccess(
-      (access) => {
-        expectTypeOf(access).toEqualTypeOf<ReadonlySet<string>>()
-        return new Set([...access, 'resource123'])
-      },
-    )
+    const publicUpdate = edit(permissions).resources.publicAccess((access) => {
+      expectTypeOf(access).toEqualTypeOf<ReadonlySet<string>>()
+      return new Set([...access, 'resource123'])
+    })
     expectTypeOf(publicUpdate).toEqualTypeOf<PermissionSystem | undefined>()
 
-    const restrictedUpdate = updateIn(permissions).resources.restrictedAccess(
+    const restrictedUpdate = edit(permissions).resources.restrictedAccess(
       (restricted) => {
         expectTypeOf(restricted).toEqualTypeOf<ReadonlySet<string>>()
         return new Set([...restricted, 'secretResource'])
@@ -687,22 +674,21 @@ describe('Sets within optional nested objects', () => {
     }
     const deepSet: DeepSetNested = {}
 
-    const tagsAdd = updateIn(deepSet).level1.level2.level3.tags.add('important')
+    const tagsAdd = edit(deepSet).level1.level2.level3.tags.add('important')
     expectTypeOf(tagsAdd).toEqualTypeOf<DeepSetNested | undefined>()
 
-    const labelsAdd =
-      updateIn(deepSet).level1.level2.level3.optionalLabels.add(999)
+    const labelsAdd = edit(deepSet).level1.level2.level3.optionalLabels.add(999)
     expectTypeOf(labelsAdd).toEqualTypeOf<DeepSetNested | undefined>()
 
     const tagsDelete =
-      updateIn(deepSet).level1.level2.level3.tags.delete('outdated')
+      edit(deepSet).level1.level2.level3.tags.delete('outdated')
     expectTypeOf(tagsDelete).toEqualTypeOf<DeepSetNested | undefined>()
 
     const labelsClear =
-      updateIn(deepSet).level1.level2.level3.optionalLabels.clear()
+      edit(deepSet).level1.level2.level3.optionalLabels.clear()
     expectTypeOf(labelsClear).toEqualTypeOf<DeepSetNested | undefined>()
 
-    const tagsUpdate = updateIn(deepSet).level1.level2.level3.tags((tags) => {
+    const tagsUpdate = edit(deepSet).level1.level2.level3.tags((tags) => {
       expectTypeOf(tags).toEqualTypeOf<ReadonlySet<string>>()
       return new Set([...tags, 'newTag'])
     })
@@ -723,20 +709,20 @@ describe('Sets within optional nested objects', () => {
     const complexSet: ComplexSetConfig = {}
 
     const categoriesAdd =
-      updateIn(complexSet).categories.activeCategories.add('tech')
+      edit(complexSet).categories.activeCategories.add('tech')
     expectTypeOf(categoriesAdd).toEqualTypeOf<ComplexSetConfig | undefined>()
 
     const prioritiesAdd =
-      updateIn(complexSet).categories.optionalPriorities.add('high')
+      edit(complexSet).categories.optionalPriorities.add('high')
     expectTypeOf(prioritiesAdd).toEqualTypeOf<ComplexSetConfig | undefined>()
 
-    const flagsUpdate = updateIn(complexSet).metadata.statusFlags((flags) => {
+    const flagsUpdate = edit(complexSet).metadata.statusFlags((flags) => {
       expectTypeOf(flags).toEqualTypeOf<ReadonlySet<boolean>>()
       return new Set([...flags, true])
     })
     expectTypeOf(flagsUpdate).toEqualTypeOf<ComplexSetConfig | undefined>()
 
-    const idsUpdate = updateIn(complexSet).metadata.optionalIds((ids) => {
+    const idsUpdate = edit(complexSet).metadata.optionalIds((ids) => {
       expectTypeOf(ids).toEqualTypeOf<ReadonlySet<string | number>>()
       return new Set([...ids, 'id123', 456])
     })
@@ -752,19 +738,19 @@ describe('Sets within optional nested objects', () => {
     }
     const objectSet: ObjectSetConfig = {}
 
-    const rolesAdd = updateIn(objectSet).cache.userRoles.add({
+    const rolesAdd = edit(objectSet).cache.userRoles.add({
       userId: 'user123',
       role: 'admin',
     })
     expectTypeOf(rolesAdd).toEqualTypeOf<ObjectSetConfig | undefined>()
 
-    const sessionsAdd = updateIn(objectSet).cache.optionalSessions.add({
+    const sessionsAdd = edit(objectSet).cache.optionalSessions.add({
       sessionId: 'session456',
       expiry: new Date(),
     })
     expectTypeOf(sessionsAdd).toEqualTypeOf<ObjectSetConfig | undefined>()
 
-    const rolesUpdate = updateIn(objectSet).cache.userRoles((roles) => {
+    const rolesUpdate = edit(objectSet).cache.userRoles((roles) => {
       expectTypeOf(roles).toEqualTypeOf<
         ReadonlySet<{ userId: string; role: 'admin' | 'user' }>
       >()
@@ -772,7 +758,7 @@ describe('Sets within optional nested objects', () => {
     })
     expectTypeOf(rolesUpdate).toEqualTypeOf<ObjectSetConfig | undefined>()
 
-    const sessionsUpdate = updateIn(objectSet).cache.optionalSessions(
+    const sessionsUpdate = edit(objectSet).cache.optionalSessions(
       (sessions) => {
         expectTypeOf(sessions).toEqualTypeOf<
           ReadonlySet<{ sessionId: string; expiry?: Date }>
@@ -794,41 +780,41 @@ describe('root collection objects', () => {
   const rootSet = new Set(['item1', 'item2'])
 
   it('should work with Array as root object', () => {
-    expectTypeOf(updateIn(rootArray)[0])
+    expectTypeOf(edit(rootArray)[0])
       .parameter(0)
-      .toMatchTypeOf<(value: string) => string>()
-    expectTypeOf(
-      updateIn(rootArray)[0]((val) => val.toUpperCase()),
-    ).toMatchTypeOf<string[]>()
-    expectTypeOf(updateIn(rootArray).push('new')).toMatchTypeOf<string[]>()
-    expectTypeOf(updateIn(rootArray).pop()).toMatchTypeOf<string[]>()
-    expectTypeOf(updateIn(rootArray).map((x) => x.toUpperCase())).toMatchTypeOf<
+      .toMatchTypeOf<((value: string) => string) | string>()
+    expectTypeOf(edit(rootArray)[0]((val) => val.toUpperCase())).toMatchTypeOf<
+      string[]
+    >()
+    expectTypeOf(edit(rootArray).push('new')).toMatchTypeOf<string[]>()
+    expectTypeOf(edit(rootArray).pop()).toMatchTypeOf<string[]>()
+    expectTypeOf(edit(rootArray).map((x) => x.toUpperCase())).toMatchTypeOf<
       string[]
     >()
   })
 
   it('should work with Map as root object', () => {
-    expectTypeOf(updateIn(rootMap)[key]('key1'))
+    expectTypeOf(edit(rootMap)[key]('key1'))
       .parameter(0)
-      .toMatchTypeOf<(value: string) => string>()
+      .toMatchTypeOf<((value: string) => string) | string>()
     expectTypeOf(
-      updateIn(rootMap)[key]('key1')((val) => val.toUpperCase()),
+      edit(rootMap)[key]('key1')((val) => val.toUpperCase()),
     ).toMatchTypeOf<Map<string, string> | undefined>()
     expectTypeOf(
-      updateIn(rootMap)[key]('nonexistent')((val) => val.toUpperCase()),
+      edit(rootMap)[key]('nonexistent')((val) => val.toUpperCase()),
     ).toMatchTypeOf<Map<string, string> | undefined>()
-    expectTypeOf(updateIn(rootMap).set('newKey', 'newValue')).toMatchTypeOf<
+    expectTypeOf(edit(rootMap).set('newKey', 'newValue')).toMatchTypeOf<
       Map<string, string>
     >()
-    expectTypeOf(updateIn(rootMap).delete('key1')).toMatchTypeOf<
+    expectTypeOf(edit(rootMap).delete('key1')).toMatchTypeOf<
       Map<string, string>
     >()
   })
 
   it('should work with Set as root object', () => {
-    expectTypeOf(updateIn(rootSet).add('newItem')).toMatchTypeOf<Set<string>>()
-    expectTypeOf(updateIn(rootSet).delete('item1')).toMatchTypeOf<Set<string>>()
-    expectTypeOf(updateIn(rootSet).clear()).toMatchTypeOf<Set<string>>()
+    expectTypeOf(edit(rootSet).add('newItem')).toMatchTypeOf<Set<string>>()
+    expectTypeOf(edit(rootSet).delete('item1')).toMatchTypeOf<Set<string>>()
+    expectTypeOf(edit(rootSet).clear()).toMatchTypeOf<Set<string>>()
   })
 })
 
@@ -839,46 +825,46 @@ describe('nullable root collection objects', () => {
   const nullableSet: Set<string> | null = new Set(['item'])
 
   it('should work with nullable Array as root', () => {
-    expectTypeOf(updateIn(nullableArray)[0])
+    expectTypeOf(edit(nullableArray)[0])
       .parameter(0)
-      .toMatchTypeOf<(value: string) => string>()
+      .toMatchTypeOf<((value: string) => string) | string>()
     expectTypeOf(
-      updateIn(nullableArray)[0]((val) => val.toUpperCase()),
+      edit(nullableArray)[0]((val) => val.toUpperCase()),
     ).toMatchTypeOf<string[] | undefined>()
-    expectTypeOf(updateIn(nullableArray).push('new')).toMatchTypeOf<
+    expectTypeOf(edit(nullableArray).push('new')).toMatchTypeOf<
       string[] | undefined
     >()
-    expectTypeOf(updateIn(nullableArray).pop()).toMatchTypeOf<
+    expectTypeOf(edit(nullableArray).pop()).toMatchTypeOf<
       string[] | undefined
     >()
-    expectTypeOf(
-      updateIn(nullableArray).map((x) => x.toUpperCase()),
-    ).toMatchTypeOf<string[] | undefined>()
+    expectTypeOf(edit(nullableArray).map((x) => x.toUpperCase())).toMatchTypeOf<
+      string[] | undefined
+    >()
   })
 
   it('should work with nullable Map as root', () => {
-    expectTypeOf(updateIn(nullableMap)[key]('key'))
+    expectTypeOf(edit(nullableMap)[key]('key'))
       .parameter(0)
-      .toMatchTypeOf<(value: string) => string>()
+      .toMatchTypeOf<((value: string) => string) | string>()
     expectTypeOf(
-      updateIn(nullableMap)[key]('key')((val) => val.toUpperCase()),
+      edit(nullableMap)[key]('key')((val) => val.toUpperCase()),
     ).toMatchTypeOf<Map<string, string> | undefined>()
-    expectTypeOf(updateIn(nullableMap).set('newKey', 'value')).toMatchTypeOf<
+    expectTypeOf(edit(nullableMap).set('newKey', 'value')).toMatchTypeOf<
       Map<string, string> | undefined
     >()
-    expectTypeOf(updateIn(nullableMap).delete('key')).toMatchTypeOf<
+    expectTypeOf(edit(nullableMap).delete('key')).toMatchTypeOf<
       Map<string, string> | undefined
     >()
   })
 
   it('should work with nullable Set as root', () => {
-    expectTypeOf(updateIn(nullableSet).add('newItem')).toMatchTypeOf<
+    expectTypeOf(edit(nullableSet).add('newItem')).toMatchTypeOf<
       Set<string> | undefined
     >()
-    expectTypeOf(updateIn(nullableSet).delete('item')).toMatchTypeOf<
+    expectTypeOf(edit(nullableSet).delete('item')).toMatchTypeOf<
       Set<string> | undefined
     >()
-    expectTypeOf(updateIn(nullableSet).clear()).toMatchTypeOf<
+    expectTypeOf(edit(nullableSet).clear()).toMatchTypeOf<
       Set<string> | undefined
     >()
   })
@@ -893,46 +879,46 @@ describe('undefinable root collection objects', () => {
   const undefinableSet: Set<string> | undefined = new Set(['item'])
 
   it('should work with undefinable Array as root', () => {
-    expectTypeOf(updateIn(undefinableArray)[0])
+    expectTypeOf(edit(undefinableArray)[0])
       .parameter(0)
-      .toMatchTypeOf<(value: string) => string>()
+      .toMatchTypeOf<((value: string) => string) | string>()
     expectTypeOf(
-      updateIn(undefinableArray)[0]((val) => val.toUpperCase()),
+      edit(undefinableArray)[0]((val) => val.toUpperCase()),
     ).toMatchTypeOf<string[] | undefined>()
-    expectTypeOf(updateIn(undefinableArray).push('new')).toMatchTypeOf<
+    expectTypeOf(edit(undefinableArray).push('new')).toMatchTypeOf<
       string[] | undefined
     >()
-    expectTypeOf(updateIn(undefinableArray).pop()).toMatchTypeOf<
+    expectTypeOf(edit(undefinableArray).pop()).toMatchTypeOf<
       string[] | undefined
     >()
     expectTypeOf(
-      updateIn(undefinableArray).map((x) => x.toUpperCase()),
+      edit(undefinableArray).map((x) => x.toUpperCase()),
     ).toMatchTypeOf<string[] | undefined>()
   })
 
   it('should work with undefinable Map as root', () => {
-    expectTypeOf(updateIn(undefinableMap)[key]('key'))
+    expectTypeOf(edit(undefinableMap)[key]('key'))
       .parameter(0)
-      .toMatchTypeOf<(value: string) => string>()
+      .toMatchTypeOf<((value: string) => string) | string>()
     expectTypeOf(
-      updateIn(undefinableMap)[key]('key')((val) => val.toUpperCase()),
+      edit(undefinableMap)[key]('key')((val) => val.toUpperCase()),
     ).toMatchTypeOf<Map<string, string> | undefined>()
-    expectTypeOf(updateIn(undefinableMap).set('newKey', 'value')).toMatchTypeOf<
+    expectTypeOf(edit(undefinableMap).set('newKey', 'value')).toMatchTypeOf<
       Map<string, string> | undefined
     >()
-    expectTypeOf(updateIn(undefinableMap).delete('key')).toMatchTypeOf<
+    expectTypeOf(edit(undefinableMap).delete('key')).toMatchTypeOf<
       Map<string, string> | undefined
     >()
   })
 
   it('should work with undefinable Set as root', () => {
-    expectTypeOf(updateIn(undefinableSet).add('newItem')).toMatchTypeOf<
+    expectTypeOf(edit(undefinableSet).add('newItem')).toMatchTypeOf<
       Set<string> | undefined
     >()
-    expectTypeOf(updateIn(undefinableSet).delete('item')).toMatchTypeOf<
+    expectTypeOf(edit(undefinableSet).delete('item')).toMatchTypeOf<
       Set<string> | undefined
     >()
-    expectTypeOf(updateIn(undefinableSet).clear()).toMatchTypeOf<
+    expectTypeOf(edit(undefinableSet).clear()).toMatchTypeOf<
       Set<string> | undefined
     >()
   })
@@ -946,19 +932,19 @@ describe('return type variations', () => {
   const data: Data = { value: 'test' }
 
   it('should allow updater to return same type', () => {
-    const result = updateIn(data).value((v) => v.toUpperCase())
+    const result = edit(data).value((v) => v.toUpperCase())
     expectTypeOf(result).toEqualTypeOf<Data>()
   })
 
   it('should allow updater to return different type', () => {
-    const result = updateIn(data).value(() => '42')
+    const result = edit(data).value(() => '42')
     expectTypeOf(result).toEqualTypeOf<Data>()
   })
 
   it('should allow updater to return undefined for optional properties', () => {
     // that's how TS works 🤷‍♂️
     data.optional = undefined
-    const result = updateIn(data).optional((_val) => undefined)
+    const result = edit(data).optional((_val) => undefined)
     expectTypeOf(result).toEqualTypeOf<Data | undefined>()
   })
 })
@@ -990,62 +976,64 @@ describe('type error counterexamples', () => {
 
   describe('property access errors', () => {
     it('should error when accessing non-existent properties', () => {
-      expectTypeOf(updateIn(obj)).not.toHaveProperty('nonExistent')
-      expectTypeOf(updateIn(obj)).toHaveProperty('name')
+      expectTypeOf(edit(obj)).not.toHaveProperty('nonExistent')
+      expectTypeOf(edit(obj)).toHaveProperty('name')
 
-      expectTypeOf(updateIn(obj).nested).not.toHaveProperty('wrongProperty')
-      expectTypeOf(updateIn(obj).nested).toHaveProperty('value')
+      expectTypeOf(edit(obj).nested).not.toHaveProperty('wrongProperty')
+      expectTypeOf(edit(obj).nested).toHaveProperty('value')
     })
 
     it('should error when using wrong method types on collections', () => {
-      expectTypeOf(updateIn(obj).config).not.toHaveProperty('push')
-      expectTypeOf(updateIn(obj).config).toHaveProperty('set')
+      expectTypeOf(edit(obj).config).not.toHaveProperty('push')
+      expectTypeOf(edit(obj).config).toHaveProperty('set')
 
-      expectTypeOf(updateIn(obj).items).not.toHaveProperty('key')
-      expectTypeOf(updateIn(obj).items).toHaveProperty('push')
+      expectTypeOf(edit(obj).items).not.toHaveProperty('key')
+      expectTypeOf(edit(obj).items).toHaveProperty('push')
 
-      expectTypeOf(updateIn(obj).groups).not.toHaveProperty('set')
-      expectTypeOf(updateIn(obj).groups).toHaveProperty('add')
+      expectTypeOf(edit(obj).groups).not.toHaveProperty('set')
+      expectTypeOf(edit(obj).groups).toHaveProperty('add')
     })
   })
 
   describe('updater function parameter errors', () => {
     it('should error when updater expects wrong parameter type', () => {
-      expectTypeOf(updateIn(obj).name).toBeCallableWith((name: string) => name)
-      expectTypeOf(updateIn(obj).name)
+      expectTypeOf(edit(obj).name)
+        .parameter(0)
+        .toMatchTypeOf<string | ((name: string) => string)>()
+      expectTypeOf(edit(obj).name)
         .parameter(0)
         .not.toMatchTypeOf<(name: number) => string>()
 
-      expectTypeOf(updateIn(obj).age).toBeCallableWith((age: number) => age)
-      expectTypeOf(updateIn(obj).age)
+      expectTypeOf(edit(obj).age)
+        .parameter(0)
+        .toMatchTypeOf<number | ((age: number) => number)>()
+      expectTypeOf(edit(obj).age)
         .parameter(0)
         .not.toMatchTypeOf<(age: string) => number>()
 
-      expectTypeOf(updateIn(obj).nested.optionalNested.data).toBeCallableWith(
+      expectTypeOf(edit(obj).nested.optionalNested.data).toBeCallableWith(
         (data: readonly string[]) => data,
       )
-      expectTypeOf(updateIn(obj).nested.optionalNested.data)
+      expectTypeOf(edit(obj).nested.optionalNested.data)
         .parameter(0)
         .not.toMatchTypeOf<(data: string[]) => string[]>()
     })
 
     it('should error when updater returns wrong type', () => {
-      expectTypeOf(updateIn(obj).name).toBeCallableWith((name: string) =>
+      expectTypeOf(edit(obj).name).toBeCallableWith((name: string) =>
         name.toUpperCase(),
       )
-      expectTypeOf(updateIn(obj).name)
+      expectTypeOf(edit(obj).name)
         .parameter(0)
         .not.toMatchTypeOf<() => number>()
 
-      expectTypeOf(updateIn(obj).age).toBeCallableWith((age: number) => age + 1)
-      expectTypeOf(updateIn(obj).age)
-        .parameter(0)
-        .not.toMatchTypeOf<() => string>()
+      expectTypeOf(edit(obj).age).toBeCallableWith((age: number) => age + 1)
+      expectTypeOf(edit(obj).age).parameter(0).not.toMatchTypeOf<() => string>()
 
-      expectTypeOf(updateIn(obj).nested.optionalNested.data).toBeCallableWith(
+      expectTypeOf(edit(obj).nested.optionalNested.data).toBeCallableWith(
         (data: readonly string[]) => [...data, 'new'],
       )
-      expectTypeOf(updateIn(obj).nested.optionalNested.data)
+      expectTypeOf(edit(obj).nested.optionalNested.data)
         .parameter(0)
         .not.toMatchTypeOf<() => number[]>()
     })
@@ -1053,37 +1041,37 @@ describe('type error counterexamples', () => {
 
   describe('method parameter errors', () => {
     it('should error when passing wrong types to array methods', () => {
-      expectTypeOf(updateIn(obj).items.push).toBeCallableWith({
+      expectTypeOf(edit(obj).items.push).toBeCallableWith({
         id: 1,
         label: 'test',
       })
-      expectTypeOf(updateIn(obj).items.push)
+      expectTypeOf(edit(obj).items.push)
         .parameter(0)
         .not.toMatchTypeOf<string>()
 
-      expectTypeOf(updateIn(obj).items.map).toBeCallableWith(
+      expectTypeOf(edit(obj).items.map).toBeCallableWith(
         (item: { id: number; label: string }) => ({
           ...item,
           label: item.label.toUpperCase(),
         }),
       )
-      expectTypeOf(updateIn(obj).items.map)
+      expectTypeOf(edit(obj).items.map)
         .parameter(0)
         .not.toMatchTypeOf<() => string>()
 
       // Should accept both T and DeepReadonly<T> return types
-      expectTypeOf(updateIn(obj).items.map).toBeCallableWith(
+      expectTypeOf(edit(obj).items.map).toBeCallableWith(
         (item: { readonly id: number; readonly label: string }) => ({
           id: item.id + 1,
           label: item.label.toUpperCase(),
         }),
       )
-      expectTypeOf(updateIn(obj).items.map).toBeCallableWith(
+      expectTypeOf(edit(obj).items.map).toBeCallableWith(
         (item: { readonly id: number; readonly label: string }) => item, // Return the readonly item directly
       )
 
       // Should accept readonly parameters for other array methods too
-      expectTypeOf(updateIn(obj).items.filter).toBeCallableWith(
+      expectTypeOf(edit(obj).items.filter).toBeCallableWith(
         (item: { readonly id: number; readonly label: string }) => item.id > 0,
       )
 
@@ -1114,7 +1102,7 @@ describe('type error counterexamples', () => {
         }
       }> = []
 
-      expectTypeOf(updateIn({ deepArray }).deepArray.map).toBeCallableWith(
+      expectTypeOf(edit({ deepArray }).deepArray.map).toBeCallableWith(
         (item: ThreeLevelItem) => ({
           ...item,
           level1: item.level1
@@ -1125,57 +1113,55 @@ describe('type error counterexamples', () => {
             : undefined,
         }),
       )
-      expectTypeOf(updateIn({ deepArray }).deepArray.map).toBeCallableWith(
+      expectTypeOf(edit({ deepArray }).deepArray.map).toBeCallableWith(
         (item) => item, // Return readonly item directly
       )
 
       // Should NOT allow returning different types (unlike native Array.map)
-      expectTypeOf(updateIn({ deepArray }).deepArray.map)
+      expectTypeOf(edit({ deepArray }).deepArray.map)
         .parameter(0)
         .not.toMatchTypeOf<(item: ThreeLevelItem) => number>()
 
       // More explicit example: string array cannot be mapped to numbers
-      expectTypeOf(updateIn(['a', 'b']).map)
+      expectTypeOf(edit(['a', 'b']).map)
         .parameter(0)
         .not.toMatchTypeOf<(item: string) => number>()
 
-      expectTypeOf(updateIn({ deepArray }).deepArray.filter).toBeCallableWith(
+      expectTypeOf(edit({ deepArray }).deepArray.filter).toBeCallableWith(
         (item: ThreeLevelItem) => item.level1?.level2?.level3.value! > 10,
       )
     })
 
     // @ts-expect-error
-    updateIn([2, 3, 4]).map((x) => '3')
-    updateIn([2, 3, 4]).map((x) => 3)
+    edit([2, 3, 4]).map((x) => '3')
+    edit([2, 3, 4]).map((x) => 3)
 
-    updateIn([{ a: 1, b: { c: 2 } }]).map((x) => x)
-    updateIn([{ a: 1, b: { c: 2 } }]).map((x) => ({ a: 2, b: { c: 3 } }))
+    edit([{ a: 1, b: { c: 2 } }]).map((x) => x)
+    edit([{ a: 1, b: { c: 2 } }]).map((x) => ({ a: 2, b: { c: 3 } }))
 
     it('should error when passing wrong types to Map methods', () => {
-      expectTypeOf(updateIn(obj).config.set).toBeCallableWith('key', true)
-      expectTypeOf(updateIn(obj).config.set)
+      expectTypeOf(edit(obj).config.set).toBeCallableWith('key', true)
+      expectTypeOf(edit(obj).config.set)
         .parameter(0)
         .not.toMatchTypeOf<number>()
-      expectTypeOf(updateIn(obj).config.set)
+      expectTypeOf(edit(obj).config.set)
         .parameter(1)
         .not.toMatchTypeOf<string>()
 
-      expectTypeOf(updateIn(obj).config[key]).toBeCallableWith('validKey')
-      expectTypeOf(updateIn(obj).config[key])
+      expectTypeOf(edit(obj).config[key]).toBeCallableWith('validKey')
+      expectTypeOf(edit(obj).config[key])
         .parameter(0)
         .not.toMatchTypeOf<number>()
     })
 
     it('should error when passing wrong types to Set methods', () => {
-      expectTypeOf(updateIn(obj).groups.add).toBeCallableWith('newGroup')
-      expectTypeOf(updateIn(obj).groups.add)
+      expectTypeOf(edit(obj).groups.add).toBeCallableWith('newGroup')
+      expectTypeOf(edit(obj).groups.add)
         .parameter(0)
         .not.toMatchTypeOf<number>()
 
-      expectTypeOf(updateIn(obj).groups.delete).toBeCallableWith(
-        'existingGroup',
-      )
-      expectTypeOf(updateIn(obj).groups.delete)
+      expectTypeOf(edit(obj).groups.delete).toBeCallableWith('existingGroup')
+      expectTypeOf(edit(obj).groups.delete)
         .parameter(0)
         .not.toMatchTypeOf<boolean>()
     })
@@ -1184,46 +1170,46 @@ describe('type error counterexamples', () => {
   describe('optional property access errors', () => {
     it('should error when assuming optional properties are required', () => {
       // Test that optional properties return Root | undefined, not just Root
-      expectTypeOf(updateIn(obj).optional(() => 'test')).toEqualTypeOf<
+      expectTypeOf(edit(obj).optional(() => 'test')).toEqualTypeOf<
         TestObj | undefined
       >()
       expectTypeOf(
-        updateIn(obj).optional(() => 'test'),
+        edit(obj).optional(() => 'test'),
       ).not.toEqualTypeOf<TestObj>()
 
       expectTypeOf(
-        updateIn(obj).nested.optionalNested((nested) => nested),
+        edit(obj).nested.optionalNested((nested) => nested),
       ).toEqualTypeOf<TestObj | undefined>()
       expectTypeOf(
-        updateIn(obj).nested.optionalNested((nested) => nested),
+        edit(obj).nested.optionalNested((nested) => nested),
       ).not.toEqualTypeOf<TestObj>()
 
       expectTypeOf(
-        updateIn(obj).nested.optionalNested.data.push('item'),
+        edit(obj).nested.optionalNested.data.push('item'),
       ).toEqualTypeOf<TestObj | undefined>()
       expectTypeOf(
-        updateIn(obj).nested.optionalNested.data.push('item'),
+        edit(obj).nested.optionalNested.data.push('item'),
       ).not.toEqualTypeOf<TestObj>()
     })
   })
 
   describe('readonly violations', () => {
     it('should error when trying to mutate readonly properties in updaters', () => {
-      updateIn(obj).nested.optionalNested.data((data) => {
+      edit(obj).nested.optionalNested.data((data) => {
         expectTypeOf(data).toEqualTypeOf<readonly string[]>()
         expectTypeOf(data).not.toHaveProperty('push')
         expectTypeOf(data).toHaveProperty('length')
         return [...data, 'newItem'] // Correct way
       })
 
-      updateIn(obj).config((config) => {
+      edit(obj).config((config) => {
         expectTypeOf(config).toEqualTypeOf<ReadonlyMap<string, boolean>>()
         expectTypeOf(config).not.toHaveProperty('set')
         expectTypeOf(config).toHaveProperty('get')
         return new Map([...config, ['newKey', true]]) // Correct way
       })
 
-      updateIn(obj).groups((groups) => {
+      edit(obj).groups((groups) => {
         expectTypeOf(groups).toEqualTypeOf<ReadonlySet<string>>()
         expectTypeOf(groups).not.toHaveProperty('add')
         expectTypeOf(groups).toHaveProperty('has')
@@ -1232,7 +1218,7 @@ describe('type error counterexamples', () => {
     })
 
     it('should error when trying to assign to readonly properties', () => {
-      updateIn(obj).items((items) => {
+      edit(obj).items((items) => {
         expectTypeOf(items).toEqualTypeOf<
           readonly { readonly id: number; readonly label: string }[]
         >()
@@ -1244,7 +1230,7 @@ describe('type error counterexamples', () => {
         return items.map((item) => ({ ...item, id: item.id + 1 })) // Correct way
       })
 
-      updateIn(obj).nested((nested) => {
+      edit(obj).nested((nested) => {
         expectTypeOf(nested).toEqualTypeOf<{
           readonly value: number
           readonly optionalNested?: {
@@ -1261,7 +1247,7 @@ describe('type error counterexamples', () => {
   describe('undefined handling errors', () => {
     it('should correctly handle undefined exclusion in optional contexts', () => {
       // Optional properties exclude undefined in updaters - val is never undefined
-      updateIn(obj).optional((val) => {
+      edit(obj).optional((val) => {
         expectTypeOf(val).toEqualTypeOf<string>() // val is never undefined in the updater
         expectTypeOf(val).not.toEqualTypeOf<string | undefined>()
         return val.toUpperCase()
@@ -1269,15 +1255,13 @@ describe('type error counterexamples', () => {
     })
 
     it('should error when trying to pass undefined where not allowed', () => {
-      expectTypeOf(updateIn(obj).name).toBeCallableWith((name: string) =>
+      expectTypeOf(edit(obj).name).toBeCallableWith((name: string) =>
         name.toUpperCase(),
       )
-      expectTypeOf(updateIn(obj).name)
+      expectTypeOf(edit(obj).name)
         .parameter(0)
         .not.toMatchTypeOf<() => undefined>()
-      expectTypeOf(updateIn(obj).name)
-        .parameter(0)
-        .not.toMatchTypeOf<() => null>()
+      expectTypeOf(edit(obj).name).parameter(0).not.toMatchTypeOf<() => null>()
     })
   })
 })

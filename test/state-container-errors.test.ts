@@ -1,8 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
-  setIn,
-  updateIn,
-  editIn,
   edit,
   setDevMode,
   key,
@@ -27,7 +24,7 @@ describe('state container error handling', () => {
     }
     const obj = { [$beditStateContainer]: container }
 
-    expect(() => setIn(obj).prop('value')).toThrow('Get error')
+    expect(() => edit(obj).prop('value')).toThrow('Get error')
     expect(container.set).not.toHaveBeenCalled()
   })
 
@@ -41,7 +38,7 @@ describe('state container error handling', () => {
     }
     const obj = { [$beditStateContainer]: container }
 
-    expect(() => setIn(obj).prop('value')).toThrow('Set error')
+    expect(() => edit(obj).prop('value')).toThrow('Set error')
   })
 
   it('should handle state container get() returning null', () => {
@@ -52,7 +49,7 @@ describe('state container error handling', () => {
     const obj = { [$beditStateContainer]: container }
 
     // @ts-expect-error
-    const result = setIn(obj).prop('value')
+    const result = edit(obj).prop('value')
 
     expect(result).toBeUndefined()
     expect(container.set).not.toHaveBeenCalled()
@@ -66,7 +63,7 @@ describe('state container error handling', () => {
     const obj = { [$beditStateContainer]: container }
 
     // @ts-expect-error
-    const result = setIn(obj).prop('value')
+    const result = edit(obj).prop('value')
 
     expect(result).toBeUndefined()
     expect(container.set).not.toHaveBeenCalled()
@@ -81,7 +78,7 @@ describe('state container error handling', () => {
 
     expect(() => {
       // @ts-expect-error
-      setIn(obj).prop('value')
+      edit(obj).prop('value')
     }).toThrow('Cannot edit property "prop" of string')
   })
 
@@ -95,7 +92,7 @@ describe('state container error handling', () => {
     const obj = { [$beditStateContainer]: container }
 
     await expect(async () => {
-      await editIn(obj)(async (draft) => {
+      await edit.batch(obj, async (draft) => {
         await new Promise((resolve) => setTimeout(resolve, 1))
         draft.value += 1
       })
@@ -116,13 +113,13 @@ describe('state container error handling', () => {
     const obj = { [$beditStateContainer]: container }
 
     // This should work
-    const result1 = setIn(obj).user.name('Jane')
+    const result1 = edit(obj).user.name('Jane')
     expect(result1.user.name).toBe('Jane')
     expect(state.user.name).toBe('Jane')
 
     // This should throw
     expect(() => {
-      setIn(obj).user.name('Error')
+      edit(obj).user.name('Error')
     }).toThrow('Invalid name')
   })
 
@@ -140,9 +137,9 @@ describe('state container error handling', () => {
     const obj = { [$beditStateContainer]: container }
 
     // Batch operations should only call set once
-    const result = edit(obj, (draft) => {
-      setIn(draft).a(10)
-      setIn(draft).b(20)
+    const result = edit.batch(obj, (draft) => {
+      edit(draft).a(10)
+      edit(draft).b(20)
     })
 
     expect(result).toEqual({ a: 10, b: 20 })
@@ -166,18 +163,18 @@ describe('state container error handling', () => {
     const obj = { [$beditStateContainer]: container }
 
     // This should work
-    const result1 = setIn(obj).cache[key]('key2')('value2')
+    const result1 = edit(obj).cache[key]('key2')('value2')
     expect(result1.cache.get('key2')).toBe('value2')
     expect(state.cache.get('key2')).toBe('value2')
 
     // Add more items to test the limit
     for (let i = 3; i <= 5; i++) {
-      setIn(obj).cache[key](`key${i}`)(`value${i}`)
+      edit(obj).cache[key](`key${i}`)(`value${i}`)
     }
 
     // This should throw (exceeds limit)
     expect(() => {
-      setIn(obj).cache[key]('key6')('value6')
+      edit(obj).cache[key]('key6')('value6')
     }).toThrow('Cache size limit exceeded')
   })
 
@@ -193,12 +190,12 @@ describe('state container error handling', () => {
     const obj = { [$beditStateContainer]: container }
 
     // This should work
-    const result1 = updateIn(obj).count((count) => count + 1)
+    const result1 = edit(obj).count((count) => count + 1)
     expect(result1.count).toBe(6)
 
     // This should throw
     expect(() => {
-      updateIn(obj).count((count) => -1)
+      edit(obj).count((count) => -1)
     }).toThrow('Count cannot be negative')
   })
 })

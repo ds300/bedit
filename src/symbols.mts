@@ -5,5 +5,9 @@ export interface BeditStateContainer<T> {
     set(t: T): void
   }
 }
-
-
+export interface AsyncBeditStateContainer<T> {
+  [$beditStateContainer]: {
+    get(): Promise<T>
+    set(t: T): void | Promise<void>
+  }
+}

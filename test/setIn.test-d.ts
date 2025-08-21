@@ -1,5 +1,5 @@
 import { expectTypeOf, describe, it } from 'vitest'
-import { key, setIn } from '../src/bedit.mjs'
+import { key, edit } from '../src/bedit.mjs'
 
 describe('optional properties', () => {
   type Obj = {
@@ -11,26 +11,26 @@ describe('optional properties', () => {
   const obj: Obj = {}
 
   it('should not return undefined for top-level optional properties', () => {
-    const result = setIn(obj).key('test')
+    const result = edit(obj).key('test')
     expectTypeOf(result).toEqualTypeOf<Obj>()
   })
 
   it('should handle nullable properties', () => {
-    const result = setIn(obj).nullableKey('test')
+    const result = edit(obj).nullableKey('test')
     expectTypeOf(result).toEqualTypeOf<Obj>()
 
-    const result2 = setIn(obj).nullableKey(null)
+    const result2 = edit(obj).nullableKey(null)
     expectTypeOf(result2).toEqualTypeOf<Obj>()
   })
 
   it('should handle nullable and undefined properties', () => {
-    const result = setIn(obj).maybeUndefinedNullableKey('test')
+    const result = edit(obj).maybeUndefinedNullableKey('test')
     expectTypeOf(result).toEqualTypeOf<Obj>()
 
-    const result2 = setIn(obj).maybeUndefinedNullableKey(null)
+    const result2 = edit(obj).maybeUndefinedNullableKey(null)
     expectTypeOf(result2).toEqualTypeOf<Obj>()
 
-    const result3 = setIn(obj).maybeUndefinedNullableKey(undefined)
+    const result3 = edit(obj).maybeUndefinedNullableKey(undefined)
     expectTypeOf(result3).toEqualTypeOf<Obj>()
   })
 })
@@ -52,33 +52,33 @@ describe('required properties', () => {
   }
 
   it('should accept value for required string property', () => {
-    const result = setIn(obj).name('Jane')
+    const result = edit(obj).name('Jane')
     expectTypeOf(result).toEqualTypeOf<Obj>()
   })
 
   it('should accept value for required number property', () => {
-    const result = setIn(obj).age(31)
+    const result = edit(obj).age(31)
     expectTypeOf(result).toEqualTypeOf<Obj>()
   })
 
   it('should accept value for required boolean property', () => {
-    const result = setIn(obj).isActive(false)
+    const result = edit(obj).isActive(false)
     expectTypeOf(result).toEqualTypeOf<Obj>()
   })
 
   it('should accept value for nullable property', () => {
-    const result = setIn(obj).nullableValue('test')
+    const result = edit(obj).nullableValue('test')
     expectTypeOf(result).toEqualTypeOf<Obj>()
 
-    const result2 = setIn(obj).nullableValue(null)
+    const result2 = edit(obj).nullableValue(null)
     expectTypeOf(result2).toEqualTypeOf<Obj>()
   })
 
   it('should accept value for undefined property', () => {
-    const result = setIn(obj).maybeUndefinedValue('test')
+    const result = edit(obj).maybeUndefinedValue('test')
     expectTypeOf(result).toEqualTypeOf<Obj>()
 
-    const result2 = setIn(obj).maybeUndefinedValue(undefined)
+    const result2 = edit(obj).maybeUndefinedValue(undefined)
     expectTypeOf(result2).toEqualTypeOf<Obj>()
   })
 })
@@ -101,12 +101,12 @@ describe('nested object properties', () => {
   }
 
   it('should set nested required property', () => {
-    const result = setIn(user).profile.name('Jane')
+    const result = edit(user).profile.name('Jane')
     expectTypeOf(result).toEqualTypeOf<User>()
   })
 
   it('should set nested optional property', () => {
-    const result = setIn(user).profile.settings({
+    const result = edit(user).profile.settings({
       theme: 'dark',
       notifications: true,
     })
@@ -114,12 +114,12 @@ describe('nested object properties', () => {
   })
 
   it('should set deeply nested property', () => {
-    const result = setIn(user).profile.settings.theme('dark')
+    const result = edit(user).profile.settings.theme('dark')
     expectTypeOf(result).toEqualTypeOf<User | undefined>()
   })
 
   it('should set optional nested object', () => {
-    const result = setIn(user).metadata({ lastLogin: new Date() })
+    const result = edit(user).metadata({ lastLogin: new Date() })
     expectTypeOf(result).toEqualTypeOf<User>()
   })
 })
@@ -134,7 +134,7 @@ describe('array properties', () => {
   }
 
   it('should set array element by index', () => {
-    const result = setIn(todoList).todos[0]({
+    const result = edit(todoList).todos[0]({
       id: 2,
       text: 'New todo',
       completed: true,
@@ -143,12 +143,12 @@ describe('array properties', () => {
   })
 
   it('should set nested property in array element', () => {
-    const result = setIn(todoList).todos[0].completed(true)
+    const result = edit(todoList).todos[0].completed(true)
     expectTypeOf(result).toEqualTypeOf<TodoList>()
   })
 
   it('should set optional array property', () => {
-    const result = setIn(todoList).tags(['urgent', 'important'])
+    const result = edit(todoList).tags(['urgent', 'important'])
     expectTypeOf(result).toEqualTypeOf<TodoList>()
   })
 })
@@ -170,20 +170,20 @@ describe('arrays within optional nested objects', () => {
   const profile: UserProfile = {}
 
   it('should return undefined when setting arrays in optional objects', () => {
-    const prefsResult = setIn(profile).user.preferences(['dark-mode'])
+    const prefsResult = edit(profile).user.preferences(['dark-mode'])
     expectTypeOf(prefsResult).toEqualTypeOf<UserProfile | undefined>()
 
-    const bookmarksResult = setIn(profile).user.optionalLists.bookmarks([
+    const bookmarksResult = edit(profile).user.optionalLists.bookmarks([
       'https://example.com',
     ])
     expectTypeOf(bookmarksResult).toEqualTypeOf<UserProfile | undefined>()
   })
 
   it('should return undefined when setting array elements in optional objects', () => {
-    const prefResult = setIn(profile).user.preferences[0]('dark-mode')
+    const prefResult = edit(profile).user.preferences[0]('dark-mode')
     expectTypeOf(prefResult).toEqualTypeOf<UserProfile | undefined>()
 
-    const bookmarkResult = setIn(profile).user.optionalLists.bookmarks[0](
+    const bookmarkResult = edit(profile).user.optionalLists.bookmarks[0](
       'https://example.com',
     )
     expectTypeOf(bookmarkResult).toEqualTypeOf<UserProfile | undefined>()
@@ -202,13 +202,13 @@ describe('arrays within optional nested objects', () => {
     }
     const deep: DeepNested = {}
 
-    const itemsSet = setIn(deep).level1.level2.level3.items(['new-item'])
+    const itemsSet = edit(deep).level1.level2.level3.items(['new-item'])
     expectTypeOf(itemsSet).toEqualTypeOf<DeepNested | undefined>()
 
-    const optionalSet = setIn(deep).level1.level2.level3.optionalItems([42])
+    const optionalSet = edit(deep).level1.level2.level3.optionalItems([42])
     expectTypeOf(optionalSet).toEqualTypeOf<DeepNested | undefined>()
 
-    const itemUpdate = setIn(deep).level1.level2.level3.items[0]('new-item')
+    const itemUpdate = edit(deep).level1.level2.level3.items[0]('new-item')
     expectTypeOf(itemUpdate).toEqualTypeOf<DeepNested | undefined>()
   })
 })
@@ -223,12 +223,12 @@ describe('Map properties', () => {
   }
 
   it('should set Map value by key', () => {
-    const result = setIn(config).settings[key]('theme')('light')
+    const result = edit(config).settings[key]('theme')('light')
     expectTypeOf(result).toEqualTypeOf<Config>()
   })
 
   it('should set optional Map property', () => {
-    const result = setIn(config).optionalMappings(new Map([[1, true]]))
+    const result = edit(config).optionalMappings(new Map([[1, true]]))
     expectTypeOf(result).toEqualTypeOf<Config>()
   })
 })
@@ -250,12 +250,12 @@ describe('Maps within optional nested objects', () => {
   const serviceConfig: ServiceConfig = {}
 
   it('should return undefined when setting Maps in optional objects', () => {
-    const connectionsSet = setIn(serviceConfig).database.connections(
+    const connectionsSet = edit(serviceConfig).database.connections(
       new Map([['primary', 'localhost:5432']]),
     )
     expectTypeOf(connectionsSet).toEqualTypeOf<ServiceConfig | undefined>()
 
-    const fallbacksSet = setIn(serviceConfig).database.optionalCache.fallbacks(
+    const fallbacksSet = edit(serviceConfig).database.optionalCache.fallbacks(
       new Map([['redis', true]]),
     )
     expectTypeOf(fallbacksSet).toEqualTypeOf<ServiceConfig | undefined>()
@@ -263,17 +263,15 @@ describe('Maps within optional nested objects', () => {
 
   it('should return undefined when setting Map values by key in optional objects', () => {
     const connectionResult =
-      setIn(serviceConfig).database.connections[key]('primary')(
-        'localhost:5432',
-      )
+      edit(serviceConfig).database.connections[key]('primary')('localhost:5432')
     expectTypeOf(connectionResult).toEqualTypeOf<ServiceConfig | undefined>()
 
     const settingResult =
-      setIn(serviceConfig).database.optionalCache.settings[key]('timeout')(5000)
+      edit(serviceConfig).database.optionalCache.settings[key]('timeout')(5000)
     expectTypeOf(settingResult).toEqualTypeOf<ServiceConfig | undefined>()
 
     const fallbackResult =
-      setIn(serviceConfig).database.optionalCache.fallbacks[key]('redis')(true)
+      edit(serviceConfig).database.optionalCache.fallbacks[key]('redis')(true)
     expectTypeOf(fallbackResult).toEqualTypeOf<ServiceConfig | undefined>()
   })
 
@@ -290,22 +288,21 @@ describe('Maps within optional nested objects', () => {
     }
     const deepMap: DeepMapNested = {}
 
-    const dataSet = setIn(deepMap).level1.level2.level3.data(
+    const dataSet = edit(deepMap).level1.level2.level3.data(
       new Map([['key1', 100]]),
     )
     expectTypeOf(dataSet).toEqualTypeOf<DeepMapNested | undefined>()
 
-    const optionalSet = setIn(deepMap).level1.level2.level3.optionalData(
+    const optionalSet = edit(deepMap).level1.level2.level3.optionalData(
       new Map([[1, 'value1']]),
     )
     expectTypeOf(optionalSet).toEqualTypeOf<DeepMapNested | undefined>()
 
-    const dataKeySet =
-      setIn(deepMap).level1.level2.level3.data[key]('key1')(100)
+    const dataKeySet = edit(deepMap).level1.level2.level3.data[key]('key1')(100)
     expectTypeOf(dataKeySet).toEqualTypeOf<DeepMapNested | undefined>()
 
     const optionalKeySet =
-      setIn(deepMap).level1.level2.level3.optionalData[key](1)('value1')
+      edit(deepMap).level1.level2.level3.optionalData[key](1)('value1')
     expectTypeOf(optionalKeySet).toEqualTypeOf<DeepMapNested | undefined>()
   })
 
@@ -318,12 +315,12 @@ describe('Maps within optional nested objects', () => {
     }
     const complexConfig: ComplexMapConfig = {}
 
-    const sessionSet = setIn(complexConfig).cache.userSessions(
+    const sessionSet = edit(complexConfig).cache.userSessions(
       new Map([['session1', { userId: 123, expiry: new Date() }]]),
     )
     expectTypeOf(sessionSet).toEqualTypeOf<ComplexMapConfig | undefined>()
 
-    const sessionKeySet = setIn(complexConfig).cache.userSessions[key](
+    const sessionKeySet = edit(complexConfig).cache.userSessions[key](
       'session1',
     )({
       userId: 123,
@@ -331,7 +328,7 @@ describe('Maps within optional nested objects', () => {
     })
     expectTypeOf(sessionKeySet).toEqualTypeOf<ComplexMapConfig | undefined>()
 
-    const metricsKeySet = setIn(complexConfig).cache.optionalMetrics[key](
+    const metricsKeySet = edit(complexConfig).cache.optionalMetrics[key](
       'page-views',
     )({
       count: 100,
@@ -351,12 +348,12 @@ describe('Set properties', () => {
   }
 
   it('should set Set property', () => {
-    const result = setIn(userGroups).groups(new Set(['admin', 'moderator']))
+    const result = edit(userGroups).groups(new Set(['admin', 'moderator']))
     expectTypeOf(result).toEqualTypeOf<UserGroups>()
   })
 
   it('should set optional Set property', () => {
-    const result = setIn(userGroups).optionalTags(new Set([1, 2, 3]))
+    const result = edit(userGroups).optionalTags(new Set([1, 2, 3]))
     expectTypeOf(result).toEqualTypeOf<UserGroups>()
   })
 })
@@ -378,12 +375,12 @@ describe('Sets within optional nested objects', () => {
   const permissions: PermissionSystem = {}
 
   it('should return undefined when setting Sets in optional objects', () => {
-    const activeUsersSet = setIn(permissions).users.activeUsers(
+    const activeUsersSet = edit(permissions).users.activeUsers(
       new Set(['user123']),
     )
     expectTypeOf(activeUsersSet).toEqualTypeOf<PermissionSystem | undefined>()
 
-    const moderatorsSet = setIn(permissions).users.optionalGroups.moderators(
+    const moderatorsSet = edit(permissions).users.optionalGroups.moderators(
       new Set(['mod123']),
     )
     expectTypeOf(moderatorsSet).toEqualTypeOf<PermissionSystem | undefined>()
@@ -402,12 +399,12 @@ describe('Sets within optional nested objects', () => {
     }
     const deepSet: DeepSetNested = {}
 
-    const tagsSet = setIn(deepSet).level1.level2.level3.tags(
+    const tagsSet = edit(deepSet).level1.level2.level3.tags(
       new Set(['important']),
     )
     expectTypeOf(tagsSet).toEqualTypeOf<DeepSetNested | undefined>()
 
-    const labelsSet = setIn(deepSet).level1.level2.level3.optionalLabels(
+    const labelsSet = edit(deepSet).level1.level2.level3.optionalLabels(
       new Set([999]),
     )
     expectTypeOf(labelsSet).toEqualTypeOf<DeepSetNested | undefined>()
@@ -426,20 +423,20 @@ describe('Sets within optional nested objects', () => {
     }
     const complexSet: ComplexSetConfig = {}
 
-    const categoriesSet = setIn(complexSet).categories.activeCategories(
-      new Set(['tech']),
+    const categoriesSet = edit(complexSet).categories.activeCategories(
+      new Set(['tech' as const]),
     )
     expectTypeOf(categoriesSet).toEqualTypeOf<ComplexSetConfig | undefined>()
 
-    const prioritiesSet = setIn(complexSet).categories.optionalPriorities(
-      new Set(['high']),
+    const prioritiesSet = edit(complexSet).categories.optionalPriorities(
+      new Set(['high' as const]),
     )
     expectTypeOf(prioritiesSet).toEqualTypeOf<ComplexSetConfig | undefined>()
 
-    const flagsSet = setIn(complexSet).metadata.statusFlags(new Set([true]))
+    const flagsSet = edit(complexSet).metadata.statusFlags(new Set([true]))
     expectTypeOf(flagsSet).toEqualTypeOf<ComplexSetConfig | undefined>()
 
-    const idsSet = setIn(complexSet).metadata.optionalIds(
+    const idsSet = edit(complexSet).metadata.optionalIds(
       new Set(['id123', 456]),
     )
     expectTypeOf(idsSet).toEqualTypeOf<ComplexSetConfig | undefined>()
@@ -454,12 +451,12 @@ describe('Sets within optional nested objects', () => {
     }
     const objectSet: ObjectSetConfig = {}
 
-    const rolesSet = setIn(objectSet).cache.userRoles(
-      new Set([{ userId: 'user123', role: 'admin' }]),
+    const rolesSet = edit(objectSet).cache.userRoles(
+      new Set([{ userId: 'user123', role: 'admin' as const }]),
     )
     expectTypeOf(rolesSet).toEqualTypeOf<ObjectSetConfig | undefined>()
 
-    const sessionsSet = setIn(objectSet).cache.optionalSessions(
+    const sessionsSet = edit(objectSet).cache.optionalSessions(
       new Set([{ sessionId: 'session456', expiry: new Date() }]),
     )
     expectTypeOf(sessionsSet).toEqualTypeOf<ObjectSetConfig | undefined>()
@@ -476,24 +473,24 @@ describe('root collection objects', () => {
   const rootSet = new Set(['item1', 'item2'])
 
   it('should work with Array as root object', () => {
-    expectTypeOf(setIn(rootArray)[0]('new')).toMatchTypeOf<string[]>()
-    expectTypeOf(setIn(rootArray)(rootArray)).toMatchTypeOf<string[]>()
-    expectTypeOf(setIn(rootArray)(['new', 'array'])).toMatchTypeOf<string[]>()
+    expectTypeOf(edit(rootArray)[0]('new')).toMatchTypeOf<string[]>()
+    expectTypeOf(edit(rootArray)(rootArray)).toMatchTypeOf<string[]>()
+    expectTypeOf(edit(rootArray)(['new', 'array'])).toMatchTypeOf<string[]>()
   })
 
   it('should work with Map as root object', () => {
-    expectTypeOf(setIn(rootMap)[key]('key1')('newValue')).toMatchTypeOf<
+    expectTypeOf(edit(rootMap)[key]('key1')('newValue')).toMatchTypeOf<
       Map<string, string>
     >()
-    expectTypeOf(setIn(rootMap)(rootMap)).toMatchTypeOf<Map<string, string>>()
+    expectTypeOf(edit(rootMap)(rootMap)).toMatchTypeOf<Map<string, string>>()
     expectTypeOf(
-      setIn(rootMap)(new Map([['newKey', 'newValue']])),
+      edit(rootMap)(new Map([['newKey', 'newValue']])),
     ).toMatchTypeOf<Map<string, string>>()
   })
 
   it('should work with Set as root object', () => {
-    expectTypeOf(setIn(rootSet)(rootSet)).toMatchTypeOf<Set<string>>()
-    expectTypeOf(setIn(rootSet)(new Set(['newSet']))).toMatchTypeOf<
+    expectTypeOf(edit(rootSet)(rootSet)).toMatchTypeOf<Set<string>>()
+    expectTypeOf(edit(rootSet)(new Set(['newSet']))).toMatchTypeOf<
       Set<string>
     >()
   })
@@ -507,36 +504,36 @@ describe('nullable root collection objects', () => {
 
   it('should work with nullable Array as root', () => {
     // Should support same operations as normal array but return Root | undefined
-    expectTypeOf(setIn(nullableArray)[0]('new')).toMatchTypeOf<
+    expectTypeOf(edit(nullableArray)[0]('new')).toMatchTypeOf<
       string[] | undefined
     >()
-    expectTypeOf(setIn(nullableArray)(nullableArray)).toMatchTypeOf<
+    expectTypeOf(edit(nullableArray)(nullableArray)).toMatchTypeOf<
       string[] | undefined
     >()
-    expectTypeOf(setIn(nullableArray)(['new', 'array'])).toMatchTypeOf<
+    expectTypeOf(edit(nullableArray)(['new', 'array'])).toMatchTypeOf<
       string[] | undefined
     >()
   })
 
   it('should work with nullable Map as root', () => {
     // Should support same operations as normal map but return Root | undefined
-    expectTypeOf(setIn(nullableMap)[key]('key')('newValue')).toMatchTypeOf<
+    expectTypeOf(edit(nullableMap)[key]('key')('newValue')).toMatchTypeOf<
       Map<string, string> | undefined
     >()
-    expectTypeOf(setIn(nullableMap)(nullableMap)).toMatchTypeOf<
+    expectTypeOf(edit(nullableMap)(nullableMap)).toMatchTypeOf<
       Map<string, string> | undefined
     >()
     expectTypeOf(
-      setIn(nullableMap)(new Map([['newKey', 'newValue']])),
+      edit(nullableMap)(new Map([['newKey', 'newValue']])),
     ).toMatchTypeOf<Map<string, string> | undefined>()
   })
 
   it('should work with nullable Set as root', () => {
     // Should support same operations as normal set but return Root | undefined
-    expectTypeOf(setIn(nullableSet)(nullableSet)).toMatchTypeOf<
+    expectTypeOf(edit(nullableSet)(nullableSet)).toMatchTypeOf<
       Set<string> | undefined
     >()
-    expectTypeOf(setIn(nullableSet)(new Set(['newSet']))).toMatchTypeOf<
+    expectTypeOf(edit(nullableSet)(new Set(['newSet']))).toMatchTypeOf<
       Set<string> | undefined
     >()
   })
@@ -551,34 +548,34 @@ describe('undefinable root collection objects', () => {
   const undefinableSet: Set<string> | undefined = new Set(['item'])
 
   it('should work with undefinable Array as root', () => {
-    expectTypeOf(setIn(undefinableArray)[0]('new')).toMatchTypeOf<
+    expectTypeOf(edit(undefinableArray)[0]('new')).toMatchTypeOf<
       string[] | undefined
     >()
-    expectTypeOf(setIn(undefinableArray)(undefinableArray)).toMatchTypeOf<
+    expectTypeOf(edit(undefinableArray)(undefinableArray)).toMatchTypeOf<
       string[] | undefined
     >()
-    expectTypeOf(setIn(undefinableArray)(['new', 'array'])).toMatchTypeOf<
+    expectTypeOf(edit(undefinableArray)(['new', 'array'])).toMatchTypeOf<
       string[] | undefined
     >()
   })
 
   it('should work with undefinable Map as root', () => {
-    expectTypeOf(setIn(undefinableMap)[key]('key')('newValue')).toMatchTypeOf<
+    expectTypeOf(edit(undefinableMap)[key]('key')('newValue')).toMatchTypeOf<
       Map<string, string> | undefined
     >()
-    expectTypeOf(setIn(undefinableMap)(undefinableMap)).toMatchTypeOf<
+    expectTypeOf(edit(undefinableMap)(undefinableMap)).toMatchTypeOf<
       Map<string, string> | undefined
     >()
     expectTypeOf(
-      setIn(undefinableMap)(new Map([['newKey', 'newValue']])),
+      edit(undefinableMap)(new Map([['newKey', 'newValue']])),
     ).toMatchTypeOf<Map<string, string> | undefined>()
   })
 
   it('should work with undefinable Set as root', () => {
-    expectTypeOf(setIn(undefinableSet)(undefinableSet)).toMatchTypeOf<
+    expectTypeOf(edit(undefinableSet)(undefinableSet)).toMatchTypeOf<
       Set<string> | undefined
     >()
-    expectTypeOf(setIn(undefinableSet)(new Set(['newSet']))).toMatchTypeOf<
+    expectTypeOf(edit(undefinableSet)(new Set(['newSet']))).toMatchTypeOf<
       Set<string> | undefined
     >()
   })
@@ -611,106 +608,114 @@ describe('type error counterexamples', () => {
 
   describe('property access errors', () => {
     it('should error when accessing non-existent properties', () => {
-      expectTypeOf(setIn(obj)).not.toHaveProperty('nonExistent')
-      expectTypeOf(setIn(obj)).toHaveProperty('name')
+      expectTypeOf(edit(obj)).not.toHaveProperty('nonExistent')
+      expectTypeOf(edit(obj)).toHaveProperty('name')
 
-      expectTypeOf(setIn(obj).nested).not.toHaveProperty('wrongProperty')
-      expectTypeOf(setIn(obj).nested).toHaveProperty('value')
+      expectTypeOf(edit(obj).nested).not.toHaveProperty('wrongProperty')
+      expectTypeOf(edit(obj).nested).toHaveProperty('value')
     })
 
     it('should error when using wrong method types on collections', () => {
-      expectTypeOf(setIn(obj).config).not.toHaveProperty('push')
-      expectTypeOf(setIn(obj).config).toHaveProperty(key)
+      expectTypeOf(edit(obj).config).not.toHaveProperty('push')
+      expectTypeOf(edit(obj).config).toHaveProperty(key)
 
-      expectTypeOf(setIn(obj).items).not.toHaveProperty(key)
-      expectTypeOf(setIn(obj).items).toHaveProperty(0)
+      expectTypeOf(edit(obj).items).not.toHaveProperty(key)
+      expectTypeOf(edit(obj).items).toHaveProperty(0)
 
-      expectTypeOf(setIn(obj).groups).not.toHaveProperty('set')
-      expectTypeOf(setIn(obj).groups).not.toHaveProperty(key)
+      expectTypeOf(edit(obj).groups).not.toHaveProperty('set')
+      expectTypeOf(edit(obj).groups).not.toHaveProperty(key)
     })
   })
 
   describe('value type errors', () => {
     it('should error when setting wrong value types', () => {
-      expectTypeOf(setIn(obj).name).toBeCallableWith('valid string')
-      expectTypeOf(setIn(obj).name).parameter(0).not.toMatchTypeOf<number>()
+      expectTypeOf(edit(obj).name)
+        .parameter(0)
+        .toMatchTypeOf<string | ((s: string) => string)>()
+      expectTypeOf(edit(obj).name).parameter(0).not.toMatchTypeOf<number>()
 
-      expectTypeOf(setIn(obj).age).toBeCallableWith(42)
-      expectTypeOf(setIn(obj).age).parameter(0).not.toMatchTypeOf<string>()
+      expectTypeOf(edit(obj).age)
+        .parameter(0)
+        .toMatchTypeOf<number | ((n: number) => number)>()
+      expectTypeOf(edit(obj).age).parameter(0).not.toMatchTypeOf<string>()
 
-      expectTypeOf(setIn(obj).nested.optionalNested.data).toBeCallableWith([
-        'valid',
-        'array',
-      ])
-      expectTypeOf(setIn(obj).nested.optionalNested.data)
+      edit(obj).nested.optionalNested.data(['a', 'b'])
+      edit(obj).nested.optionalNested.data(() => ['a', 'b'])
+
+      // @ts-expect-error
+      edit(obj).nested.optionalNested.data(['a', 1])
+      // @ts-expect-error
+      edit(obj).nested.optionalNested.data(() => ['a', 1])
+      // @ts-expect-error
+      edit(obj).nested.optionalNested.data(1)
+
+      expectTypeOf(edit(obj).nested.optionalNested.data)
         .parameter(0)
         .not.toMatchTypeOf<number[]>()
     })
 
     it('should error when passing wrong types to array setters', () => {
-      expectTypeOf(setIn(obj).items).toBeCallableWith([
-        { id: 1, label: 'test' },
-      ])
-      expectTypeOf(setIn(obj).items).parameter(0).not.toMatchTypeOf<string[]>()
+      edit(obj).items([{ id: 1, label: 'test' }])
+      edit(obj).items(() => [{ id: 1, label: 'test' }])
 
-      expectTypeOf(setIn(obj).items[0]).toBeCallableWith({
-        id: 1,
-        label: 'test',
-      })
-      expectTypeOf(setIn(obj).items[0]).parameter(0).not.toMatchTypeOf<string>()
+      // @ts-expect-error
+      edit(obj).items(() => 1)
+      // @ts-expect-error
+      edit(obj).items(() => 'test')
     })
 
     it('should error when passing wrong types to Map setters', () => {
-      expectTypeOf(setIn(obj).config).toBeCallableWith(new Map([['key', true]]))
-      expectTypeOf(setIn(obj).config)
-        .parameter(0)
-        .not.toMatchTypeOf<Map<string, string>>()
+      edit(obj).config(new Map([['key', true]]))
+      edit(obj).config(() => new Map([['key', true]]))
 
-      expectTypeOf(setIn(obj).config[key]('test')).toBeCallableWith(true)
-      expectTypeOf(setIn(obj).config[key]('test'))
-        .parameter(0)
-        .not.toMatchTypeOf<string>()
+      // @ts-expect-error
+      edit(obj).config(() => 1)
+      // @ts-expect-error
+      edit(obj).config(() => 'test')
     })
 
     it('should error when passing wrong types to Set setters', () => {
-      expectTypeOf(setIn(obj).groups).toBeCallableWith(new Set(['admin']))
-      expectTypeOf(setIn(obj).groups)
-        .parameter(0)
-        .not.toMatchTypeOf<Set<number>>()
+      edit(obj).groups(new Set(['admin']))
+      edit(obj).groups(() => new Set(['admin']))
+
+      // @ts-expect-error
+      edit(obj).groups(() => 1)
+      // @ts-expect-error
+      edit(obj).groups(() => 'test')
     })
   })
 
   describe('optional property access errors', () => {
     it('should error when assuming optional properties are required', () => {
       // Test that top-level optional properties return Root, not Root | undefined
-      expectTypeOf(setIn(obj).optional('test')).toEqualTypeOf<TestObj>()
-      expectTypeOf(setIn(obj).optional('test')).not.toEqualTypeOf<
+      expectTypeOf(edit(obj).optional('test')).toEqualTypeOf<TestObj>()
+      expectTypeOf(edit(obj).optional('test')).not.toEqualTypeOf<
         TestObj | undefined
       >()
 
       expectTypeOf(
-        setIn(obj).nested.optionalNested({ data: [], tags: new Set() }),
+        edit(obj).nested.optionalNested({ data: [], tags: new Set() }),
       ).toEqualTypeOf<TestObj>()
       expectTypeOf(
-        setIn(obj).nested.optionalNested({ data: [], tags: new Set() }),
+        edit(obj).nested.optionalNested({ data: [], tags: new Set() }),
       ).not.toEqualTypeOf<TestObj | undefined>()
 
       expectTypeOf(
-        setIn(obj).nested.optionalNested.data(['item']),
+        edit(obj).nested.optionalNested.data(['item']),
       ).toEqualTypeOf<TestObj | undefined>()
       expectTypeOf(
-        setIn(obj).nested.optionalNested.data(['item']),
+        edit(obj).nested.optionalNested.data(['item']),
       ).not.toEqualTypeOf<TestObj>()
     })
   })
 
   describe('Map key type errors', () => {
     it('should error when using wrong Map key types', () => {
-      expectTypeOf(setIn(obj).config[key]).toBeCallableWith('validKey')
-      expectTypeOf(setIn(obj).config[key])
+      expectTypeOf(edit(obj).config[key]).toBeCallableWith('validKey')
+      expectTypeOf(edit(obj).config[key])
         .parameter(0)
         .not.toMatchTypeOf<number>()
-      expectTypeOf(setIn(obj).config[key])
+      expectTypeOf(edit(obj).config[key])
         .parameter(0)
         .not.toMatchTypeOf<boolean>()
     })

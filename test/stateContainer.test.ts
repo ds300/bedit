@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { setIn } from '../src/bedit.mjs'
+import { update } from '../src/bedit.mjs'
 import { $beditStateContainer } from '../src/symbols.mjs'
 
 class MySignal<T> {
@@ -19,7 +19,7 @@ describe('state container', () => {
       count: 0,
     }
     const signal = new MySignal(original)
-    const result = setIn(signal).count(1)
+    const result = update(signal).count(1)
     expect(result.count).toBe(1)
     expect(signal.get().count).toBe(1)
   })

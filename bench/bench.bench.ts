@@ -1,5 +1,5 @@
 import { describe, bench, expect, afterEach } from 'vitest'
-import { edit, editIn, key, setIn } from '../src/bedit.production.mts'
+import { edit, key } from '../src/bedit.production.mts'
 import {
   produce,
   enableMapSet,
@@ -11,7 +11,7 @@ enableMapSet()
 function warmup() {
   let max = 0
   for (let i = 0; i < 100000; i++) {
-    max = Math.max(max, setIn({ a: 1 }).a(Math.random()).a)
+    max = Math.max(max, edit({ a: 1 }).a(Math.random()).a)
     max = Math.max(
       max,
       produce({ a: 1 }, (draft) => {
@@ -42,11 +42,11 @@ describe('shallow object clone with 1 property', () => {
   })
 
   bench('bedit – setIn', () => {
-    result = setIn(data).a(Math.random())
+    result = edit(data).a(Math.random())
   })
 
-  bench('bedit - editIn', () => {
-    result = editIn(data)((draft) => {
+  bench('bedit - edit.batch', () => {
+    result = edit.batch(data)((draft) => {
       draft.a = Math.random()
     })
   })
@@ -86,11 +86,11 @@ describe('shallow object clone with 10 properties', () => {
   })
 
   bench('bedit – setIn', () => {
-    result = setIn(data).a(Math.random())
+    result = edit(data).a(Math.random())
   })
 
-  bench('bedit - editIn', () => {
-    result = editIn(data)((draft) => {
+  bench('bedit - edit.batch', () => {
+    result = edit.batch(data)((draft) => {
       draft.a = Math.random()
     })
   })
@@ -119,11 +119,11 @@ describe('shallow array clone with 10 items', () => {
   })
 
   bench('bedit – setIn', () => {
-    result = setIn(data)[4](Math.random())
+    result = edit(data)[4](Math.random())
   })
 
-  bench('bedit - editIn', () => {
-    result = editIn(data)((draft) => {
+  bench('bedit - edit.batch', () => {
+    result = edit.batch(data)((draft) => {
       draft[4] = Math.random()
     })
   })
@@ -152,11 +152,11 @@ describe('shallow array clone with 10_000 items', () => {
   })
 
   bench('bedit – setIn', () => {
-    result = setIn(data)[4](Math.random())
+    result = edit(data)[4](Math.random())
   })
 
-  bench('bedit - editIn', () => {
-    result = editIn(data)((draft) => {
+  bench('bedit - edit.batch', () => {
+    result = edit.batch(data)((draft) => {
       draft[4] = Math.random()
     })
   })
@@ -217,11 +217,11 @@ describe('deep object clone', () => {
   })
 
   bench('bedit – setIn', () => {
-    result = setIn(data).a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p(Math.random())
+    result = edit(data).a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p(Math.random())
   })
 
-  bench('bedit - editIn', () => {
-    result = editIn(data).a.b.c.d.e.f.g.h.i.j.k.l.m.n.o((draft) => {
+  bench('bedit - edit.batch', () => {
+    result = edit.batch(data).a.b.c.d.e.f.g.h.i.j.k.l.m.n.o((draft) => {
       draft.p = Math.random()
     })
   })
@@ -253,11 +253,11 @@ describe('marking a todo as completed', () => {
   let result = data
 
   bench('bedit – setIn', () => {
-    result = setIn(data).todos[0].completed(true)
+    result = edit(data).todos[0].completed(true)
   })
 
-  bench('bedit - editIn', () => {
-    result = editIn(data).todos[0]((draft) => {
+  bench('bedit - edit.batch', () => {
+    result = edit.batch(data).todos[0]((draft) => {
       draft.completed = true
     })
   })
@@ -299,27 +299,27 @@ describe('marking four todos as completed and changing the filter', () => {
   })
 
   bench('bedit – setIn', () => {
-    result = edit(data, (data) => {
-      setIn(data).todos[0].completed(true)
-      setIn(data).todos[1].completed(true)
-      setIn(data).todos[2].completed(true)
-      setIn(data).todos[3].completed(true)
-      setIn(data).filter('completed')
+    result = edit.batch(data, (data) => {
+      edit(data).todos[0].completed(true)
+      edit(data).todos[1].completed(true)
+      edit(data).todos[2].completed(true)
+      edit(data).todos[3].completed(true)
+      edit(data).filter('completed')
     })
   })
 
-  bench('bedit - editIn', () => {
-    result = edit(data, (data) => {
-      editIn(data).todos[0]((draft) => {
+  bench('bedit - edit.batch', () => {
+    result = edit.batch(data, (data) => {
+      edit.batch(data).todos[0]((draft) => {
         draft.completed = true
       })
-      editIn(data).todos[1]((draft) => {
+      edit.batch(data).todos[1]((draft) => {
         draft.completed = true
       })
-      editIn(data).todos[2]((draft) => {
+      edit.batch(data).todos[2]((draft) => {
         draft.completed = true
       })
-      editIn(data).todos[3]((draft) => {
+      edit.batch(data).todos[3]((draft) => {
         draft.completed = true
       })
 
@@ -365,11 +365,11 @@ describe('shallow Map clone with 5 elements', () => {
   })
 
   bench('bedit – setIn', () => {
-    result = setIn(data)[key]('a')(Math.random())
+    result = edit(data)[key]('a')(Math.random())
   })
 
-  bench('bedit - editIn', () => {
-    result = editIn(data)((draft) => {
+  bench('bedit - edit.batch', () => {
+    result = edit.batch(data)((draft) => {
       draft.set('a', Math.random())
     })
   })
@@ -398,11 +398,11 @@ describe('shallow Map clone with 10,000 elements', () => {
   })
 
   bench('bedit – setIn', () => {
-    result = setIn(data)[key]('key0')(Math.random())
+    result = edit(data)[key]('key0')(Math.random())
   })
 
-  bench('bedit - editIn', () => {
-    result = editIn(data)((draft) => {
+  bench('bedit - edit.batch', () => {
+    result = edit.batch(data)((draft) => {
       draft.set('key0', Math.random())
     })
   })
@@ -430,8 +430,8 @@ describe('shallow Set clone with 5 elements', () => {
     expect(data.has('a')).toBe(true)
   })
 
-  bench('bedit - editIn', () => {
-    result = editIn(data)((draft) => {
+  bench('bedit - edit.batch', () => {
+    result = edit.batch(data)((draft) => {
       draft.add('f')
     })
   })
@@ -459,8 +459,8 @@ describe('shallow Set clone with 10,000 elements', () => {
     expect(data.has('newItem')).toBe(true)
   })
 
-  bench('bedit - editIn', () => {
-    result = editIn(data)((draft) => {
+  bench('bedit - edit.batch', () => {
+    result = edit.batch(data)((draft) => {
       draft.add('newItem')
     })
   })
@@ -549,33 +549,36 @@ describe('complex nested structure with Maps and Sets using mutate', () => {
   })
 
   bench('bedit', () => {
-    result = edit(data, (draft) => {
+    result = edit.batch(data, (draft) => {
       // Update user1's name
-      setIn(draft).users[key]('user1').name('John Doe')
+      edit(draft).users[key]('user1').name('John Doe')
       // Add a new tag to user1
-      editIn(draft)
+      edit
+        .batch(draft)
         .users[key]('user1')
         .tags((tags) => {
           tags.add('vip')
         })
       // Add a like to user1's first post
-      editIn(draft)
+      edit
+        .batch(draft)
         .users[key]('user1')
         .posts[0].likes((likes) => {
           likes.add('user5')
         })
       // Update user2's theme preference
-      setIn(draft).users[key]('user2').preferences.theme('auto')
+      edit(draft).users[key]('user2').preferences.theme('auto')
       // Add a new subscriber to tech category
-      editIn(draft)
+      edit
+        .batch(draft)
         .categories[key]('tech')
         .subscribers((subs) => {
           subs.add('user3')
         })
       // Update global post limit
-      setIn(draft).settings.global.limits[key]('posts_per_day')(15)
+      edit(draft).settings.global.limits[key]('posts_per_day')(15)
       // Add a new global feature
-      editIn(draft).settings.global.features((features) => {
+      edit.batch(draft).settings.global.features((features) => {
         features.add('analytics')
       })
     })

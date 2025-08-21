@@ -21,23 +21,23 @@ const store = beditify(useStore)
 You can now use bedit functions directly on the store:
 
 ```typescript
-import { setIn, updateIn } from 'bedit'
+import { edit } from 'bedit'
 
-setIn(store).count(42)
-updateIn(store).user.name((name) => name.toUpperCase())
-updateIn(store).todos.push({ id: 1, text: 'Learn bedit' })
+edit(store).count(42)
+edit(store).user.name((name) => name.toUpperCase())
+edit(store).todos.push({ id: 1, text: 'Learn bedit' })
 ```
 
 You can also write helper functions that operate on the store:
 
 ```typescript
 const increment = (n: number) => {
-  updateIn(store).count((c) => c + n)
+  edit(store).count((c) => c + n)
 }
 
 const loadUser = async (userId: string) => {
   const user = await fetch(`/api/users/${userId}`).then((r) => r.json())
-  setIn(store).user(user)
+  edit(store).user(user)
 }
 ```
 

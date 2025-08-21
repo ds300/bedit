@@ -1,5 +1,5 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { setIn, updateIn, editIn, setDevMode, key } from '../src/bedit.mjs'
+import { edit, setDevMode, key } from '../src/bedit.mjs'
 
 describe('Map/Set error handling', () => {
   beforeEach(() => {
@@ -13,53 +13,53 @@ describe('Map/Set error handling', () => {
   it('should throw error for invalid Map property access with setIn', () => {
     const obj = { data: new Map([['key', 'value']]) }
     // @ts-expect-error
-    ;() => setIn(obj).data.invalidProp('test')
+    ;() => edit(obj).data.invalidProp('test')
   })
 
   it('should throw error for invalid Set property access with setIn', () => {
     const obj = { tags: new Set(['tag1']) }
     // @ts-expect-error
-    ;() => setIn(obj).tags.invalidProp('test')
+    ;() => edit(obj).tags.invalidProp('test')
   })
 
   it('should throw type error for invalid Map property access with updateIn', () => {
     const obj = { config: new Map([['theme', 'dark']]) }
     // @ts-expect-error
-    ;() => updateIn(obj).config.theme((theme) => theme.toUpperCase())
+    ;() => edit(obj).config.theme((theme) => theme.toUpperCase())
   })
 
   it('should throw type error for invalid Set property access with updateIn', () => {
     const obj = { tags: new Set(['react', 'typescript']) }
     // @ts-expect-error
-    ;() => updateIn(obj).tags.size((_size) => 3)
+    ;() => edit(obj).tags.size((_size) => 3)
   })
 
-  it('should throw type error for invalid Map property access with editIn', () => {
+  it('should throw type error for invalid Map property access with edit.batch', () => {
     const obj = { cache: new Map([['user1', { name: 'John' }]]) }
     const updater = vi.fn((user) => {
       user.name = 'Jane'
       return user
     })
     // @ts-expect-error
-    const result = editIn(obj).cache.user1(updater)
+    const result = edit.batch(obj).cache.user1(updater)
     expect(result).toBeUndefined()
     expect(updater).not.toHaveBeenCalled()
   })
 
-  it('should throw error for invalid Set property access with editIn', () => {
+  it('should throw error for invalid Set property access with edit.batch', () => {
     const obj = { permissions: new Set(['read', 'write']) }
     // @ts-expect-error
-    ;() => editIn(obj).permissions.add('admin')
+    ;() => edit.batch(obj).permissions.add('admin')
   })
 
   it('should work correctly with proper [key]() usage on Maps', () => {
     const obj = { data: new Map([['key1', 'value1']]) }
 
     // These should all work properly
-    const result1 = setIn(obj).data[key]('key2')('value2')
+    const result1 = edit(obj).data[key]('key2')('value2')
     expect(result1.data.get('key2')).toBe('value2')
 
-    const result2 = updateIn(obj).data[key]('key1')((val) => val.toUpperCase())!
+    const result2 = edit(obj).data[key]('key1')((val) => val.toUpperCase())!
     expect(result2.data.get('key1')).toBe('VALUE1')
   })
 
@@ -75,11 +75,11 @@ describe('Map/Set error handling', () => {
 
     // Invalid nested Map access
     // @ts-expect-error
-    setIn(obj).config.cache.users('user3')
+    edit(obj).config.cache.users('user3')
 
     // Invalid nested Set access
     // @ts-expect-error
-    setIn(obj).config.cache[key]('users').add('user3')
+    edit(obj).config.cache[key]('users').add('user3')
   })
 
   it('should handle errors with symbol properties', () => {
@@ -87,7 +87,7 @@ describe('Map/Set error handling', () => {
     const obj = { data: new Map([[symbolKey, 'value']]) }
 
     // @ts-expect-error
-    setIn(obj).data[symbolKey]('new value')
+    edit(obj).data[symbolKey]('new value')
   })
 
   it('should handle errors with numeric property access on Maps', () => {
@@ -99,6 +99,6 @@ describe('Map/Set error handling', () => {
     }
 
     // @ts-expect-error
-    setIn(obj).items[0]('updated')
+    edit(obj).items[0]('updated')
   })
 })

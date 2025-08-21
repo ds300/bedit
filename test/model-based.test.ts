@@ -1,7 +1,7 @@
 import { describe, beforeEach, afterEach, expect } from 'vitest'
 import { test } from '@fast-check/vitest'
 import * as fc from 'fast-check'
-import { setIn, updateIn, editIn, edit, setDevMode } from '../src/bedit.mjs'
+import { edit, setDevMode } from '../src/bedit.mjs'
 
 // Configure for model-based testing
 fc.configureGlobal({ numRuns: process.env.CI ? 2000 : 50 })
@@ -196,7 +196,7 @@ class SetInCommand extends BeditCommand {
   async executeOnReal(state: any): Promise<any> {
     await Promise.resolve() // Async delay
     // Build the setIn call dynamically
-    let target = setIn(state) as any
+    let target = edit(state) as any
     for (const segment of this.path) {
       target = target[segment]
     }
@@ -241,7 +241,7 @@ class UpdateInCommand extends BeditCommand {
 
   async executeOnReal(state: any): Promise<any> {
     await Promise.resolve() // Async delay
-    let target = updateIn(state) as any
+    let target = edit(state) as any
     for (const segment of this.path) {
       target = target[segment]
     }
@@ -290,7 +290,8 @@ class EditInCommand extends BeditCommand {
 
   async executeOnReal(state: any): Promise<any> {
     await Promise.resolve() // Async delay
-    let target = editIn(state) as any
+    // Get the target object at the path
+    let target = edit.batch(state) as any
     for (const segment of this.path) {
       target = target[segment]
     }
@@ -361,7 +362,7 @@ class EditCommand extends BeditCommand {
 
   async executeOnReal(state: any): Promise<any> {
     await Promise.resolve() // Async delay
-    return edit(state, async (draft) => {
+    return edit.batch(state, async (draft) => {
       // Apply each sub-command to the draft using real operations
       for (const command of this.subCommands) {
         await Promise.resolve() // Async delay between operations
@@ -900,7 +901,7 @@ describe('Phase 3: Async Operations', () => {
 
     async executeOnReal(state: any): Promise<any> {
       await Promise.resolve() // Simulate async delay
-      let setter = setIn(state) as any
+      let setter = edit(state) as any
       for (const segment of this.path) {
         setter = setter[segment]
       }
@@ -939,7 +940,7 @@ describe('Phase 3: Async Operations', () => {
 
     async executeOnReal(state: any): Promise<any> {
       await Promise.resolve() // Simulate async delay
-      let updater = updateIn(state) as any
+      let updater = edit(state) as any
       for (const segment of this.path) {
         updater = updater[segment]
       }
