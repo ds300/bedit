@@ -1,5 +1,9 @@
 import { _shallowClone, isPlainObject } from './utils.mjs'
-import { $beditStateContainer, BeditStateContainer } from './symbols.mjs'
+import {
+  $beditStateContainer,
+  AsyncBeditStateContainer,
+  BeditStateContainer,
+} from './symbols.mjs'
 
 export const key = Symbol.for('__bedit_key__')
 
@@ -127,6 +131,44 @@ export type Updatable<
             >
           })
 
+export type AsyncUpdatable<
+  T,
+  Root = T,
+  Result = Root,
+  SetResult = Result,
+  IsOptional = never,
+> = {
+  (value: T | DeepReadonly<T> | IsOptional): Promise<SetResult>
+  (
+    update: Updater<DeepReadonly<T>, T | DeepReadonly<T> | IsOptional>,
+  ): Promise<Result>
+} & (NonNullable<T> extends ReadonlyMap<infer K, infer V>
+  ? {
+      [key]: (
+        k: K,
+      ) => AsyncUpdatable<V, undefined | Root, undefined | Root, Root>
+    } & UpdatingMapMethods<K, V, Promise<Root>>
+  : NonNullable<T> extends ReadonlyArray<infer U>
+    ? { [index: number]: AsyncUpdatable<U, Root> } & UpdatingArrayMethods<
+        DeepReadonly<U>,
+        Promise<Root>
+      >
+    : NonNullable<T> extends ReadonlySet<infer U>
+      ? UpdatingSetMethods<U, Promise<Root>>
+      : // The seemingly pointless Exclude here actually prevents distribution
+        // over T's members if it's a union
+        Exclude<T, never> extends PrimitiveOrImmutableBuiltin
+        ? {}
+        : {
+            [k in keyof NonNullable<T>]-?: AsyncUpdatable<
+              Exclude<NonNullable<T>[k], undefined>,
+              Extract<NonNullable<T>[k], null | undefined> | Root,
+              undefined extends NonNullable<T>[k] ? Root | undefined : Root,
+              Root,
+              undefined extends NonNullable<T>[k] ? undefined : never
+            >
+          })
+
 export type Batchable<T, Root = T, Result = Root> = (<F extends BatchFn<T>>(
   mutate: F,
 ) => ReturnType<F> extends Promise<any>
@@ -140,6 +182,27 @@ export type Batchable<T, Root = T, Result = Root> = (<F extends BatchFn<T>>(
         ? <F extends BatchFn<T>>(
             mutate: F,
           ) => ReturnType<F> extends Promise<any> ? Promise<Root> : Root
+        : Exclude<T, never> extends PrimitiveOrImmutableBuiltin
+          ? never
+          : {
+              [k in keyof NonNullable<T>]-?: Batchable<
+                Exclude<NonNullable<T>[k], undefined>,
+                Extract<NonNullable<T>[k], null | undefined> | Root,
+                undefined extends NonNullable<T>[k] ? Root | undefined : Root
+              >
+            })
+
+export type AsyncBatchable<T, Root = T, Result = Root> = (<
+  F extends BatchFn<T>,
+>(
+  mutate: F,
+) => Promise<Result>) &
+  (NonNullable<T> extends ReadonlyMap<infer K, infer V>
+    ? { [key]: (k: K) => AsyncBatchable<V, Root | undefined> }
+    : NonNullable<T> extends ReadonlyArray<infer U>
+      ? { [key: number]: AsyncBatchable<U, Root> }
+      : NonNullable<T> extends ReadonlySet<any>
+        ? <F extends BatchFn<T>>(mutate: F) => Promise<Root>
         : Exclude<T, never> extends PrimitiveOrImmutableBuiltin
           ? never
           : {
@@ -234,6 +297,10 @@ function updateChildren(obj: any, fn: (child: any) => any) {
 const isCollection = (obj: any) =>
   obj instanceof Map || obj instanceof Set || Array.isArray(obj)
 
+class MapKey {
+  constructor(public k: any) {}
+}
+
 interface Frame {
   /**
    * The proxy that is used to record paths
@@ -255,6 +322,7 @@ function frame(parent: Frame | null): Frame {
   let i = 0
   let type = EDIT as FrameType
   let clonedObjects = null as null | Set<object>
+  let rootPromise = null as null | Promise<any>
 
   function release() {
     complete = null
@@ -268,6 +336,7 @@ function frame(parent: Frame | null): Frame {
     keyPath.fill(undefined)
     objPath.fill(undefined)
     obj = null
+    rootPromise = null
     release()
   }
 
@@ -284,7 +353,7 @@ function frame(parent: Frame | null): Frame {
   function set(obj: any, key: string | number, value: any): any {
     const cloned = clone(obj)
     if (cloned instanceof Map) {
-      cloned.set(key, value)
+      cloned.set((key as unknown as MapKey).k, value)
     } else {
       cloned[key] = value
     }
@@ -299,16 +368,25 @@ function frame(parent: Frame | null): Frame {
   const result = {
     p: parent,
     r: (root: any, _type: FrameType, isUpdate?: boolean) => {
+      type = _type
+      obj = root
       if (isUpdate && $beditStateContainer in root) {
         const container = root[$beditStateContainer]
-        root = container.get()
+        const acutalRoot = container.get()
+        if (acutalRoot instanceof Promise) {
+          rootPromise = acutalRoot
+          obj = null
+        } else {
+          obj = root = acutalRoot
+        }
         complete = (obj: any) => {
-          container.set(obj)
+          const res = container.set(obj)
+          if (res instanceof Promise) {
+            return res.then(() => obj)
+          }
           return obj
         }
       }
-      type = _type
-      obj = root
       if (!root || typeof root !== 'object' || !batchStack) {
         return
       }
@@ -335,7 +413,7 @@ function frame(parent: Frame | null): Frame {
           }
           if (prop === key) {
             return (k: any) => {
-              keyPath[i] = k
+              keyPath[i] = new MapKey(k)
               objPath[i] = obj
               obj = obj?.get(k)
               i++
@@ -355,6 +433,27 @@ function frame(parent: Frame | null): Frame {
       },
       apply(_target, _thisArg, args) {
         try {
+          if (rootPromise) {
+            return rootPromise
+              .then((root) => {
+                obj = root
+                for (let j = 0; j < i; j++) {
+                  objPath[j] = obj
+                  const key = keyPath[j]
+                  if (key instanceof MapKey) {
+                    obj = obj?.get(key.k)
+                  } else {
+                    obj = obj?.[keyPath[j]]
+                  }
+                }
+                rootPromise = null
+                return (result as any).$(...args)
+              })
+              .catch((e) => {
+                resetAfterThrow()
+                throw e
+              })
+          }
           let value: any = undefined
           if (type === EDIT) {
             // if obj is a function and it's parent is an array/map/set,
@@ -459,6 +558,7 @@ function frame(parent: Frame | null): Frame {
           }
           obj = null
           const ret = complete ? complete(value) : value
+
           release()
           return ret
         } catch (e) {
@@ -585,20 +685,24 @@ export const edit: (<T extends object>(
   },
 })
 
-export const update: (<T extends object>(
-  t: BeditStateContainer<T>
-) => Updatable<T>) & {
+export const update: {
+  <T extends object>(t: BeditStateContainer<T>): Updatable<T>
+  <T extends object>(t: AsyncBeditStateContainer<T>): AsyncUpdatable<T>
+} & {
   batch: {
-    <T extends object>(
-      t: BeditStateContainer<T>,
-    ): Batchable<T>
+    <T extends object>(t: BeditStateContainer<T>): Batchable<T>
+    <T extends object>(t: AsyncBeditStateContainer<T>): AsyncBatchable<T>
     <T extends object, Fn extends BatchFn<T>>(
       t: BeditStateContainer<T>,
       fn: Fn,
     ): ReturnType<Fn> extends Promise<any> ? Promise<T> : T
+    <T extends object, Fn extends BatchFn<T>>(
+      t: AsyncBeditStateContainer<T>,
+      fn: Fn,
+    ): Promise<T>
   }
-} = Object.assign((t: any) => getFrame(t, EDIT).$, {
+} = Object.assign((t: any) => getFrame(t, EDIT, true).$, {
   batch: function batch(t: any, f?: any): any {
-    return f ? batch(t)(f) : getFrame(t, BATCH).$
+    return f ? batch(t)(f) : getFrame(t, BATCH, true).$
   },
 })

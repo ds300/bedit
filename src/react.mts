@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
-import { $beditStateContainer, BeditStateContainer } from './symbols.mjs'
-import { edit } from './bedit.mjs'
+import { $beditStateContainer, AsyncBeditStateContainer } from './symbols.mjs'
 import { _shallowClone } from './utils.mjs'
 
 function giveStore(state: any, store: any) {
@@ -21,7 +20,7 @@ function giveStore(state: any, store: any) {
   return state
 }
 
-export function useBeditState<T>(init: T | (() => T)) {
+export function useBeditState<T extends object>(init: T | (() => T)) {
   const [state, setState] = useState<T>(init)
   if (!state || typeof state !== 'object') {
     throw new Error(
@@ -31,30 +30,13 @@ export function useBeditState<T>(init: T | (() => T)) {
 
   const store = useMemo(() => {
     return {
-      [$beditStateContainer]: {
-        get: () => {
-          let state
-          setState((newState) => {
-            state = newState
-            return newState
-          })
-          return state!
-        },
-        set: (newState: T) => {
-          setState(newState)
-        },
+      get: () =>
+        new Promise((resolve) => setState((state) => (resolve(state), state))),
+      set: (newState: T) => {
+        setState(newState)
       },
-    } satisfies BeditStateContainer<T>
+    }
   }, [setState])
 
-  return giveStore(state, store) as T & BeditStateContainer<T>
+  return giveStore(state, store) as T & AsyncBeditStateContainer<T>
 }
-
-const state = useBeditState({
-  user: { name: 'Nick Cave', preferences: { theme: 'dark' } },
-  featureFlags: new Set(['new-sidebar', 'new-sidebar-2']),
-})
-
-const nextState = edit(state).user.preferences.theme('light')
-const nextState2 = edit(state).featureFlags.add('new-sidebar-3')
-const nextState3 = edit(state).featureFlags.delete('new-sidebar-2')

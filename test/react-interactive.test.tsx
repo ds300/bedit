@@ -360,12 +360,12 @@ describe('useBeditState - Interactive Tests', () => {
           <div data-testid="controls">
             <button
               data-testid="toggle-theme"
-              onClick={() =>
+              onClick={() => {
                 updateConfig(
                   'theme',
                   state.config.get('theme') === 'dark' ? 'light' : 'dark',
                 )
-              }
+              }}
             >
               Toggle Theme
             </button>

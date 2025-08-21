@@ -13,8 +13,19 @@ class MySignal<T> {
   [$beditStateContainer] = this
 }
 
+class MyAsyncSignal<T> {
+  constructor(private value: T) {}
+  async get() {
+    return this.value
+  }
+  async set(value: T) {
+    this.value = value
+  }
+  [$beditStateContainer] = this
+}
+
 describe('state container', () => {
-  it('should work', () => {
+  it.only('should work', () => {
     const original = {
       count: 0,
     }
@@ -22,5 +33,17 @@ describe('state container', () => {
     const result = update(signal).count(1)
     expect(result.count).toBe(1)
     expect(signal.get().count).toBe(1)
+  })
+})
+
+describe('async state container', () => {
+  it('should work', async () => {
+    const original = {
+      count: 0,
+    }
+    const signal = new MyAsyncSignal(original)
+    const result = await update(signal).count(1)
+    expect(result.count).toBe(1)
+    expect((await signal.get()).count).toBe(1)
   })
 })

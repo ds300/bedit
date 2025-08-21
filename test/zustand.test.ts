@@ -1,7 +1,7 @@
 import { expect, describe, it } from 'vitest'
 import { create, createStore } from 'zustand'
 import { beditify } from '../src/zustand.mjs'
-import { edit, setDevMode } from '../src/bedit.mjs'
+import { edit, setDevMode, update } from '../src/bedit.mjs'
 import { $beditStateContainer } from '../src/symbols.mjs'
 
 setDevMode(true)
@@ -39,13 +39,13 @@ describe('beditify', () => {
       expect(wrappedStore.subscribe).toBe(originalStore.subscribe)
 
       // Test basic bedit functions work
-      edit(wrappedStore).count(42)
+      update(wrappedStore).count(42)
       expect(wrappedStore.getState().count).toBe(42)
 
-      edit(wrappedStore).nested.value((v) => v.toUpperCase())
+      update(wrappedStore).nested.value((v) => v.toUpperCase())
       expect(wrappedStore.getState().nested.value).toBe('TEST')
 
-      edit(wrappedStore).users.push({ id: 99, name: 'Test User' })
+      update(wrappedStore).users.push({ id: 99, name: 'Test User' })
       expect(wrappedStore.getState().users).toHaveLength(3)
     })
 
@@ -71,10 +71,10 @@ describe('beditify', () => {
       expect(wrappedStore.getInitialState).toBe(originalStore.getInitialState)
 
       // Test basic bedit functions work
-      edit(wrappedStore).count(99)
+      update(wrappedStore).count(99)
       expect(wrappedStore.getState().count).toBe(99)
 
-      edit(wrappedStore).nested.items((items) => [...items, 10])
+      update(wrappedStore).nested.items((items) => [...items, 10])
       expect(wrappedStore.getState().nested.items).toEqual([1, 2, 3, 10])
     })
   })
