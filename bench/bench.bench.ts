@@ -1,5 +1,5 @@
 import { describe, bench, expect, afterEach } from 'vitest'
-import { edit, key } from '../src/bedit.production.mts'
+import { edit, key } from '../src/patchfork.production.mts'
 import {
   produce,
   enableMapSet,
@@ -41,11 +41,11 @@ describe('shallow object clone with 1 property', () => {
     expect(data.a).toBe(1)
   })
 
-  bench('bedit – setIn', () => {
+  bench('patchfork – setIn', () => {
     result = edit(data).a(Math.random())
   })
 
-  bench('bedit - edit.batch', () => {
+  bench('patchfork - edit.batch', () => {
     result = edit.batch(data)((draft) => {
       draft.a = Math.random()
     })
@@ -85,11 +85,11 @@ describe('shallow object clone with 10 properties', () => {
     expect(data.a).toBe(1)
   })
 
-  bench('bedit – setIn', () => {
+  bench('patchfork – setIn', () => {
     result = edit(data).a(Math.random())
   })
 
-  bench('bedit - edit.batch', () => {
+  bench('patchfork - edit.batch', () => {
     result = edit.batch(data)((draft) => {
       draft.a = Math.random()
     })
@@ -118,11 +118,11 @@ describe('shallow array clone with 10 items', () => {
     expect(data[4]).toBe(5)
   })
 
-  bench('bedit – setIn', () => {
+  bench('patchfork – setIn', () => {
     result = edit(data)[4](Math.random())
   })
 
-  bench('bedit - edit.batch', () => {
+  bench('patchfork - edit.batch', () => {
     result = edit.batch(data)((draft) => {
       draft[4] = Math.random()
     })
@@ -151,11 +151,11 @@ describe('shallow array clone with 10_000 items', () => {
     expect(data[4]).toBe(4)
   })
 
-  bench('bedit – setIn', () => {
+  bench('patchfork – setIn', () => {
     result = edit(data)[4](Math.random())
   })
 
-  bench('bedit - edit.batch', () => {
+  bench('patchfork - edit.batch', () => {
     result = edit.batch(data)((draft) => {
       draft[4] = Math.random()
     })
@@ -216,11 +216,11 @@ describe('deep object clone', () => {
     expect(data.a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p).toBe(1)
   })
 
-  bench('bedit – setIn', () => {
+  bench('patchfork – setIn', () => {
     result = edit(data).a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p(Math.random())
   })
 
-  bench('bedit - edit.batch', () => {
+  bench('patchfork - edit.batch', () => {
     result = edit.batch(data).a.b.c.d.e.f.g.h.i.j.k.l.m.n.o((draft) => {
       draft.p = Math.random()
     })
@@ -252,11 +252,11 @@ describe('marking a todo as completed', () => {
 
   let result = data
 
-  bench('bedit – setIn', () => {
+  bench('patchfork – setIn', () => {
     result = edit(data).todos[0].completed(true)
   })
 
-  bench('bedit - edit.batch', () => {
+  bench('patchfork - edit.batch', () => {
     result = edit.batch(data).todos[0]((draft) => {
       draft.completed = true
     })
@@ -298,7 +298,7 @@ describe('marking four todos as completed and changing the filter', () => {
     expect(data.todos[0].completed).toBe(false)
   })
 
-  bench('bedit – setIn', () => {
+  bench('patchfork – setIn', () => {
     result = edit.batch(data, (data) => {
       edit(data).todos[0].completed(true)
       edit(data).todos[1].completed(true)
@@ -308,7 +308,7 @@ describe('marking four todos as completed and changing the filter', () => {
     })
   })
 
-  bench('bedit - edit.batch', () => {
+  bench('patchfork - edit.batch', () => {
     result = edit.batch(data, (data) => {
       edit.batch(data).todos[0]((draft) => {
         draft.completed = true
@@ -364,11 +364,11 @@ describe('shallow Map clone with 5 elements', () => {
     expect(data.get('a')).toBe(1)
   })
 
-  bench('bedit – setIn', () => {
+  bench('patchfork – setIn', () => {
     result = edit(data)[key]('a')(Math.random())
   })
 
-  bench('bedit - edit.batch', () => {
+  bench('patchfork - edit.batch', () => {
     result = edit.batch(data)((draft) => {
       draft.set('a', Math.random())
     })
@@ -397,11 +397,11 @@ describe('shallow Map clone with 10,000 elements', () => {
     expect(data.get('key0')).toBe(0)
   })
 
-  bench('bedit – setIn', () => {
+  bench('patchfork – setIn', () => {
     result = edit(data)[key]('key0')(Math.random())
   })
 
-  bench('bedit - edit.batch', () => {
+  bench('patchfork - edit.batch', () => {
     result = edit.batch(data)((draft) => {
       draft.set('key0', Math.random())
     })
@@ -430,7 +430,7 @@ describe('shallow Set clone with 5 elements', () => {
     expect(data.has('a')).toBe(true)
   })
 
-  bench('bedit - edit.batch', () => {
+  bench('patchfork - edit.batch', () => {
     result = edit.batch(data)((draft) => {
       draft.add('f')
     })
@@ -459,7 +459,7 @@ describe('shallow Set clone with 10,000 elements', () => {
     expect(data.has('newItem')).toBe(true)
   })
 
-  bench('bedit - edit.batch', () => {
+  bench('patchfork - edit.batch', () => {
     result = edit.batch(data)((draft) => {
       draft.add('newItem')
     })
@@ -548,7 +548,7 @@ describe('complex nested structure with Maps and Sets using mutate', () => {
     )
   })
 
-  bench('bedit', () => {
+  bench('patchfork', () => {
     result = edit.batch(data, (draft) => {
       // Update user1's name
       edit(draft).users[key]('user1').name('John Doe')

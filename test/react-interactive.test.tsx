@@ -1,26 +1,26 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useBeditState } from '../src/react.mjs'
-import { update, setDevMode, edit } from '../src/bedit.mjs'
+import { usePatchableState } from '../src/react.mjs'
+import { patch, setDevMode } from '../src/patchfork.mjs'
 
 setDevMode(true)
 
-describe('useBeditState - Interactive Tests', () => {
+describe('usePatchforkState - Interactive Tests', () => {
   it('should update state when clicking buttons', async () => {
     function Counter() {
-      const state = useBeditState({ count: 0 })
+      const [state, store] = usePatchableState({ count: 0 })
 
       const increment = () => {
-        update(state).count(state.count + 1)
+        patch(store).count((count) => count + 1)
       }
 
       const decrement = () => {
-        update(state).count(state.count - 1)
+        patch(store).count((count) => count - 1)
       }
 
       const reset = () => {
-        update(state).count(0)
+        patch(store).count(0)
       }
 
       return (
@@ -64,31 +64,31 @@ describe('useBeditState - Interactive Tests', () => {
 
   it('should handle complex nested state updates', async () => {
     function UserProfile() {
-      const state = useBeditState({
+      const [state, store] = usePatchableState({
         user: { name: 'John', age: 25, active: true },
         settings: { theme: 'dark', notifications: false },
       })
 
       const updateName = (newName: string) => {
-        update(state).user.name(newName)
+        patch(store).user.name(newName)
       }
 
       const incrementAge = () => {
-        update(state).user.age(state.user.age + 1)
+        patch(store).user.age((age) => age + 1)
       }
 
       const toggleActive = () => {
-        update(state).user.active(!state.user.active)
+        patch(store).user.active((active) => !active)
       }
 
       const toggleTheme = () => {
-        update(state).settings.theme((theme) =>
+        patch(store).settings.theme((theme) =>
           theme === 'dark' ? 'light' : 'dark',
         )
       }
 
       const toggleNotifications = () => {
-        update(state).settings.notifications(!state.settings.notifications)
+        patch(store).settings.notifications((notifications) => !notifications)
       }
 
       return (
@@ -164,21 +164,21 @@ describe('useBeditState - Interactive Tests', () => {
 
   it('should handle array operations with interactive buttons', async () => {
     function TodoList() {
-      const state = useBeditState({
-        todos: ['Learn React', 'Learn bedit'],
+      const [state, store] = usePatchableState({
+        todos: ['Learn React', 'Learn patchfork'],
         nextId: 3,
       })
 
       const addTodo = (text: string) => {
-        update(state).todos.push(text)
+        patch(store).todos.push(text)
       }
 
       const removeTodo = (index: number) => {
-        update(state).todos.splice(index, 1)
+        patch(store).todos.splice(index, 1)
       }
 
       const updateTodo = (index: number, newText: string) => {
-        update(state).todos[index](newText)
+        patch(store).todos[index](newText)
       }
 
       return (
@@ -221,7 +221,9 @@ describe('useBeditState - Interactive Tests', () => {
     // Initial state
     expect(screen.getByTestId('count')).toHaveTextContent('2')
     expect(screen.getByTestId('todo-text-0')).toHaveTextContent('Learn React')
-    expect(screen.getByTestId('todo-text-1')).toHaveTextContent('Learn bedit')
+    expect(screen.getByTestId('todo-text-1')).toHaveTextContent(
+      'Learn patchfork',
+    )
 
     // Add a todo
     await user.click(screen.getByTestId('add-todo'))
@@ -242,21 +244,21 @@ describe('useBeditState - Interactive Tests', () => {
 
   it('should handle Set operations interactively', async () => {
     function TagManager() {
-      const state = useBeditState({
+      const [state, store] = usePatchableState({
         tags: new Set(['react', 'javascript']),
         availableTags: ['react', 'javascript', 'typescript', 'node', 'vue'],
       })
 
       const addTag = (tag: string) => {
-        update(state).tags.add(tag)
+        patch(store).tags.add(tag)
       }
 
       const removeTag = (tag: string) => {
-        update(state).tags.delete(tag)
+        patch(store).tags.delete(tag)
       }
 
       const clearTags = () => {
-        update(state).tags.clear()
+        patch(store).tags.clear()
       }
 
       return (
@@ -321,7 +323,7 @@ describe('useBeditState - Interactive Tests', () => {
 
   it('should handle Map operations with interactive updates', async () => {
     function ConfigManager() {
-      const state = useBeditState({
+      const [state, store] = usePatchableState({
         config: new Map([
           ['theme', 'dark'],
           ['language', 'en'],
@@ -329,15 +331,15 @@ describe('useBeditState - Interactive Tests', () => {
       })
 
       const updateConfig = (key: string, value: string) => {
-        update(state).config.set(key, value)
+        patch(store).config.set(key, value)
       }
 
       const deleteConfig = (key: string) => {
-        update(state).config.delete(key)
+        patch(store).config.delete(key)
       }
 
       const clearConfig = () => {
-        update(state).config.clear()
+        patch(store).config.clear()
       }
 
       return (
@@ -422,35 +424,35 @@ describe('useBeditState - Interactive Tests', () => {
 
   it('should handle batch updates with interactive controls', async () => {
     function BatchUpdater() {
-      const state = useBeditState({
+      const [state, store] = usePatchableState({
         user: { name: 'John', age: 25, email: 'john@example.com' },
         stats: { posts: 0, likes: 0, comments: 0 },
       })
 
       const updateProfile = () => {
-        update.batch(state, (draft) => {
-          edit(draft).user.name('Jane Doe')
-          edit(draft).user.age(30)
-          edit(draft).user.email('jane@example.com')
+        patch.do(store, (draft) => {
+          patch(draft).user.name('Jane Doe')
+          patch(draft).user.age(30)
+          patch(draft).user.email('jane@example.com')
         })
       }
 
       const incrementStats = () => {
-        update.batch(state, (draft) => {
-          edit(draft).stats.posts(state.stats.posts + 1)
-          edit(draft).stats.likes(state.stats.likes + 5)
-          edit(draft).stats.comments(state.stats.comments + 2)
+        patch.do(store, (draft) => {
+          patch(draft).stats.posts(state.stats.posts + 1)
+          patch(draft).stats.likes(state.stats.likes + 5)
+          patch(draft).stats.comments(state.stats.comments + 2)
         })
       }
 
       const resetAll = () => {
-        update.batch(state, (draft) => {
-          edit(draft).user.name('Anonymous')
-          edit(draft).user.age(0)
-          edit(draft).user.email('')
-          edit(draft).stats.posts(0)
-          edit(draft).stats.likes(0)
-          edit(draft).stats.comments(0)
+        patch.do(store, (draft) => {
+          patch(draft).user.name('Anonymous')
+          patch(draft).user.age(0)
+          patch(draft).user.email('')
+          patch(draft).stats.posts(0)
+          patch(draft).stats.likes(0)
+          patch(draft).stats.comments(0)
         })
       }
 

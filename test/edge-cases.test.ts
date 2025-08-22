@@ -1,5 +1,5 @@
 import { describe, it, expect } from './test-utils'
-import { key, edit } from '../src/bedit.mjs'
+import { key, fork } from '../src/patchfork.mjs'
 
 describe('edge cases', () => {
   it('should handle empty objects', () => {
@@ -8,7 +8,7 @@ describe('edge cases', () => {
     const mutable = structuredClone(obj)
     mutable.newProp = 'value'
 
-    const result = edit(obj).newProp('value')
+    const result = fork(obj).newProp('value')
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -20,7 +20,7 @@ describe('edge cases', () => {
     const mutable = structuredClone(obj)
     mutable.items[0] = 'first item'
 
-    const result = edit(obj).items[0]('first item')
+    const result = fork(obj).items[0]('first item')
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -30,7 +30,7 @@ describe('edge cases', () => {
     const obj = { user: { profile: undefined as { name: string } | undefined } }
     const backup = structuredClone(obj)
 
-    const result = edit(obj).user.profile.name('John')
+    const result = fork(obj).user.profile.name('John')
     expect(result).toBeUndefined()
     expect(obj).toEqual(backup)
   })
@@ -41,7 +41,7 @@ describe('edge cases', () => {
 
     expect(() => {
       // @ts-expect-error
-      edit(obj).user.name('John')
+      fork(obj).user.name('John')
     }).toThrow('Cannot edit property "name" of string')
     expect(obj).toEqual(backup)
   })
@@ -52,7 +52,7 @@ describe('edge cases', () => {
     const mutable = structuredClone(obj)
     mutable.data.set('new', 'value')
 
-    const result = edit(obj).data[key]('new')('value')
+    const result = fork(obj).data[key]('new')('value')
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -64,7 +64,7 @@ describe('edge cases', () => {
     const mutable = structuredClone(obj)
     mutable.foo.set('bar', 'new value')
 
-    const result = edit(obj).foo[key]('bar')('new value')
+    const result = fork(obj).foo[key]('bar')('new value')
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -74,7 +74,7 @@ describe('edge cases', () => {
     const obj = { data: null }
     const backup = structuredClone(obj)
 
-    expect(edit(obj).data[key]('foo')('value')).toBeUndefined()
+    expect(fork(obj).data[key]('foo')('value')).toBeUndefined()
     expect(obj).toEqual(backup)
   })
 
@@ -91,7 +91,7 @@ describe('edge cases', () => {
     }
     const backup = structuredClone(obj)
 
-    const result = edit(obj).nullProp('not null')
+    const result = fork(obj).nullProp('not null')
 
     expect(result.nullProp).toBe('not null')
     expect(result.undefinedProp).toBe(undefined)
@@ -104,7 +104,7 @@ describe('edge cases', () => {
     nullProtoObj.key = 'value'
 
     const obj: { data: { key: string } } = { data: nullProtoObj }
-    const result = edit(obj).data.key('updated')
+    const result = fork(obj).data.key('updated')
 
     expect(result.data.key).toBe('updated')
     // The cloned object will have Object.prototype, not null prototype
@@ -118,7 +118,7 @@ describe('edge cases', () => {
 
     expect(() => {
       // @ts-expect-error
-      edit(obj).primitive.nonExistentProp('value')
+      fork(obj).primitive.nonExistentProp('value')
     }).toThrow('Cannot edit property "nonExistentProp" of number')
     expect(obj).toEqual(backup)
   })
@@ -129,7 +129,7 @@ describe('edge cases', () => {
 
     expect(() => {
       // @ts-expect-error
-      edit(obj).flag.toString('false')
+      fork(obj).flag.toString('false')
     }).toThrow('Cannot edit property "toString" of boolean')
     expect(obj).toEqual(backup)
   })

@@ -1,5 +1,5 @@
 import { describe, beforeEach, afterEach, test, expect } from 'vitest'
-import { edit, setDevMode, key } from '../src/bedit.mjs'
+import { fork, setDevMode, key, patch } from '../src/patchfork.mjs'
 
 describe('Dev Mode', () => {
   beforeEach(() => {
@@ -13,7 +13,7 @@ describe('Dev Mode', () => {
   test('should freeze objects after setIn when dev mode is enabled', () => {
     const obj = { a: 1, b: { c: 2 } }
 
-    const result = edit(obj).a(3)
+    const result = fork(obj).a(3)
 
     expect(Object.isFrozen(result)).toBe(true)
     expect(Object.isFrozen(result.b)).toBe(true)
@@ -24,7 +24,7 @@ describe('Dev Mode', () => {
     const obj = { a: 1, b: { c: 2 } }
 
     setDevMode(false)
-    const result = edit(obj).a(3)
+    const result = fork(obj).a(3)
 
     expect(Object.isFrozen(result)).toBe(false)
     expect(Object.isFrozen(result.b)).toBe(false)
@@ -34,7 +34,7 @@ describe('Dev Mode', () => {
   test('should freeze objects after updateIn when dev mode is enabled', () => {
     const obj = { a: 1, b: { c: 2 } }
 
-    const result = edit(obj).a((x) => x + 1)
+    const result = fork(obj).a((x) => x + 1)
 
     expect(Object.isFrozen(result)).toBe(true)
     expect(Object.isFrozen(result.b)).toBe(true)
@@ -44,7 +44,7 @@ describe('Dev Mode', () => {
   test('should freeze objects after edit.batch when dev mode is enabled', () => {
     const obj = { a: 1, b: { c: 2 } }
 
-    const result = edit.batch(obj, (obj) => {
+    const result = fork.do(obj, (obj) => {
       obj.a = 3
     })
 
@@ -56,9 +56,9 @@ describe('Dev Mode', () => {
   test('should freeze objects after edit when dev mode is enabled', () => {
     const obj = { a: 1, b: { c: 2 } }
 
-    const result = edit.batch(obj, (draft) => {
-      edit(draft).a(3)
-      edit(draft).b.c(4)
+    const result = fork.do(obj, (draft) => {
+      patch(draft).a(3)
+      patch(draft).b.c(4)
     })
 
     expect(Object.isFrozen(result)).toBe(true)
@@ -70,7 +70,7 @@ describe('Dev Mode', () => {
   test('should not freeze non-objects', () => {
     const obj = { a: 1, b: 'string', c: 42, d: null, e: undefined }
 
-    const result = edit(obj).a(3)
+    const result = fork(obj).a(3)
 
     expect(Object.isFrozen(result)).toBe(true)
     expect(result.b).toBe('string')
@@ -82,7 +82,7 @@ describe('Dev Mode', () => {
   test('should handle arrays correctly', () => {
     const arr = [1 as number, 2, { a: 3 }] as Array<number | { a: number }>
 
-    const result = edit(arr)[0](10)
+    const result = fork(arr)[0](10)
 
     expect(Object.isFrozen(result)).toBe(true)
     expect(Object.isFrozen(result[2])).toBe(true)
@@ -97,7 +97,7 @@ describe('Dev Mode', () => {
       ['key2', { value: 2 }],
     ])
 
-    const result = edit(map)[key]('key1')({ value: 3 })
+    const result = fork(map)[key]('key1')({ value: 3 })
 
     expect(Object.isFrozen(result)).toBe(true)
     // Check that Map keys are frozen
@@ -116,7 +116,7 @@ describe('Dev Mode', () => {
       ]),
     }
 
-    const result = edit(obj).config[key]('theme')({ color: 'light' })
+    const result = fork(obj).config[key]('theme')({ color: 'light' })
 
     expect(Object.isFrozen(result)).toBe(true)
     expect(Object.isFrozen(result.config)).toBe(true)
@@ -137,7 +137,7 @@ describe('Dev Mode', () => {
       tags: new Set(['react', 'typescript']),
     }
 
-    const result = edit(obj).config[key]('theme')((theme) =>
+    const result = fork(obj).config[key]('theme')((theme) =>
       theme.toUpperCase(),
     )!
 
@@ -163,9 +163,9 @@ describe('Dev Mode', () => {
       tags: new Set(['react']),
     }
 
-    const result = edit.batch(obj, (draft) => {
-      edit(draft).config[key]('debug')({ color: 'light' })
-      edit(draft).tags.add('typescript')
+    const result = fork.do(obj, (draft) => {
+      patch(draft).config[key]('debug')({ color: 'light' })
+      patch(draft).tags.add('typescript')
     })
 
     expect(Object.isFrozen(result)).toBe(true)
@@ -188,7 +188,7 @@ describe('Dev Mode', () => {
     const map = new Map([['key', { nested: { value: 1 } }]])
     const obj = { map }
 
-    const result = edit(obj).map[key]('key')({ nested: { value: 2 } })
+    const result = fork(obj).map[key]('key')({ nested: { value: 2 } })
 
     expect(Object.isFrozen(result.map.get('key'))).toBe(true)
     expect(result.map.get('key')).toEqual({ nested: { value: 2 } })
@@ -197,9 +197,9 @@ describe('Dev Mode', () => {
   test('should freeze all cloned objects in batch operations', () => {
     const obj = { a: { nested: 1 }, b: { nested: 2 } }
 
-    const result = edit.batch(obj, (draft) => {
-      edit(draft).a({ nested: 10 })
-      edit(draft).b({ nested: 20 })
+    const result = fork.do(obj, (draft) => {
+      patch(draft).a({ nested: 10 })
+      patch(draft).b({ nested: 20 })
     })
 
     expect(Object.isFrozen(result)).toBe(true)
@@ -216,14 +216,14 @@ describe('Dev Mode', () => {
       tags: new Set([{ id: 1, name: 'important' }]),
     }
 
-    const result = edit.batch(obj, (draft) => {
+    const result = fork.do(obj, (draft) => {
       // Use setIn instead of edit.batch to avoid readonly issues
-      edit(draft).users[0]({ name: 'Jane', profile: { age: 31 } })
-      edit(draft).settings[key]('theme')({ color: 'light', size: 'medium' })
+      patch(draft).users[0]({ name: 'Jane', profile: { age: 31 } })
+      patch(draft).settings[key]('theme')({ color: 'light', size: 'medium' })
 
-      // For Set, use proper bedit operations
+      // For Set, use proper patchfork operations
       const newTags = new Set([{ id: 2, name: 'urgent' }])
-      edit(draft).tags(newTags)
+      patch(draft).tags(newTags)
     })
 
     // Everything should be frozen

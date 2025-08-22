@@ -1,7 +1,7 @@
 import { describe, beforeEach, afterEach, expect } from 'vitest'
 import { test } from '@fast-check/vitest'
 import * as fc from 'fast-check'
-import { edit, setDevMode } from '../src/bedit.mjs'
+import { fork, setDevMode } from '../src/patchfork.mjs'
 
 // Configure for model-based testing
 fc.configureGlobal({ numRuns: process.env.CI ? 2000 : 50 })
@@ -121,18 +121,18 @@ class StateHelper {
 // ============================================================================
 
 /**
- * Abstract base class for all bedit operation commands in model-based testing.
+ * Abstract base class for all patchfork operation commands in model-based testing.
  *
  * Commands represent executable operations that can be applied to both the real
- * bedit state and a model state (which is just a cloned copy). Each command:
+ * patchfork state and a model state (which is just a cloned copy). Each command:
  * - Checks preconditions against the current state
- * - Executes on both real state (via bedit) and model state (direct mutation)
+ * - Executes on both real state (via patchfork) and model state (direct mutation)
  * - Validates that both results are equivalent
  *
  * This simpler approach uses actual state objects as the "model" rather than
  * maintaining separate abstract metadata.
  */
-abstract class BeditCommand {
+abstract class PatchforkCommand {
   abstract readonly type: string
   abstract readonly path: (string | number)[]
 
@@ -142,7 +142,7 @@ abstract class BeditCommand {
   abstract canExecute(state: any): boolean
 
   /**
-   * Execute the command on the real state using bedit
+   * Execute the command on the real state using patchfork
    */
   abstract executeOnReal(state: any): Promise<any> | any
 
@@ -161,7 +161,7 @@ abstract class BeditCommand {
 }
 
 /**
- * Command for bedit's setIn operation - sets values at any depth in the state tree.
+ * Command for patchfork's setIn operation - sets values at any depth in the state tree.
  *
  * SetIn is the most fundamental operation that can target any existing path.
  * It replaces the value at the target path with a new value, potentially changing
@@ -170,7 +170,7 @@ abstract class BeditCommand {
  * Preconditions: All parent paths in the target path must exist
  * Post-conditions: Target path has the new value, parent structure is preserved
  */
-class SetInCommand extends BeditCommand {
+class SetInCommand extends PatchforkCommand {
   readonly type = 'setIn'
 
   constructor(
@@ -196,7 +196,7 @@ class SetInCommand extends BeditCommand {
   async executeOnReal(state: any): Promise<any> {
     await Promise.resolve() // Async delay
     // Build the setIn call dynamically
-    let target = edit(state) as any
+    let target = fork(state) as any
     for (const segment of this.path) {
       target = target[segment]
     }
@@ -215,7 +215,7 @@ class SetInCommand extends BeditCommand {
 }
 
 /**
- * Command for bedit's updateIn operation - applies functions to primitive values.
+ * Command for patchfork's updateIn operation - applies functions to primitive values.
  *
  * UpdateIn takes the current value at a path and applies a transformation function
  * to produce a new value. This is only valid for primitive values (not objects/collections).
@@ -223,7 +223,7 @@ class SetInCommand extends BeditCommand {
  * Preconditions: Target path must exist and contain a primitive value
  * Postconditions: Target path has the transformed value
  */
-class UpdateInCommand extends BeditCommand {
+class UpdateInCommand extends PatchforkCommand {
   readonly type = 'updateIn'
 
   constructor(
@@ -241,7 +241,7 @@ class UpdateInCommand extends BeditCommand {
 
   async executeOnReal(state: any): Promise<any> {
     await Promise.resolve() // Async delay
-    let target = edit(state) as any
+    let target = fork(state) as any
     for (const segment of this.path) {
       target = target[segment]
     }
@@ -264,7 +264,7 @@ class UpdateInCommand extends BeditCommand {
 }
 
 /**
- * Command for bedit's editIn operation - applies a sequence of commands to a shallow clone.
+ * Command for patchfork's editIn operation - applies a sequence of commands to a shallow clone.
  *
  * EditIn provides a shallow clone of the target object/collection and applies
  * a sequence of sub-commands to it. This allows testing complex nested operations.
@@ -272,12 +272,12 @@ class UpdateInCommand extends BeditCommand {
  * Preconditions: Target path must exist and be an object/collection
  * Postconditions: Target is shallow cloned, sub-commands applied
  */
-class EditInCommand extends BeditCommand {
+class EditInCommand extends PatchforkCommand {
   readonly type = 'editIn'
 
   constructor(
     readonly path: (string | number)[],
-    readonly subCommands: BeditCommand[],
+    readonly subCommands: PatchforkCommand[],
   ) {
     super()
   }
@@ -291,7 +291,7 @@ class EditInCommand extends BeditCommand {
   async executeOnReal(state: any): Promise<any> {
     await Promise.resolve() // Async delay
     // Get the target object at the path
-    let target = edit.batch(state) as any
+    let target = fork.do(state) as any
     for (const segment of this.path) {
       target = target[segment]
     }
@@ -338,7 +338,7 @@ class EditInCommand extends BeditCommand {
 }
 
 /**
- * Command for bedit's edit operation - applies a sequence of commands with batch optimization.
+ * Command for patchfork's edit operation - applies a sequence of commands with batch optimization.
  *
  * Edit allows multiple mutations on the same object with optimized cloning.
  * Takes a sequence of sub-commands and applies them within a single edit() call.
@@ -346,11 +346,11 @@ class EditInCommand extends BeditCommand {
  * Preconditions: None (operates on root)
  * Post-conditions: All sub-commands applied to cloned state
  */
-class EditCommand extends BeditCommand {
+class EditCommand extends PatchforkCommand {
   readonly type = 'edit'
   readonly path = [] // edit always operates on root
 
-  constructor(readonly subCommands: BeditCommand[]) {
+  constructor(readonly subCommands: PatchforkCommand[]) {
     super()
   }
 
@@ -362,7 +362,7 @@ class EditCommand extends BeditCommand {
 
   async executeOnReal(state: any): Promise<any> {
     await Promise.resolve() // Async delay
-    return edit.batch(state, async (draft) => {
+    return fork.do(state, async (draft) => {
       // Apply each sub-command to the draft using real operations
       for (const command of this.subCommands) {
         await Promise.resolve() // Async delay between operations
@@ -664,8 +664,8 @@ describe('Model-Based Tests', () => {
    */
   function generateSafeCommandsForState(
     state: any,
-  ): fc.Arbitrary<BeditCommand> {
-    const commands: fc.Arbitrary<BeditCommand>[] = []
+  ): fc.Arbitrary<PatchforkCommand> {
+    const commands: fc.Arbitrary<PatchforkCommand>[] = []
 
     // Safe SetIn commands - avoid Map/Set property access, only use valid paths
     const validSetInPaths = StateHelper.getValidSetInPaths(state).filter(
@@ -831,7 +831,7 @@ describe('Model-Based Tests', () => {
       for (let i = 0; i < numCommands; i++) {
         const commandArb = generateSafeCommandsForState(modelState)
         const commands = fc.sample(commandArb, 1)
-        const command = commands[0] as BeditCommand
+        const command = commands[0] as PatchforkCommand
 
         // Only execute if command is valid
         if (command.canExecute(currentRealState)) {
@@ -875,7 +875,7 @@ describe('Model-Based Tests', () => {
 
 // Phase 3: Async Operations Testing
 describe('Phase 3: Async Operations', () => {
-  class AsyncSetInCommand extends BeditCommand {
+  class AsyncSetInCommand extends PatchforkCommand {
     readonly type = 'AsyncSetIn'
 
     constructor(
@@ -901,7 +901,7 @@ describe('Phase 3: Async Operations', () => {
 
     async executeOnReal(state: any): Promise<any> {
       await Promise.resolve() // Simulate async delay
-      let setter = edit(state) as any
+      let setter = fork(state) as any
       for (const segment of this.path) {
         setter = setter[segment]
       }
@@ -914,7 +914,7 @@ describe('Phase 3: Async Operations', () => {
     }
   }
 
-  class AsyncUpdateInCommand extends BeditCommand {
+  class AsyncUpdateInCommand extends PatchforkCommand {
     readonly type = 'AsyncUpdateIn'
 
     constructor(
@@ -940,7 +940,7 @@ describe('Phase 3: Async Operations', () => {
 
     async executeOnReal(state: any): Promise<any> {
       await Promise.resolve() // Simulate async delay
-      let updater = edit(state) as any
+      let updater = fork(state) as any
       for (const segment of this.path) {
         updater = updater[segment]
       }
@@ -955,11 +955,11 @@ describe('Phase 3: Async Operations', () => {
     }
   }
 
-  class AsyncMultiOperationCommand extends BeditCommand {
+  class AsyncMultiOperationCommand extends PatchforkCommand {
     readonly type = 'AsyncMultiOperation'
     readonly path: (string | number)[] = []
 
-    constructor(public operations: BeditCommand[]) {
+    constructor(public operations: PatchforkCommand[]) {
       super()
     }
 
@@ -987,8 +987,8 @@ describe('Phase 3: Async Operations', () => {
   function generateAsyncCommands(
     state: any,
     seed: number = 12345,
-  ): BeditCommand[] {
-    const commands: BeditCommand[] = []
+  ): PatchforkCommand[] {
+    const commands: PatchforkCommand[] = []
     let counter = seed
 
     // Generate individual async operations

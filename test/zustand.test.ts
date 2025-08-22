@@ -1,8 +1,8 @@
 import { expect, describe, it } from 'vitest'
 import { create, createStore } from 'zustand'
-import { beditify } from '../src/zustand.mjs'
-import { edit, setDevMode, update } from '../src/bedit.mjs'
-import { $beditStateContainer } from '../src/symbols.mjs'
+import { patchable } from '../src/zustand.mjs'
+import { fork, setDevMode, patch } from '../src/patchfork.mjs'
+import { $patchable } from '../src/symbols.mjs'
 
 setDevMode(true)
 
@@ -15,7 +15,7 @@ interface TestState {
   users: Array<{ id: number; name: string }>
 }
 
-describe('beditify', () => {
+describe('patchforkify', () => {
   const createInitialState = (): TestState => ({
     count: 0,
     nested: {
@@ -29,52 +29,52 @@ describe('beditify', () => {
   })
 
   describe('with zustand create()', () => {
-    it('should preserve all original store methods and work with bedit functions', () => {
+    it('should preserve all original store methods and work with patchfork functions', () => {
       const originalStore = create(() => createInitialState())
-      const wrappedStore = beditify(originalStore)
+      const wrappedStore = patchable(originalStore)
 
       // Preserve original methods
       expect(wrappedStore.getState).toBe(originalStore.getState)
       expect(wrappedStore.setState).toBe(originalStore.setState)
       expect(wrappedStore.subscribe).toBe(originalStore.subscribe)
 
-      // Test basic bedit functions work
-      update(wrappedStore).count(42)
+      // Test basic patchfork functions work
+      patch(wrappedStore).count(42)
       expect(wrappedStore.getState().count).toBe(42)
 
-      update(wrappedStore).nested.value((v) => v.toUpperCase())
+      patch(wrappedStore).nested.value((v) => v.toUpperCase())
       expect(wrappedStore.getState().nested.value).toBe('TEST')
 
-      update(wrappedStore).users.push({ id: 99, name: 'Test User' })
+      patch(wrappedStore).users.push({ id: 99, name: 'Test User' })
       expect(wrappedStore.getState().users).toHaveLength(3)
     })
 
-    it('should have the bedit state container symbol', () => {
+    it('should have the patchfork state container symbol', () => {
       const store = create(() => createInitialState())
-      const wrappedStore = beditify(store)
+      const wrappedStore = patchable(store)
 
-      expect($beditStateContainer in wrappedStore).toBe(true)
-      expect(wrappedStore[$beditStateContainer]).toBeDefined()
-      expect(typeof wrappedStore[$beditStateContainer].get).toBe('function')
-      expect(typeof wrappedStore[$beditStateContainer].set).toBe('function')
+      expect($patchable in wrappedStore).toBe(true)
+      expect(wrappedStore[$patchable]).toBeDefined()
+      expect(typeof wrappedStore[$patchable].get).toBe('function')
+      expect(typeof wrappedStore[$patchable].set).toBe('function')
     })
   })
 
   describe('with zustand createStore()', () => {
-    it('should preserve all original store methods and work with bedit functions', () => {
+    it('should preserve all original store methods and work with patchfork functions', () => {
       const originalStore = createStore(() => createInitialState())
-      const wrappedStore = beditify(originalStore)
+      const wrappedStore = patchable(originalStore)
 
       // Preserve original methods
       expect(wrappedStore.getState).toBe(originalStore.getState)
       expect(wrappedStore.setState).toBe(originalStore.setState)
       expect(wrappedStore.getInitialState).toBe(originalStore.getInitialState)
 
-      // Test basic bedit functions work
-      update(wrappedStore).count(99)
+      // Test basic patchfork functions work
+      patch(wrappedStore).count(99)
       expect(wrappedStore.getState().count).toBe(99)
 
-      update(wrappedStore).nested.items((items) => [...items, 10])
+      patch(wrappedStore).nested.items((items) => [...items, 10])
       expect(wrappedStore.getState().nested.items).toEqual([1, 2, 3, 10])
     })
   })

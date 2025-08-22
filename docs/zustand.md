@@ -1,11 +1,11 @@
 # Zustand Integration
 
-bedit integrates with [Zustand](https://zustand-demo.pmnd.rs/) stores by making them compatible with bedit functions.
+patchfork integrates with [Zustand](https://zustand-demo.pmnd.rs/) stores by making them compatible with patchfork functions.
 
 ## Usage
 
 ```typescript
-import { beditify } from 'bedit/zustand'
+import { patchforkify } from 'patchfork/zustand'
 import { create } from 'zustand'
 
 const useStore = create(() => ({
@@ -14,30 +14,30 @@ const useStore = create(() => ({
   todos: [],
 }))
 
-// Beditify the store to use bedit functions
-const store = beditify(useStore)
+// Patchforkify the store to use patchfork functions
+const store = patchforkify(useStore)
 ```
 
-You can now use bedit functions directly on the store:
+You can now use patchfork functions directly on the store:
 
 ```typescript
-import { edit } from 'bedit'
+import { patch } from 'patchfork'
 
-edit(store).count(42)
-edit(store).user.name((name) => name.toUpperCase())
-edit(store).todos.push({ id: 1, text: 'Learn bedit' })
+patch(store).count(42)
+patch(store).user.name((name) => name.toUpperCase())
+patch(store).todos.push({ id: 1, text: 'Learn patchfork' })
 ```
 
 You can also write helper functions that operate on the store:
 
 ```typescript
 const increment = (n: number) => {
-  edit(store).count((c) => c + n)
+  patch(store).count((c) => c + n)
 }
 
 const loadUser = async (userId: string) => {
   const user = await fetch(`/api/users/${userId}`).then((r) => r.json())
-  edit(store).user(user)
+  patch(store).user(user)
 }
 ```
 

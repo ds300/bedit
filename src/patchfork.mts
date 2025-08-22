@@ -1,11 +1,7 @@
 import { _shallowClone, isPlainObject } from './utils.mjs'
-import {
-  $beditStateContainer,
-  AsyncBeditStateContainer,
-  BeditStateContainer,
-} from './symbols.mjs'
+import { $asyncPatchable,$patchable, $editable, AsyncPatchable, Patchable } from './symbols.mjs'
 
-export const key = Symbol.for('__bedit_key__')
+export const key = Symbol.for('__patchfork_key__')
 
 export type DeepReadonly<T> = T extends PrimitiveOrImmutableBuiltin
   ? T
@@ -67,9 +63,11 @@ type UpdatingSetMethods<Elem, Root> = {
  * Editable<T> makes the top-level properties of T mutable,
  * but all child properties (or elements, for arrays/maps/sets) are readonly.
  */
-export type Editable<T> =
+export type Editable<T> = {
+  [$editable]: true
+} &
   // Arrays: mutable array, but elements are readonly
-  T extends ReadonlyArray<infer U>
+  (T extends ReadonlyArray<infer U>
     ? Array<DeepReadonly<U>>
     : // Map: mutable map, but values are readonly
       T extends ReadonlyMap<infer K, infer V>
@@ -81,7 +79,7 @@ export type Editable<T> =
           T extends object
           ? { -readonly [K in keyof T]: DeepReadonly<T[K]> }
           : // Primitives: just T
-            T
+            T)
 
 export type Updater<Input, Output = Input> = (val: Input) => Output
 export type BatchFn<T> = (val: Editable<NonNullable<T>>) => void | Promise<void>
@@ -217,7 +215,7 @@ const EDIT = 1 as const
 const BATCH = 2 as const
 
 /**
- * Enables or disables development mode for the bedit library.
+ * Enables or disables development mode for the patchfork library.
  *
  * When development mode is enabled, objects are automatically frozen after mutations
  * to help detect accidental mutations of immutable objects. This is useful during
@@ -370,11 +368,11 @@ function frame(parent: Frame | null): Frame {
     r: (root: any, _type: FrameType, isUpdate?: boolean) => {
       type = _type
       obj = root
-      if (isUpdate && $beditStateContainer in root) {
-        const container = root[$beditStateContainer]
+      if (isUpdate && ($patchable in root || $asyncPatchable in root)) {
+        const container = root[$asyncPatchable] ?? root[$patchable]
         const acutalRoot = container.get()
-        if (acutalRoot instanceof Promise) {
-          rootPromise = acutalRoot
+        if ($asyncPatchable in root) {
+          rootPromise = Promise.resolve(acutalRoot)
           obj = null
         } else {
           obj = root = acutalRoot
@@ -667,42 +665,44 @@ function releaseBatchFrame(frame: BatchFrame) {
  * // Result: Map([['theme', 'DARK']])
  * ```
  */
-export const edit: (<T extends object>(
+export const fork: (<T extends object & { [$editable]?: never }>(
   t: T | null | undefined,
 ) => Updatable<T>) & {
-  batch: {
-    <T extends object>(
-      t: T | BeditStateContainer<T> | null | undefined,
+  do: {
+    <T extends object & { [$editable]?: never }>(
+      t: T | Patchable<T> | null | undefined,
     ): Batchable<T>
-    <T extends object, Fn extends BatchFn<T>>(
-      t: T | BeditStateContainer<T> | null | undefined,
+    <T extends object & { [$editable]?: never }, Fn extends BatchFn<T>>(
+      t: T | Patchable<T> | null | undefined,
       fn: Fn,
     ): ReturnType<Fn> extends Promise<any> ? Promise<T> : T
   }
 } = Object.assign((t: any) => getFrame(t, EDIT).$, {
-  batch: function batch(t: any, f?: any): any {
-    return f ? batch(t)(f) : getFrame(t, BATCH).$
-  },
+  do: (t: any, f?: any) => (f ? fork.do(t)(f) : getFrame(t, BATCH).$),
 })
 
-export const update: {
-  <T extends object>(t: BeditStateContainer<T>): Updatable<T>
-  <T extends object>(t: AsyncBeditStateContainer<T>): AsyncUpdatable<T>
+export const patch: {
+  <T extends object>(t: Editable<T>): Updatable<T>
+  <T extends object>(t: AsyncPatchable<T>): AsyncUpdatable<T>
+  <T extends object>(t: Patchable<T>): Updatable<T>
 } & {
-  batch: {
-    <T extends object>(t: BeditStateContainer<T>): Batchable<T>
-    <T extends object>(t: AsyncBeditStateContainer<T>): AsyncBatchable<T>
+  do: {
+    <T extends object>(t: Editable<T>): Batchable<T>
+    <T extends object>(t: AsyncPatchable<T>): AsyncBatchable<T>
+    <T extends object>(t: Patchable<T>): Batchable<T>
     <T extends object, Fn extends BatchFn<T>>(
-      t: BeditStateContainer<T>,
+      t: Editable<T>,
       fn: Fn,
     ): ReturnType<Fn> extends Promise<any> ? Promise<T> : T
     <T extends object, Fn extends BatchFn<T>>(
-      t: AsyncBeditStateContainer<T>,
+      t: AsyncPatchable<T>,
       fn: Fn,
     ): Promise<T>
+    <T extends object, Fn extends BatchFn<T>>(
+      t: Patchable<T>,
+      fn: Fn,
+    ): ReturnType<Fn> extends Promise<any> ? Promise<T> : T
   }
 } = Object.assign((t: any) => getFrame(t, EDIT, true).$, {
-  batch: function batch(t: any, f?: any): any {
-    return f ? batch(t)(f) : getFrame(t, BATCH, true).$
-  },
+  do: (t: any, f?: any) => (f ? patch.do(t)(f) : getFrame(t, BATCH, true).$),
 })

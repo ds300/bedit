@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { edit, setDevMode, key, update } from '../src/bedit.mjs'
-import { $beditStateContainer } from '../src/symbols.mjs'
+import { fork, setDevMode, key, patch } from '../src/patchfork.mjs'
+import { $patchable } from '../src/symbols.mjs'
 
 describe('state container error handling', () => {
   beforeEach(() => {
@@ -18,9 +18,9 @@ describe('state container error handling', () => {
       },
       set: vi.fn<[{ prop: string }], void>(),
     }
-    const obj = { [$beditStateContainer]: container }
+    const obj = { [$patchable]: container }
 
-    expect(() => update(obj).prop('value')).toThrow('Get error')
+    expect(() => patch(obj).prop('value')).toThrow('Get error')
     expect(container.set).not.toHaveBeenCalled()
   })
 
@@ -32,9 +32,9 @@ describe('state container error handling', () => {
         throw new Error('Set error')
       },
     }
-    const obj = { [$beditStateContainer]: container }
+    const obj = { [$patchable]: container }
 
-    expect(() => update(obj).prop('value')).toThrow('Set error')
+    expect(() => patch(obj).prop('value')).toThrow('Set error')
   })
 
   it('should handle state container get() returning null', () => {
@@ -42,10 +42,10 @@ describe('state container error handling', () => {
       get: () => null,
       set: vi.fn(),
     }
-    const obj = { [$beditStateContainer]: container }
+    const obj = { [$patchable]: container }
 
     // @ts-expect-error
-    const result = update(obj).prop('value')
+    const result = patch(obj).prop('value')
 
     expect(result).toBeUndefined()
     expect(container.set).not.toHaveBeenCalled()
@@ -56,10 +56,10 @@ describe('state container error handling', () => {
       get: () => undefined,
       set: vi.fn(),
     }
-    const obj = { [$beditStateContainer]: container }
+    const obj = { [$patchable]: container }
 
     // @ts-expect-error
-    const result = update(obj).prop('value')
+    const result = patch(obj).prop('value')
 
     expect(result).toBeUndefined()
     expect(container.set).not.toHaveBeenCalled()
@@ -70,11 +70,11 @@ describe('state container error handling', () => {
       get: () => 'not an object',
       set: vi.fn(),
     }
-    const obj = { [$beditStateContainer]: container }
+    const obj = { [$patchable]: container }
 
     expect(() => {
       // @ts-expect-error
-      update(obj).prop('value')
+      patch(obj).prop('value')
     }).toThrow('Cannot edit property "prop" of string')
   })
 
@@ -85,10 +85,10 @@ describe('state container error handling', () => {
         throw new Error('Async set error')
       },
     }
-    const obj = { [$beditStateContainer]: container }
+    const obj = { [$patchable]: container }
 
     await expect(async () => {
-      await update.batch(obj, async (draft) => {
+      await patch.do(obj, async (draft) => {
         await new Promise((resolve) => setTimeout(resolve, 1))
         draft.value += 1
       })
@@ -106,16 +106,16 @@ describe('state container error handling', () => {
         state = newState
       },
     }
-    const obj = { [$beditStateContainer]: container }
+    const obj = { [$patchable]: container }
 
     // This should work
-    const result1 = update(obj).user.name('Jane')
+    const result1 = patch(obj).user.name('Jane')
     expect(result1.user.name).toBe('Jane')
     expect(state.user.name).toBe('Jane')
 
     // This should throw
     expect(() => {
-      update(obj).user.name('Error')
+      patch(obj).user.name('Error')
     }).toThrow('Invalid name')
   })
 
@@ -130,12 +130,12 @@ describe('state container error handling', () => {
         }
       },
     }
-    const obj = { [$beditStateContainer]: container }
+    const obj = { [$patchable]: container }
 
     // Batch operations should only call set once
-    const result = update.batch(obj, (draft) => {
-      edit(draft).a(10)
-      edit(draft).b(20)
+    const result = patch.do(obj, (draft) => {
+      patch(draft).a(10)
+      patch(draft).b(20)
     })
 
     expect(result).toEqual({ a: 10, b: 20 })
@@ -156,21 +156,21 @@ describe('state container error handling', () => {
         state = newState
       },
     }
-    const obj = { [$beditStateContainer]: container }
+    const obj = { [$patchable]: container }
 
     // This should work
-    const result1 = update(obj).cache[key]('key2')('value2')
+    const result1 = patch(obj).cache[key]('key2')('value2')
     expect(result1.cache.get('key2')).toBe('value2')
     expect(state.cache.get('key2')).toBe('value2')
 
     // Add more items to test the limit
     for (let i = 3; i <= 5; i++) {
-      update(obj).cache[key](`key${i}`)(`value${i}`)
+      patch(obj).cache[key](`key${i}`)(`value${i}`)
     }
 
     // This should throw (exceeds limit)
     expect(() => {
-      update(obj).cache[key]('key6')('value6')
+      patch(obj).cache[key]('key6')('value6')
     }).toThrow('Cache size limit exceeded')
   })
 
@@ -183,15 +183,15 @@ describe('state container error handling', () => {
         }
       },
     }
-    const obj = { [$beditStateContainer]: container }
+    const obj = { [$patchable]: container }
 
     // This should work
-    const result1 = update(obj).count((count) => count + 1)
+    const result1 = patch(obj).count((count) => count + 1)
     expect(result1.count).toBe(6)
 
     // This should throw
     expect(() => {
-      update(obj).count((count) => -1)
+      patch(obj).count((count) => -1)
     }).toThrow('Count cannot be negative')
   })
 })

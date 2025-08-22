@@ -1,8 +1,8 @@
 {
-  "name": "bedit",
-  "version": "0.0.11",
-  "description": "like immer but weird (and kinda cool)",
-  "main": "dist/bedit.mjs",
+  "name": "patchfork",
+  "version": "0.0.0",
+  "description": "A tiny immutable state utility for TypeScript.",
+  "main": "dist/patchfork.mjs",
   "files": [
     "dist",
     "src"
@@ -10,8 +10,8 @@
   "type": "module",
   "exports": {
     ".": {
-      "production": "./dist/bedit.production.mjs",
-      "default": "./dist/bedit.mjs"
+      "production": "./dist/patchfork.production.mjs",
+      "default": "./dist/patchfork.mjs"
     },
     "./zustand": {
       "production": "./dist/zustand.mjs",
@@ -28,7 +28,7 @@
     "test:ui": "vitest --ui",
     "build": "node scripts/build.mjs",
     "prepack": "npm run build",
-    "size": "npm run build && esbuild dist/bedit.production.mjs --bundle --minify | wc -c",
+    "size": "npm run build && esbuild dist/patchfork.production.mjs --bundle --minify | wc -c",
     "size:immer": "esbuild node_modules/immer/dist/immer.mjs --bundle --minify | wc -c",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -38,7 +38,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ds300/bedit.git"
+    "url": "git+https://github.com/ds300/patchfork.git"
   },
   "keywords": [
     "immer"
@@ -46,9 +46,9 @@
   "author": "David Sheldrick",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/ds300/bedit/issues"
+    "url": "https://github.com/ds300/patchfork/issues"
   },
-  "homepage": "https://github.com/ds300/bedit#readme",
+  "homepage": "https://github.com/ds300/patchfork",
   "devDependencies": {
     "@fast-check/vitest": "^0.2.2",
     "@testing-library/jest-dom": "^6.8.0",

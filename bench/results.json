@@ -1,7 +1,7 @@
 {
   "files": [
     {
-      "filepath": "/Users/davidsheldrick/code/bedit/bench/bench.bench.ts",
+      "filepath": "/Users/davidsheldrick/code/patchfork/bench/bench.bench.ts",
       "groups": [
         {
           "fullName": "bench/bench.bench.ts > shallow object clone with 1 property",
@@ -9,7 +9,7 @@
             {
               "id": "1425595066_0_0",
               "sampleCount": 1919514,
-              "name": "bedit – setIn",
+              "name": "patchfork – setIn",
               "rank": 1,
               "rme": 3.451370494981569,
               "totalTime": 500.0001769998586,
@@ -32,7 +32,7 @@
             {
               "id": "1425595066_0_1",
               "sampleCount": 1687801,
-              "name": "bedit - edit.batch",
+              "name": "patchfork - edit.batch",
               "rank": 2,
               "rme": 0.34068249423812064,
               "totalTime": 500.0002540001369,
@@ -106,7 +106,7 @@
             {
               "id": "1425595066_1_0",
               "sampleCount": 1970222,
-              "name": "bedit – setIn",
+              "name": "patchfork – setIn",
               "rank": 1,
               "rme": 1.0171323134120913,
               "totalTime": 500.0002029998932,
@@ -129,7 +129,7 @@
             {
               "id": "1425595066_1_1",
               "sampleCount": 1444543,
-              "name": "bedit - edit.batch",
+              "name": "patchfork - edit.batch",
               "rank": 2,
               "rme": 3.898548927345861,
               "totalTime": 500.0859729997874,
@@ -203,7 +203,7 @@
             {
               "id": "1425595066_2_0",
               "sampleCount": 1445293,
-              "name": "bedit – setIn",
+              "name": "patchfork – setIn",
               "rank": 1,
               "rme": 0.18541605561486335,
               "totalTime": 500.00032199977977,
@@ -226,7 +226,7 @@
             {
               "id": "1425595066_2_1",
               "sampleCount": 1348619,
-              "name": "bedit - edit.batch",
+              "name": "patchfork - edit.batch",
               "rank": 2,
               "rme": 0.7846258648169682,
               "totalTime": 500.0000260000397,
@@ -300,7 +300,7 @@
             {
               "id": "1425595066_3_0",
               "sampleCount": 61195,
-              "name": "bedit – setIn",
+              "name": "patchfork – setIn",
               "rank": 1,
               "rme": 1.750818406293057,
               "totalTime": 500.0034790000718,
@@ -323,7 +323,7 @@
             {
               "id": "1425595066_3_1",
               "sampleCount": 59180,
-              "name": "bedit - edit.batch",
+              "name": "patchfork - edit.batch",
               "rank": 2,
               "rme": 2.117814616493385,
               "totalTime": 500.08738599981916,
@@ -397,7 +397,7 @@
             {
               "id": "1425595066_4_0",
               "sampleCount": 225330,
-              "name": "bedit – setIn",
+              "name": "patchfork – setIn",
               "rank": 1,
               "rme": 2.546903762444541,
               "totalTime": 500.0005870002842,
@@ -420,7 +420,7 @@
             {
               "id": "1425595066_4_1",
               "sampleCount": 154840,
-              "name": "bedit - edit.batch",
+              "name": "patchfork - edit.batch",
               "rank": 2,
               "rme": 5.608696250091303,
               "totalTime": 500.0001010003143,
@@ -494,7 +494,7 @@
             {
               "id": "1425595066_5_0",
               "sampleCount": 710602,
-              "name": "bedit – setIn",
+              "name": "patchfork – setIn",
               "rank": 2,
               "rme": 2.3591001910801683,
               "totalTime": 500.0003970006692,
@@ -517,7 +517,7 @@
             {
               "id": "1425595066_5_1",
               "sampleCount": 714807,
-              "name": "bedit - edit.batch",
+              "name": "patchfork - edit.batch",
               "rank": 1,
               "rme": 1.0516129438191055,
               "totalTime": 500.03408500074147,
@@ -591,7 +591,7 @@
             {
               "id": "1425595066_6_0",
               "sampleCount": 177841,
-              "name": "bedit – setIn",
+              "name": "patchfork – setIn",
               "rank": 1,
               "rme": 0.2965429593317162,
               "totalTime": 500.00464600076884,
@@ -614,7 +614,7 @@
             {
               "id": "1425595066_6_1",
               "sampleCount": 174732,
-              "name": "bedit - edit.batch",
+              "name": "patchfork - edit.batch",
               "rank": 2,
               "rme": 0.8345869048121815,
               "totalTime": 500.0010930004282,
@@ -688,7 +688,7 @@
             {
               "id": "1425595066_7_0",
               "sampleCount": 978057,
-              "name": "bedit – setIn",
+              "name": "patchfork – setIn",
               "rank": 1,
               "rme": 1.2940140522466415,
               "totalTime": 500.00015399864424,
@@ -711,7 +711,7 @@
             {
               "id": "1425595066_7_1",
               "sampleCount": 853606,
-              "name": "bedit - edit.batch",
+              "name": "patchfork - edit.batch",
               "rank": 2,
               "rme": 1.0061621208555567,
               "totalTime": 500.0003129988254,
@@ -785,7 +785,7 @@
             {
               "id": "1425595066_8_0",
               "sampleCount": 672,
-              "name": "bedit – setIn",
+              "name": "patchfork – setIn",
               "rank": 2,
               "rme": 3.194102794202025,
               "totalTime": 500.5009250000512,
@@ -808,7 +808,7 @@
             {
               "id": "1425595066_8_1",
               "sampleCount": 690,
-              "name": "bedit - edit.batch",
+              "name": "patchfork - edit.batch",
               "rank": 1,
               "rme": 3.008103674002048,
               "totalTime": 500.1068989999585,
@@ -882,7 +882,7 @@
             {
               "id": "1425595066_9_0",
               "sampleCount": 1270083,
-              "name": "bedit - edit.batch",
+              "name": "patchfork - edit.batch",
               "rank": 1,
               "rme": 0.9483172267135619,
               "totalTime": 500.0003759998326,
@@ -956,7 +956,7 @@
             {
               "id": "1425595066_10_0",
               "sampleCount": 3590,
-              "name": "bedit - edit.batch",
+              "name": "patchfork - edit.batch",
               "rank": 1,
               "rme": 6.857260909597697,
               "totalTime": 500.0501590002568,
@@ -1030,7 +1030,7 @@
             {
               "id": "1425595066_11_0",
               "sampleCount": 80569,
-              "name": "bedit",
+              "name": "patchfork",
               "rank": 1,
               "rme": 1.3111071632039397,
               "totalTime": 500.0050849991021,

@@ -6,7 +6,7 @@ import {
   createNestedUser,
   createNestedArray,
 } from './test-utils'
-import { edit, key } from '../src/bedit.mjs'
+import { fork, key } from '../src/patchfork.mjs'
 
 describe('edit', () => {
   it('should update a top-level property with function', () => {
@@ -15,7 +15,7 @@ describe('edit', () => {
     const mutable = structuredClone(obj)
     mutable.name = mutable.name.toUpperCase()
 
-    const result = edit(obj).name((name) => name.toUpperCase())
+    const result = fork(obj).name((name) => name.toUpperCase())
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -27,7 +27,7 @@ describe('edit', () => {
     const mutable = structuredClone(obj)
     mutable.user.profile.name = mutable.user.profile.name.toUpperCase()
 
-    const result = edit(obj).user.profile.name((name) => name.toUpperCase())
+    const result = fork(obj).user.profile.name((name) => name.toUpperCase())
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -47,7 +47,7 @@ describe('edit', () => {
     const [firstName, lastName] = mutable.user.profile.name.split(' ')
     mutable.user.profile.name = `${lastName}, ${firstName}`
 
-    const result = edit(obj).user.profile.name((name) => {
+    const result = fork(obj).user.profile.name((name) => {
       const [firstName, lastName] = name.split(' ')
       return `${lastName}, ${firstName}`
     })
@@ -72,7 +72,7 @@ describe('edit', () => {
     mutable.user.profile.settings.theme =
       mutable.user.profile.settings.theme.toUpperCase()
 
-    const result = edit(obj).user.profile.settings.theme((theme) =>
+    const result = fork(obj).user.profile.settings.theme((theme) =>
       theme.toUpperCase(),
     )
 
@@ -90,7 +90,7 @@ describe('edit', () => {
     const mutable = structuredClone(obj)
     mutable.name = undefined as any
 
-    const result = edit(obj).name(() => undefined as any)
+    const result = fork(obj).name(() => undefined as any)
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -102,7 +102,7 @@ describe('edit', () => {
     const mutable = structuredClone(obj)
     mutable.name = null as any
 
-    const result = edit(obj).name(() => null as any)
+    const result = fork(obj).name(() => null as any)
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -114,9 +114,7 @@ describe('edit', () => {
     const mutable = structuredClone(obj)
     mutable.data[0][1].value = mutable.data[0][1].value.toUpperCase()
 
-    const result = edit(obj).data[0][1].value((value) =>
-      value.toUpperCase(),
-    )
+    const result = fork(obj).data[0][1].value((value) => value.toUpperCase())
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -130,8 +128,8 @@ describe('edit', () => {
     mutable1.name = mutable1.name.toUpperCase()
     mutable2.name = mutable2.name.toLowerCase()
 
-    const result1 = edit(obj).name((name) => name.toUpperCase())
-    const result2 = edit(obj).name((name) => name.toLowerCase())
+    const result1 = fork(obj).name((name) => name.toUpperCase())
+    const result2 = fork(obj).name((name) => name.toLowerCase())
 
     expect(result1).toEqual(mutable1)
     expect(result2).toEqual(mutable2)
@@ -144,9 +142,7 @@ describe('edit', () => {
     const mutable = structuredClone(obj)
     mutable.user.profile.name = 'Jane'
 
-    const result1 = edit(obj).user((user) =>
-      edit(user).profile.name('Jane'),
-    )
+    const result1 = fork(obj).user((user) => fork(user).profile.name('Jane'))
 
     expect(result1).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -158,7 +154,7 @@ describe('edit', () => {
     const mutable = structuredClone(obj)
     mutable.foo.set('bar', 'BAZ')
 
-    const result = edit(obj).foo[key]('bar')((value) => value.toUpperCase())
+    const result = fork(obj).foo[key]('bar')((value) => value.toUpperCase())
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -176,7 +172,7 @@ describe('edit', () => {
     user.name = user.name.toUpperCase()
     user.age += 5
 
-    const result = edit(obj).data[key]('users')[key]('user1')((user) => ({
+    const result = fork(obj).data[key]('users')[key]('user1')((user) => ({
       name: user.name.toUpperCase(),
       age: user.age + 5,
     }))
@@ -191,9 +187,7 @@ describe('edit', () => {
     const mutable = structuredClone(obj)
     mutable[0].bar.set('foo', 'OLD VALUE')
 
-    const result = edit(obj)[0].bar[key]('foo')((value) =>
-      value.toUpperCase(),
-    )
+    const result = fork(obj)[0].bar[key]('foo')((value) => value.toUpperCase())
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -219,7 +213,7 @@ describe('edit', () => {
     feature.enabled = !feature.enabled
     feature.count *= 2
 
-    const result = edit(obj)
+    const result = fork(obj)
       .config[key]('settings')
       [key]('features')
       [key]('feature1')((feature) => ({
@@ -237,7 +231,7 @@ describe('edit', () => {
     const mutable = structuredClone(obj)
     mutable.age = 1
 
-    const result = edit(obj).age((age) => (age == null ? 0 : age + 1))
+    const result = fork(obj).age((age) => (age == null ? 0 : age + 1))
     expect(result).toEqual(undefined)
     expect(obj).toEqual(backup)
   })
@@ -245,7 +239,7 @@ describe('edit', () => {
   it('should handle nested optional objects', () => {
     const obj: { user?: { name: string; age?: number } } = {}
 
-    const result = edit(obj).user.age((age) => (age == null ? 0 : age + 1))
+    const result = fork(obj).user.age((age) => (age == null ? 0 : age + 1))
   })
 
   describe('Optional property edge cases', () => {
@@ -253,7 +247,7 @@ describe('edit', () => {
       const obj: { name?: string } = {} // name is undefined
       let receivedValue: string | undefined
 
-      const result = edit(obj).name((name) => {
+      const result = fork(obj).name((name) => {
         receivedValue = name
         expect(typeof name).toBe('string') // should never be undefined
         return name.toUpperCase()
@@ -267,7 +261,7 @@ describe('edit', () => {
       const obj: { value?: string | null } = { value: null }
       let receivedValue: string | null | undefined
 
-      edit(obj).value((value) => {
+      fork(obj).value((value) => {
         receivedValue = value
         expect(value).toBe(null)
         expect(value).not.toBe(undefined)
@@ -281,7 +275,7 @@ describe('edit', () => {
       const obj: { data?: string | null | undefined } = { data: null }
       let callCount = 0
 
-      const result = edit(obj).data((data) => {
+      const result = fork(obj).data((data) => {
         callCount++
         expect(data).toBe(null) // should receive null, not undefined
         return 'updated'
@@ -297,7 +291,7 @@ describe('edit', () => {
       const obj: { user?: { profile: { name: string } } } = {}
       let updaterCalled = false
 
-      const result = edit(obj).user.profile.name((name) => {
+      const result = fork(obj).user.profile.name((name) => {
         updaterCalled = true
         return name.toUpperCase()
       })
@@ -320,7 +314,7 @@ describe('edit', () => {
       const obj: DeepNested = {}
       let updaterCalled = false
 
-      const result = edit(obj).level1.level2.level3.value((value) => {
+      const result = fork(obj).level1.level2.level3.value((value) => {
         updaterCalled = true
         return value.toUpperCase()
       })
@@ -334,9 +328,7 @@ describe('edit', () => {
         user: { profile: { name: 'John' } },
       }
 
-      const result = edit(obj).user.profile.name((name) =>
-        name.toUpperCase(),
-      )
+      const result = fork(obj).user.profile.name((name) => name.toUpperCase())
 
       expect(result?.user?.profile?.name).toBe('JOHN')
     })
@@ -347,7 +339,7 @@ describe('edit', () => {
       const obj = { config: new Map<string, string>() }
       let updaterCalled = false
 
-      const result = edit(obj).config[key]('nonexistent')((value) => {
+      const result = fork(obj).config[key]('nonexistent')((value) => {
         updaterCalled = true
         return value.toUpperCase()
       })
@@ -359,7 +351,7 @@ describe('edit', () => {
     it('should work with existing Map keys', () => {
       const obj = { config: new Map([['theme', 'dark']]) }
 
-      const result = edit(obj).config[key]('theme')((value) =>
+      const result = fork(obj).config[key]('theme')((value) =>
         value.toUpperCase(),
       )
 
@@ -369,7 +361,7 @@ describe('edit', () => {
     it('should handle Map keys in optional contexts', () => {
       const obj: { config?: Map<string, string> } = {}
 
-      const result = edit(obj).config[key]('theme')((value) =>
+      const result = fork(obj).config[key]('theme')((value) =>
         value.toUpperCase(),
       )
 

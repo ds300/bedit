@@ -7,7 +7,7 @@ import {
   createUserArray,
   createDeepNested,
 } from './test-utils'
-import { key, edit } from '../src/bedit.mjs'
+import { key, fork } from '../src/patchfork.mjs'
 
 describe('edit', () => {
   it('should set a top-level property', () => {
@@ -16,7 +16,7 @@ describe('edit', () => {
     const mutable = structuredClone(obj)
     mutable.name = 'Jane'
 
-    const result = edit(obj).name('Jane')
+    const result = fork(obj).name('Jane')
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -28,7 +28,7 @@ describe('edit', () => {
     const mutable = structuredClone(obj)
     mutable.user.profile.name = 'Jane'
 
-    const result = edit(obj).user.profile.name('Jane')
+    const result = fork(obj).user.profile.name('Jane')
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -40,7 +40,7 @@ describe('edit', () => {
     const mutable = structuredClone(obj)
     mutable.users[0].name = 'Bob'
 
-    const result = edit(obj).users[0].name('Bob')
+    const result = fork(obj).users[0].name('Bob')
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -52,7 +52,7 @@ describe('edit', () => {
     const mutable = structuredClone(obj)
     mutable.a.b.c.d.e.f.g.h.i.j = 'new value'
 
-    const result = edit(obj).a.b.c.d.e.f.g.h.i.j('new value')
+    const result = fork(obj).a.b.c.d.e.f.g.h.i.j('new value')
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -64,7 +64,7 @@ describe('edit', () => {
     const mutable = structuredClone(obj)
     mutable.name = null as any
 
-    const result = edit(obj).name(null as any)
+    const result = fork(obj).name(null as any)
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -74,7 +74,7 @@ describe('edit', () => {
     const obj = { user: null as null | { name: string } }
     const backup = structuredClone(obj)
 
-    const result = edit(obj).user.name('John')
+    const result = fork(obj).user.name('John')
     expect(result).toBeUndefined()
     expect(obj).toEqual(backup)
   })
@@ -87,8 +87,8 @@ describe('edit', () => {
     mutable1.name = 'Jane'
     mutable2.name = 'Bob'
 
-    const result1 = edit(obj).name('Jane')
-    const result2 = edit(obj).name('Bob')
+    const result1 = fork(obj).name('Jane')
+    const result2 = fork(obj).name('Bob')
 
     expect(result1).toEqual(mutable1)
     expect(result2).toEqual(mutable2)
@@ -104,7 +104,7 @@ describe('edit', () => {
     const mutable = structuredClone(obj)
     mutable.set('a', 2)
 
-    const result = edit(obj)[key]('a')(2)
+    const result = fork(obj)[key]('a')(2)
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -116,7 +116,7 @@ describe('edit', () => {
     const mutable = structuredClone(obj)
     mutable.get('a')!.set('b', 2)
 
-    const result = edit(obj)[key]('a')[key]('b')(2)
+    const result = fork(obj)[key]('a')[key]('b')(2)
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -128,7 +128,7 @@ describe('edit', () => {
     const mutable = structuredClone(obj)
     mutable.foo.set('bar', 'qux')
 
-    const result = edit(obj).foo[key]('bar')('qux')
+    const result = fork(obj).foo[key]('bar')('qux')
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -140,7 +140,7 @@ describe('edit', () => {
     const mutable = structuredClone(obj)
     mutable[0].bar.set('foo', ['new item'])
 
-    const result = edit(obj)[0].bar[key]('foo')(['new item'])
+    const result = fork(obj)[0].bar[key]('foo')(['new item'])
 
     expect(result).toEqual(mutable)
     expect(obj).toEqual(backup)
@@ -156,7 +156,7 @@ describe('edit', () => {
     const mutable = structuredClone(obj)
     mutable.data.users.get('user1')!.profile.set('name', 'Jane')
 
-    const result = edit(obj).data.users[key]('user1').profile[key]('name')(
+    const result = fork(obj).data.users[key]('user1').profile[key]('name')(
       'Jane',
     )
 
@@ -185,7 +185,7 @@ describe('edit', () => {
       .get('features')!
       .set('feature1', { enabled: false, options: ['x', 'y'] })
 
-    const result = edit(obj)
+    const result = fork(obj)
       .config[key]('settings')
       [key]('features')
       [key]('feature1')({ enabled: false, options: ['x', 'y'] })
@@ -205,7 +205,7 @@ describe('edit', () => {
     const mutable = structuredClone(obj)
     mutable[0].data.get('items')!.set('item1', { value: 'new' })
 
-    const result = edit(obj)[0].data[key]('items')[key]('item1')({
+    const result = fork(obj)[0].data[key]('items')[key]('item1')({
       value: 'new',
     })
 
@@ -220,18 +220,18 @@ describe('edit', () => {
     }
     const backup = structuredClone(obj)
 
-    const result = edit(obj).age(1)
+    const result = fork(obj).age(1)
     expect(result).toEqual({ name: 'John', age: 1, buns: [] })
     expect(obj).toEqual(backup)
 
-    const result2 = edit(obj).buns[0]('bacon')
+    const result2 = fork(obj).buns[0]('bacon')
     expect(result2).toEqual({ name: 'John', buns: ['bacon'] })
     expect(obj).toEqual(backup)
   })
 
   it('should return maybe undefined when setting a property inside a map', () => {
     const obj = new Map<string, { b: number }>()
-    const result = edit(obj)[key]('a').b(2)
+    const result = fork(obj)[key]('a').b(2)
     expect(result).toEqual(undefined)
   })
 })
