@@ -1,5 +1,4 @@
-import { Editable, edit } from './bedit.mjs'
-import { $beditStateContainer, BeditStateContainer } from './symbols.mjs'
+import { $patchable, Patchable } from './symbols.mjs'
 import { _shallowClone } from './utils.mjs'
 
 interface ZustandStoreish<T> {
@@ -10,18 +9,18 @@ interface ZustandStoreish<T> {
 type GetState<S> = S extends { getState: () => infer T } ? T : never
 
 // Type for the enhanced store with mutator functions
-type BeditifiedStore<S extends ZustandStoreish<any>> = S &
-  BeditStateContainer<GetState<S>>
+type PatchforkifiedStore<S extends ZustandStoreish<any>> = S &
+  Patchable<GetState<S>>
 
-export function beditify<S extends ZustandStoreish<any>>(
+export function patchable<S extends ZustandStoreish<any>>(
   store: S,
-): BeditifiedStore<S> {
-  // Start with the enhanced store and add the bedit state container symbol
+): PatchforkifiedStore<S> {
+  // Start with the enhanced store and add the patchfork state container symbol
   const enhancedStore = store as any
-  enhancedStore[$beditStateContainer] = {
+  enhancedStore[$patchable] = {
     get: () => store.getState(),
     set: (newState: GetState<S>) => store.setState(newState),
   }
 
-  return enhancedStore as BeditifiedStore<S>
+  return enhancedStore as PatchforkifiedStore<S>
 }

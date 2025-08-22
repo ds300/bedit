@@ -7,26 +7,26 @@ import {
   createUserArray,
   createDeepNested,
 } from './test-utils'
-import { edit, setIn, updateIn, editIn, setDevMode } from '../src/bedit.mjs'
+import { fork, setDevMode, key, patch } from '../src/patchfork.mjs'
 
 setDevMode(true)
 
-describe('edit', () => {
+describe('edit.batch', () => {
   it('should handle concurrent async operations without interference', async () => {
     const obj1 = { a: { value: 1 }, b: { value: 2 } }
     const obj2 = { x: { value: 10 }, y: { value: 20 } }
 
     // Start two async operations that complete in different orders
-    const promise1 = edit(obj1, async (draft) => {
+    const promise1 = fork.do(obj1, async (draft) => {
       await new Promise((resolve) => setTimeout(resolve, 20)) // Longer delay
-      setIn(draft).a.value(100)
-      setIn(draft).b.value(200)
+      patch(draft).a.value(100)
+      patch(draft).b.value(200)
     })
 
-    const promise2 = edit(obj2, async (draft) => {
+    const promise2 = fork.do(obj2, async (draft) => {
       await new Promise((resolve) => setTimeout(resolve, 5)) // Shorter delay - completes first
-      setIn(draft).x.value(1000)
-      setIn(draft).y.value(2000)
+      patch(draft).x.value(1000)
+      patch(draft).y.value(2000)
     })
 
     // Both should complete successfully despite out-of-order completion
@@ -43,7 +43,7 @@ describe('edit', () => {
     mutable.name = 'Jane'
     mutable.age = 25
 
-    const result = edit(obj, (draft) => {
+    const result = fork.do(obj, (draft) => {
       draft.name = 'Jane'
       draft.age = 25
     })
@@ -60,10 +60,10 @@ describe('edit', () => {
     mutable.users = mutable.users.filter((u) => u.age > 25)
     mutable.users[0].age += 5
 
-    const result = edit(obj, (draft) => {
-      setIn(draft).users[0].name('Johnny')
-      setIn(draft).users(draft.users.filter((u) => u.age > 25))
-      updateIn(draft).users[0].age((age) => age + 5)
+    const result = fork.do(obj, (draft) => {
+      patch(draft).users[0].name('Johnny')
+      patch(draft).users(draft.users.filter((u) => u.age > 25))
+      patch(draft).users[0].age((age) => age + 5)
     })
 
     expect(result).toEqual(mutable)
@@ -78,10 +78,10 @@ describe('edit', () => {
     mutable.user.profile.age = 25
     mutable.user.profile.age += 5
 
-    const result = edit(obj, (draft) => {
-      setIn(draft).user.profile.name('Jane')
-      setIn(draft).user.profile.age(25)
-      updateIn(draft).user.profile.age((age) => age + 5)
+    const result = fork.do(obj, (draft) => {
+      patch(draft).user.profile.name('Jane')
+      patch(draft).user.profile.age(25)
+      patch(draft).user.profile.age((age) => age + 5)
     })
 
     expect(result).toEqual(mutable)
@@ -96,10 +96,10 @@ describe('edit', () => {
     mutable.users[1].age = 26
     mutable.users.push({ name: 'Bob', age: 40 })
 
-    const result = edit(obj, (draft) => {
-      setIn(draft).users[0].name('Johnny')
-      setIn(draft).users[1].age(26)
-      updateIn(draft).users((users) => [...users, { name: 'Bob', age: 40 }])
+    const result = fork.do(obj, (draft) => {
+      patch(draft).users[0].name('Johnny')
+      patch(draft).users[1].age(26)
+      patch(draft).users((users) => [...users, { name: 'Bob', age: 40 }])
     })
 
     expect(result).toEqual(mutable)
@@ -113,9 +113,9 @@ describe('edit', () => {
     mutable.a.b.c.d.e.f.g.h.i.j = 'new value'
     ;(mutable.a.b.c.d.e.f.g.h.i as any).k = 'another value'
 
-    const result = edit(obj, (draft) => {
-      setIn(draft).a.b.c.d.e.f.g.h.i.j('new value')
-      ;(setIn(draft).a.b.c.d.e.f.g.h.i as any).k('another value')
+    const result = fork.do(obj, (draft) => {
+      patch(draft).a.b.c.d.e.f.g.h.i.j('new value')
+      ;(patch(draft).a.b.c.d.e.f.g.h.i as any).k('another value')
     })
 
     expect(result).toEqual(mutable)
@@ -134,11 +134,11 @@ describe('edit', () => {
     mutable.config.set('theme', { color: 'light' })
     mutable.config.get('debug')!.enabled = true
 
-    const result = edit(obj, (draft) => {
-      editIn(draft).config((config) => {
+    const result = fork.do(obj, (draft) => {
+      patch.do(draft).config((config) => {
         config.set('theme', { color: 'light' })
       })
-      editIn(draft).config.key('debug')((config) => {
+      patch.do(draft).config[key]('debug')((config) => {
         config.enabled = true
       })
     })
@@ -168,9 +168,9 @@ describe('edit', () => {
     mutable.data.config.set('debug', { color: 'light' })
     mutable.data.tags.add('typescript')
 
-    const result = edit(obj, (draft) => {
-      setIn(draft).data.config.key('debug')({ color: 'light' })
-      editIn(draft).data.tags((tags) => {
+    const result = fork.do(obj, (draft) => {
+      patch(draft).data.config[key]('debug')({ color: 'light' })
+      patch.do(draft).data.tags((tags) => {
         tags.add('typescript')
       })
     })
@@ -192,7 +192,7 @@ describe('edit', () => {
     const backup = structuredClone(obj)
     const mutable = structuredClone(obj)
 
-    const result = edit(obj, (draft) => {
+    const result = fork.do(obj, (draft) => {
       // No operations
     })
 
@@ -207,9 +207,9 @@ describe('edit', () => {
     mutable.users.push({ name: 'Bob', age: 40 })
     ;(mutable as any).filter = 'all'
 
-    const result = edit(obj, (draft) => {
-      updateIn(draft).users((users) => [...users, { name: 'Bob', age: 40 }])
-      ;(setIn(draft) as any).filter('all')
+    const result = fork.do(obj, (draft) => {
+      patch(draft).users((users) => [...users, { name: 'Bob', age: 40 }])
+      ;(patch(draft) as any).filter('all')
     })
 
     expect(result).toEqual(mutable)
@@ -232,29 +232,29 @@ describe('edit', () => {
     let profileRef: any = null
     let settingsRef: any = null
 
-    const result = edit(obj, (obj) => {
+    const result = fork.do(obj, (obj) => {
       // First modification - should clone
-      setIn(obj).user.profile.name('Jane')
+      patch(obj).user.profile.name('Jane')
       profileRef = obj.user.profile
 
       // Second modification - should reuse the same object
-      setIn(obj).user.profile.age(25)
+      patch(obj).user.profile.age(25)
       expect(obj.user.profile).toBe(profileRef)
 
       // Third modification - should still reuse
-      setIn(obj).user.profile.age(26)
+      patch(obj).user.profile.age(26)
       expect(obj.user.profile).toBe(profileRef)
 
       // Modify a different nested object
-      setIn(obj).user.settings.theme('light')
+      patch(obj).user.settings.theme('light')
       settingsRef = obj.user.settings
 
       // Modify it again - should reuse
-      setIn(obj).user.settings.theme('auto')
+      patch(obj).user.settings.theme('auto')
       expect(obj.user.settings).toBe(settingsRef)
 
       // Modify the first object again - should still reuse
-      setIn(obj).user.profile.name('Johnny')
+      patch(obj).user.profile.name('Johnny')
       expect(obj.user.profile).toBe(profileRef)
     })
 
@@ -281,23 +281,23 @@ describe('edit', () => {
 
     let usersRef: any = null
 
-    const result = edit(obj, (obj) => {
+    const result = fork.do(obj, (obj) => {
       // First modification - should clone
-      setIn(obj).users[0].name('Johnny')
+      patch(obj).users[0].name('Johnny')
       usersRef = obj.users
 
       // Second modification - should reuse the same array
-      setIn(obj).users[1].age(26)
+      patch(obj).users[1].age(26)
       expect(obj.users).toBe(usersRef)
 
       // Third modification - should still reuse
-      editIn(obj).users((users) => {
+      patch.do(obj).users((users) => {
         users.push({ name: 'Bob', age: 40 })
       })
       expect(obj.users).toBe(usersRef)
 
       // Fourth modification - should still reuse
-      setIn(obj).users[0].age(35)
+      patch(obj).users[0].age(35)
       expect(obj.users).toBe(usersRef)
     })
 
@@ -322,21 +322,21 @@ describe('edit', () => {
 
     let profileRef: any = null
 
-    const result = edit(obj, (draft) => {
+    const result = fork.do(obj, (draft) => {
       // Direct mutation first
-      setIn(draft).user.profile.name('Jane')
+      patch(draft).user.profile.name('Jane')
       profileRef = draft.user.profile
 
       // Direct mutation - should reuse
-      setIn(draft).user.profile.age(25)
+      patch(draft).user.profile.age(25)
       expect(draft.user.profile).toBe(profileRef)
 
       // Direct mutation again - should reuse
-      setIn(draft).user.profile.age(26)
+      patch(draft).user.profile.age(26)
       expect(draft.user.profile).toBe(profileRef)
 
       // Direct mutation again - should reuse
-      setIn(draft).user.profile.age(27)
+      patch(draft).user.profile.age(27)
       expect(draft.user.profile).toBe(profileRef)
     })
 
@@ -375,17 +375,17 @@ describe('edit', () => {
 
     let deepRef: any = null
 
-    const result = edit(obj, (draft) => {
+    const result = fork.do(obj, (draft) => {
       // First modification - should clone the path
-      setIn(draft).a.b.c.d.e.f.g.h.i.j('new value')
+      patch(draft).a.b.c.d.e.f.g.h.i.j('new value')
       deepRef = draft.a.b.c.d.e.f.g.h.i
 
       // Second modification - should reuse the same object
-      ;(setIn(draft).a.b.c.d.e.f.g.h.i as any).k('another value')
+      patch(draft).a.b.c.d.e.f.g.h.i.j('another value')
       expect(draft.a.b.c.d.e.f.g.h.i).toBe(deepRef)
 
       // Third modification - should still reuse
-      setIn(draft).a.b.c.d.e.f.g.h.i.j('final value')
+      patch(draft).a.b.c.d.e.f.g.h.i.j('final value')
       expect(draft.a.b.c.d.e.f.g.h.i).toBe(deepRef)
     })
 
@@ -400,7 +400,6 @@ describe('edit', () => {
                     h: {
                       i: {
                         j: 'final value',
-                        k: 'another value',
                       },
                     },
                   },
@@ -425,11 +424,11 @@ describe('edit', () => {
       },
     }
 
-    const result = edit(obj, (draft) => {
-      setIn(draft).a.foo('baz')
+    const result = fork.do(obj, (draft) => {
+      patch(draft).a.foo('baz')
       let shallowA = draft.a
       expect(draft.a.b).toBe(obj.a.b)
-      editIn(draft).a.b.c((c) => {
+      patch.do(draft).a.b.c((c) => {
         c.d = 'new value'
       })
       // a should not have been recloned
@@ -469,9 +468,9 @@ describe('edit', () => {
     mutable.foo.set('bar', 'qux')
     mutable.foo.set('new', 'value')
 
-    const result = edit(obj, (draft) => {
-      setIn(draft).foo.key('bar')('qux')
-      setIn(draft).foo.key('new')('value')
+    const result = fork.do(obj, (draft) => {
+      patch(draft).foo[key]('bar')('qux')
+      patch(draft).foo[key]('new')('value')
     })
 
     expect(result).toEqual(mutable)
@@ -491,10 +490,10 @@ describe('edit', () => {
     user.age = 25
     mutable.data.get('users')!.set('user2', { name: 'Bob', age: 35 })
 
-    const result = edit(obj, (draft) => {
-      setIn(draft).data.key('users').key('user1').name('Jane')
-      setIn(draft).data.key('users').key('user1').age(25)
-      setIn(draft).data.key('users').key('user2')({ name: 'Bob', age: 35 })
+    const result = fork.do(obj, (draft) => {
+      patch(draft).data[key]('users')[key]('user1').name('Jane')
+      patch(draft).data[key]('users')[key]('user1').age(25)
+      patch(draft).data[key]('users')[key]('user2')({ name: 'Bob', age: 35 })
     })
 
     expect(result).toEqual(mutable)
@@ -508,9 +507,9 @@ describe('edit', () => {
     mutable[0].bar.set('foo', 'new')
     mutable[0].bar.set('extra', 'value')
 
-    const result = edit(obj, (draft) => {
-      setIn(draft)[0].bar.key('foo')('new')
-      setIn(draft)[0].bar.key('extra')('value')
+    const result = fork.do(obj, (draft) => {
+      patch(draft)[0].bar[key]('foo')('new')
+      patch(draft)[0].bar[key]('extra')('value')
     })
 
     expect(result).toEqual(mutable)
@@ -541,18 +540,18 @@ describe('edit', () => {
       .get('features')!
       .set('feature2', { enabled: true, count: 1 })
 
-    const result = edit(obj, (draft) => {
-      setIn(draft)
-        .config.key('settings')
-        .key('features')
-        .key('feature1')
+    const result = fork.do(obj, (draft) => {
+      patch(draft)
+        .config[key]('settings')
+        [key]('features')
+        [key]('feature1')
         .enabled(false)
-      setIn(draft)
-        .config.key('settings')
-        .key('features')
-        .key('feature1')
+      patch(draft)
+        .config[key]('settings')
+        [key]('features')
+        [key]('feature1')
         .count(2)
-      setIn(draft).config.key('settings').key('features').key('feature2')({
+      patch(draft).config[key]('settings')[key]('features')[key]('feature2')({
         enabled: true,
         count: 1,
       })
@@ -568,17 +567,17 @@ describe('edit', () => {
 
     let mapRef: any = null
 
-    const result = edit(obj, (draft) => {
+    const result = fork.do(obj, (draft) => {
       // First modification - should clone
-      setIn(draft).foo.key('bar')('qux')
+      patch(draft).foo[key]('bar')('qux')
       mapRef = draft.foo
 
       // Second modification - should reuse the same map
-      setIn(draft).foo.key('new')('value')
+      patch(draft).foo[key]('new')('value')
       expect(draft.foo).toBe(mapRef)
 
       // Third modification - should still reuse
-      setIn(draft).foo.key('another')('item')
+      patch(draft).foo[key]('another')('item')
       expect(draft.foo).toBe(mapRef)
     })
 
@@ -602,7 +601,7 @@ describe('edit', () => {
       const backup = structuredClone(obj)
 
       let resolved = false
-      const result = edit(obj, async (draft) => {
+      const result = fork.do(obj, async (draft) => {
         await delay(1)
         draft.name = 'Jane'
         draft.age = 25
@@ -624,10 +623,10 @@ describe('edit', () => {
       const backup = structuredClone(obj)
 
       let resolved = false
-      const result = edit(obj, async (draft) => {
+      const result = fork.do(obj, async (draft) => {
         await delay(1)
-        setIn(draft).user.profile.name('Jane')
-        setIn(draft).user.profile.age(25)
+        patch(draft).user.profile.name('Jane')
+        patch(draft).user.profile.age(25)
         resolved = true
       })
 
@@ -661,7 +660,7 @@ describe('edit', () => {
       }
 
       let resolved = false
-      const result = edit(obj, async (draft) => {
+      const result = fork.do(obj, async (draft) => {
         const name = await mockApiCall1()
         draft.name = name
 
@@ -688,10 +687,10 @@ describe('edit', () => {
       const backup = structuredClone(obj)
 
       let resolved = false
-      const result = edit(obj, async (draft) => {
+      const result = fork.do(obj, async (draft) => {
         await delay(1)
-        setIn(draft).config.key('theme')('light')
-        setIn(draft).config.key('version')('1.0.0')
+        patch(draft).config[key]('theme')('light')
+        patch(draft).config[key]('version')('1.0.0')
         resolved = true
       })
 
@@ -714,10 +713,10 @@ describe('edit', () => {
       const backup = structuredClone(obj)
 
       let resolved = false
-      const result = edit(obj, async (draft) => {
+      const result = fork.do(obj, async (draft) => {
         await delay(1)
-        updateIn(draft).tags.add('nodejs')
-        updateIn(draft).tags.delete('react')
+        patch(draft).tags.add('nodejs')
+        patch(draft).tags.delete('react')
         resolved = true
       })
 
@@ -736,10 +735,10 @@ describe('edit', () => {
       const backup = structuredClone(obj)
 
       let resolved = false
-      const result = await edit(obj, async (draft) => {
+      const result = await fork.do(obj, async (draft) => {
         await delay(1)
-        updateIn(draft).users.push({ name: 'Bob', age: 40 })
-        setIn(draft).users[0].name('Johnny')
+        patch(draft).users.push({ name: 'Bob', age: 40 })
+        patch(draft).users[0].name('Johnny')
         resolved = true
       })
 
@@ -767,7 +766,7 @@ describe('edit', () => {
       }
 
       let resolved = false
-      const result = await edit(obj, async (draft) => {
+      const result = await fork.do(obj, async (draft) => {
         draft.loading = true
 
         try {
@@ -791,26 +790,7 @@ describe('edit', () => {
       expect(obj).toEqual(backup)
     })
 
-    it('should handle async mutations returning values', async () => {
-      const obj = createSimpleUser()
-      const backup = structuredClone(obj)
-
-      let resolved = false
-      const result = edit(obj, async (_draft) => {
-        await delay(1)
-        resolved = true
-        return { name: 'Jane', age: 25 }
-      })
-
-      expect(resolved).toBe(false)
-      await result
-
-      expect(resolved).toBe(true)
-      expect(await result).toEqual({ name: 'Jane', age: 25 })
-      expect(obj).toEqual(backup)
-    })
-
-    it('should handle nested async operations with bedit functions', async () => {
+    it('should handle nested async operations with patchfork functions', async () => {
       const obj = {
         users: [{ id: 1, name: 'John', profile: { bio: 'Developer' } }],
         loading: false,
@@ -823,14 +803,14 @@ describe('edit', () => {
       }
 
       let resolved = false
-      const result = edit(obj, async (draft) => {
-        setIn(draft).loading(true)
+      const result = fork.do(obj, async (draft) => {
+        patch(draft).loading(true)
 
         const newBio = await updateProfile(draft.users[0].id)
-        setIn(draft).users[0].profile.bio(newBio)
-        updateIn(draft).users[0].name((name) => name.toUpperCase())
+        patch(draft).users[0].profile.bio(newBio)
+        patch(draft).users[0].name((name) => name.toUpperCase())
 
-        setIn(draft).loading(false)
+        patch(draft).loading(false)
         resolved = true
       })
 

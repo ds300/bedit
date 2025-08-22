@@ -2,5 +2,6 @@ node_modules
 *.log
 .DS_Store
 dist
-bedit.production.mts
+patchfork.production.mts
 coverage
+tsconfig.vitest-temp.json

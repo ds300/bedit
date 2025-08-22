@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Benchmark Results - Bedit vs Immer vs Mutative</title>
+    <title>Benchmark Results - Patchfork vs Immer vs Mutative</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
       * {
@@ -156,7 +156,7 @@
     <div class="container">
       <div class="header">
         <h1>🚀 Benchmark Results</h1>
-        <p>Bedit vs Immer vs Mutative Performance Comparison</p>
+        <p>Patchfork vs Immer vs Mutative Performance Comparison</p>
       </div>
 
       <div class="content">
@@ -180,7 +180,7 @@
           </div>
           <div class="stat-card">
             <div class="stat-number" id="avg-performance">0</div>
-            <div class="stat-label">Avg Ops/sec (Bedit)</div>
+            <div class="stat-label">Avg Ops/sec (Patchfork)</div>
           </div>
         </div>
       </div>
@@ -189,9 +189,9 @@
     <script>
       // Color scheme for different libraries
       const colors = {
-        'bedit – setIn': '#2563eb',
-        'bedit - editIn': '#1d4ed8',
-        'bedit - mutate': '#1e40af',
+        'patchfork – setIn': '#2563eb',
+        'patchfork - edit.batch': '#1d4ed8',
+        'patchfork - mutate': '#1e40af',
         immer: '#dc2626',
         mutative: '#059669',
       }
@@ -335,8 +335,8 @@
         stats.style.display = 'grid'
 
         let totalBenchmarks = 0
-        let beditTotalHz = 0
-        let beditCount = 0
+        let patchforkTotalHz = 0
+        let patchforkCount = 0
 
         // Calculate normalized scores for each test scenario
         const testNormalizations = []
@@ -347,8 +347,8 @@
 
           // Collect results for this test
           group.benchmarks.forEach((benchmark) => {
-            const libName = benchmark.name.includes('bedit')
-              ? 'bedit'
+            const libName = benchmark.name.includes('patchfork')
+              ? 'patchfork'
               : benchmark.name.includes('immer')
                 ? 'immer'
                 : benchmark.name.includes('mutative')
@@ -411,12 +411,12 @@
             data: [normalizedScores[libName]],
             backgroundColor:
               colors[`${libName} – setIn`] ||
-              colors[`${libName} - editIn`] ||
+              colors[`${libName} - edit.batch`] ||
               colors[libName] ||
               '#999',
             borderColor:
               colors[`${libName} – setIn`] ||
-              colors[`${libName} - editIn`] ||
+              colors[`${libName} - edit.batch`] ||
               colors[libName] ||
               '#999',
             borderWidth: 2,
@@ -530,9 +530,9 @@
           // Update stats
           totalBenchmarks += group.benchmarks.length
           group.benchmarks.forEach((benchmark) => {
-            if (benchmark.name.includes('bedit')) {
-              beditTotalHz += benchmark.hz
-              beditCount++
+            if (benchmark.name.includes('patchfork')) {
+              patchforkTotalHz += benchmark.hz
+              patchforkCount++
             }
           })
         })
@@ -543,7 +543,7 @@
         document.getElementById('total-benchmarks').textContent =
           totalBenchmarks
         document.getElementById('avg-performance').textContent = formatNumber(
-          beditCount > 0 ? beditTotalHz / beditCount : 0,
+          patchforkCount > 0 ? patchforkTotalHz / patchforkCount : 0,
         )
       }
 

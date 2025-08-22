@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { editIn, edit, setIn, setDevMode, updateIn } from '../src/bedit.mjs'
+import { fork, patch, setDevMode } from '../src/patchfork.mjs'
 
 describe('batch frame linking', () => {
   beforeEach(() => {
@@ -14,16 +14,16 @@ describe('batch frame linking', () => {
     const obj = { a: 1, b: 2, c: 3 }
 
     // Create nested batch operations to test frame linking
-    const result = await edit(obj, async (draft) => {
-      await edit(draft, async (draft) => {
-        await edit(draft, async (draft) => {
-          await edit(draft, async (draft) => {
+    const result = await fork.do(obj, async (draft) => {
+      await patch.do(draft, async (draft) => {
+        await patch.do(draft, async (draft) => {
+          await patch.do(draft, async (draft) => {
             draft.a = 2
           })
         })
       })
-      setIn(draft).b(20)
-      setIn(draft).c(30)
+      patch(draft).b(20)
+      patch(draft).c(30)
     })
 
     expect(result).toEqual({ a: 2, b: 20, c: 30 })
@@ -36,24 +36,21 @@ describe('batch frame linking', () => {
       metadata: { version: 1, updated: new Date('2023-01-01') },
     }
 
-    const result = await edit(obj, async (draft) => {
+    const result = await fork.do(obj, async (draft) => {
       // Multiple async operations that should create and release batch frames
-      const userUpdate = editIn(draft).users[0](async (user) => {
+      const userUpdate = patch.do(draft).users[0](async (user) => {
         user.name = 'Jane'
         user.age = 31
-        return user
       })
 
-      const settingsUpdate = editIn(draft).settings(async (settings) => {
+      const settingsUpdate = patch.do(draft).settings(async (settings) => {
         settings.theme = 'light'
         settings.debug = true
-        return settings
       })
 
-      const metadataUpdate = editIn(draft).metadata(async (metadata) => {
+      const metadataUpdate = patch.do(draft).metadata(async (metadata) => {
         metadata.version = 2
         metadata.updated = new Date('2024-01-01')
-        return metadata
       })
 
       // Wait for all to complete
@@ -80,13 +77,13 @@ describe('batch frame linking', () => {
       },
     }
 
-    const result = await editIn(obj).level1(async (level1) => {
-      return await editIn(level1).level2(async (level2) => {
-        return await editIn(level2).level3(async (level3) => {
-          return await editIn(level3).level4(async (level4) => {
-            updateIn(level4).data.push('d')
+    const result = await fork.do(obj).level1(async (level1) => {
+      await patch.do(level1).level2(async (level2) => {
+        await patch.do(level2).level3(async (level3) => {
+          await patch.do(level3).level4(async (level4) => {
+            patch(level4).data.push('d')
             level4.newProp = 'added'
-            return level4
+            level4
           })
         })
       })
@@ -108,15 +105,15 @@ describe('batch frame linking', () => {
       mixed: { value: 3 } as { value: number; newProp?: string },
     }
 
-    const result = edit(obj, (draft) => {
+    const result = fork.do(obj, (draft) => {
       // Sync operation
-      setIn(draft).sync(10)
+      patch(draft).sync(10)
 
-      // Use setIn instead of editIn to avoid readonly issues
-      setIn(draft).mixed({ value: 30, newProp: 'sync-added' })
+      // Use setIn instead of edit.batch to avoid readonly issues
+      patch(draft).mixed({ value: 30, newProp: 'sync-added' })
 
       // Another sync operation
-      setIn(draft).async(20)
+      patch(draft).async(20)
     })
 
     expect(result).toEqual({
@@ -131,15 +128,14 @@ describe('batch frame linking', () => {
 
     // Test that batch frames are properly cleaned up even when errors occur
     await expect(async () => {
-      await edit(obj, async (draft) => {
+      await fork.do(obj, async (draft) => {
         // This should work
-        await editIn(draft).data(async (data) => {
-          data.value = 10
-          return data
+        await patch.do(draft, async (draft) => {
+          patch(draft).data.value(10)
         })
 
         // This should throw an error
-        await editIn(draft).error(async (error) => {
+        await fork.do(draft.error, async (error) => {
           throw new Error('Async operation failed')
         })
       })
@@ -156,16 +152,22 @@ describe('batch frame linking', () => {
     const obj3 = { value: 3 }
 
     // Multiple sequential operations that should reuse batch frames
-    const result1 = await edit(obj1, async (draft) => {
-      await editIn(draft).value(async (val) => val * 10)
+    const result1 = await fork.do(obj1, async (draft) => {
+      await patch.do(draft)(async (draft) => {
+        draft.value *= 10
+      })
     })
 
-    const result2 = await edit(obj2, async (draft) => {
-      await editIn(draft).value(async (val) => val * 20)
+    const result2 = await fork.do(obj2, async (draft) => {
+      await patch.do(draft)(async (draft) => {
+        draft.value *= 20
+      })
     })
 
-    const result3 = await edit(obj3, async (draft) => {
-      await editIn(draft).value(async (val) => val * 30)
+    const result3 = await fork.do(obj3, async (draft) => {
+      await patch.do(draft)(async (draft) => {
+        draft.value *= 30
+      })
     })
 
     expect(result1.value).toBe(10)
@@ -176,7 +178,7 @@ describe('batch frame linking', () => {
   it('should handle empty batch operations', () => {
     const obj = { unchanged: 'value' }
 
-    const result = edit(obj, (draft) => {
+    const result = fork.do(obj, (draft) => {
       // Perform no operations
     })
 
@@ -190,19 +192,17 @@ describe('batch frame linking', () => {
       tags: new Set(['tag1', 'tag2']),
     }
 
-    const result = await edit(obj, async (draft) => {
+    const result = await fork.do(obj, async (draft) => {
       // Async Map operation
-      await editIn(draft).cache(async (cache) => {
+      await patch.do(draft).cache(async (cache) => {
         cache.set('key2', 'value2')
         cache.delete('key1')
-        return cache
       })
 
       // Async Set operation
-      await editIn(draft).tags(async (tags) => {
+      await patch.do(draft).tags(async (tags) => {
         tags.add('tag3')
         tags.delete('tag1')
-        return tags
       })
     })
 

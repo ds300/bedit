@@ -5,12 +5,12 @@ import { execSync } from 'child_process'
 rmSync('dist', { recursive: true, force: true })
 
 preprocessFileSync(
-  'src/bedit.mts',
-  'src/bedit.production.mts',
+  'src/patchfork.mts',
+  'src/patchfork.production.mts',
   {
     PRODUCTION: true,
     DEV_MODE_ERROR:
-      'console.error("[bedit] setDevMode is not available in production")',
+      'console.error("[patchfork] setDevMode is not available in production")',
   },
   { type: 'js' },
 )

@@ -1,8 +1,8 @@
 {
-  "name": "bedit",
-  "version": "0.0.11",
-  "description": "like immer but weird (and kinda cool)",
-  "main": "dist/bedit.mjs",
+  "name": "patchfork",
+  "version": "0.0.0",
+  "description": "A tiny immutable state utility for TypeScript.",
+  "main": "dist/patchfork.mjs",
   "files": [
     "dist",
     "src"
@@ -10,8 +10,8 @@
   "type": "module",
   "exports": {
     ".": {
-      "production": "./dist/bedit.production.mjs",
-      "default": "./dist/bedit.mjs"
+      "production": "./dist/patchfork.production.mjs",
+      "default": "./dist/patchfork.mjs"
     },
     "./zustand": {
       "production": "./dist/zustand.mjs",
@@ -23,12 +23,12 @@
     }
   },
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run --typecheck",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "build": "node scripts/build.mjs",
     "prepack": "npm run build",
-    "size": "npm run build && esbuild dist/bedit.production.mjs --bundle --minify | wc -c",
+    "size": "npm run build && esbuild dist/patchfork.production.mjs --bundle --minify | wc -c",
     "size:immer": "esbuild node_modules/immer/dist/immer.mjs --bundle --minify | wc -c",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -38,7 +38,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ds300/bedit.git"
+    "url": "git+https://github.com/ds300/patchfork.git"
   },
   "keywords": [
     "immer"
@@ -46,20 +46,27 @@
   "author": "David Sheldrick",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/ds300/bedit/issues"
+    "url": "https://github.com/ds300/patchfork/issues"
   },
-  "homepage": "https://github.com/ds300/bedit#readme",
+  "homepage": "https://github.com/ds300/patchfork",
   "devDependencies": {
     "@fast-check/vitest": "^0.2.2",
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^24.1.0",
+    "@types/react": "^19.1.10",
+    "@types/react-test-renderer": "^19.1.0",
     "@vitest/coverage-v8": "^1.6.1",
     "esbuild": "^0.25.8",
     "fast-check": "^4.2.0",
     "immer": "^10.0.3",
+    "jsdom": "^26.1.0",
     "mutative": "^1.0.0",
     "preprocess": "^3.2.0",
     "prettier": "^3.6.2",
     "react": "^19.1.1",
+    "react-test-renderer": "^19.1.1",
     "tsx": "^4.20.3",
     "typescript": "^5.9.2",
     "vitest": "^1.6.1",
