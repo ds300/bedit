@@ -38,19 +38,7 @@ So it's kinda like Immer's `produce` function, but with a wacky API optimized fo
 `patch` has the same interface as `fork`, but it operates on a state container to immutably update it.
 
 > [!NOTE]
-> Any state container with 'get' and 'set' operations can be adapted to work with `patch`. We provide adapters for [Zustand](./docs/zustand.md) and [React useState](./docs/react.md) (PRs welcome for others!).
-
-```ts
-import { patch } from 'patchfork'
-import { patchable } from 'patchfork/zustand'
-import { create } from 'zustand'
-
-const useStore = create(() => ({ user: { name: 'Nick Cave' } }))
-const store = patchable(useStore)
-
-// this updates the store, using `fork` under the hood
-patch(store).user.name('Nicholas Cage')
-```
+> Any state container with 'get' and 'set' operations can be adapted to work with `patch`. We provide adapters for [Zustand](./docs/zustand.md), [React useState](./docs/react.md), and [Jotai](./docs/jotai.md) (PRs welcome for others!).
 
 ```tsx
 import { patch } from 'patchfork'

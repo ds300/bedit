@@ -61,6 +61,7 @@
     "esbuild": "^0.25.8",
     "fast-check": "^4.2.0",
     "immer": "^10.0.3",
+    "jotai": "^2.13.1",
     "jsdom": "^26.1.0",
     "mutative": "^1.0.0",
     "preprocess": "^3.2.0",

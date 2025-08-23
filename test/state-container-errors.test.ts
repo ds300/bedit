@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { fork, setDevMode, key, patch } from '../src/patchfork.mjs'
+import { setDevMode, key, patch } from '../src/patchfork.mjs'
 import { $patchable } from '../src/symbols.mjs'
 
 describe('state container error handling', () => {

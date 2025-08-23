@@ -239,7 +239,7 @@ describe('edit', () => {
   it('should handle nested optional objects', () => {
     const obj: { user?: { name: string; age?: number } } = {}
 
-    const result = fork(obj).user.age((age) => (age == null ? 0 : age + 1))
+    fork(obj).user.age((age) => (age == null ? 0 : age + 1))
   })
 
   describe('Optional property edge cases', () => {

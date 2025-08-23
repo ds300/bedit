@@ -94,11 +94,7 @@ describe('React Hook Integration - Final Tests', () => {
         initialized: true,
         value: 42,
       }))
-      const [state2, state2Store] = usePatchableState(() => [
-        'func',
-        'init',
-        'array',
-      ])
+      const [state2] = usePatchableState(() => ['func', 'init', 'array'])
 
       return (
         <div data-testid="function-init-test">

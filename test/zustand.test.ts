@@ -1,7 +1,7 @@
 import { expect, describe, it } from 'vitest'
 import { create, createStore } from 'zustand'
 import { patchable } from '../src/zustand.mjs'
-import { fork, setDevMode, patch } from '../src/patchfork.mjs'
+import { setDevMode, patch } from '../src/patchfork.mjs'
 import { $patchable } from '../src/symbols.mjs'
 
 setDevMode(true)

@@ -1,5 +1,16 @@
-import { _shallowClone, isPlainObject } from './utils.mjs'
-import { $asyncPatchable,$patchable, $editable, AsyncPatchable, Patchable } from './symbols.mjs'
+import {
+  _shallowClone,
+  // @ifndef PRODUCTION
+  isPlainObject,
+  // @endif
+} from './utils.mjs'
+import {
+  $asyncPatchable,
+  $patchable,
+  $editable,
+  AsyncPatchable,
+  Patchable,
+} from './symbols.mjs'
 
 export const key = Symbol.for('__patchfork_key__')
 
@@ -268,7 +279,6 @@ function freezeObject(obj: any): any {
 
   return obj
 }
-// @endif
 
 function updateChildren(obj: any, fn: (child: any) => any) {
   if (isPlainObject(obj)) {
@@ -291,6 +301,7 @@ function updateChildren(obj: any, fn: (child: any) => any) {
   }
   return obj
 }
+// @endif
 
 const isCollection = (obj: any) =>
   obj instanceof Map || obj instanceof Set || Array.isArray(obj)

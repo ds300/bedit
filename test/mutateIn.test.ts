@@ -24,6 +24,7 @@ describe('edit.batch', () => {
           // @ts-expect-error
           user.settings.theme = 'light'
         }
+        _
       })
 
       // Should create new objects only at the mutation path
@@ -90,6 +91,7 @@ describe('edit.batch', () => {
           // @ts-expect-error
           todos[1].name = 'Updated Todo 2' // error: readonly
         }
+        _
       })
 
       expect(result).not.toBe(baseObj)
