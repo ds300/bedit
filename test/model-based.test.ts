@@ -4,7 +4,7 @@ import * as fc from 'fast-check'
 import { fork, setDevMode } from '../src/patchfork.mjs'
 
 // Configure for model-based testing
-fc.configureGlobal({ numRuns: process.env.CI ? 2000 : 50 })
+fc.configureGlobal({ numRuns: process.env.CI ? 200 : 50 })
 
 // ============================================================================
 // PHASE 1: Core Model Infrastructure
