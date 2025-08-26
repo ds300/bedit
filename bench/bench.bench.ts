@@ -1,5 +1,5 @@
 import { describe, bench, expect, afterEach } from 'vitest'
-import { edit, key } from '../src/patchfork.production.mts'
+import { fork, key, patch } from '../src/patchfork.production.mts'
 import {
   produce,
   enableMapSet,
@@ -11,7 +11,7 @@ enableMapSet()
 function warmup() {
   let max = 0
   for (let i = 0; i < 100000; i++) {
-    max = Math.max(max, edit({ a: 1 }).a(Math.random()).a)
+    max = Math.max(max, fork({ a: 1 }).a(Math.random()).a)
     max = Math.max(
       max,
       produce({ a: 1 }, (draft) => {
@@ -42,11 +42,11 @@ describe('shallow object clone with 1 property', () => {
   })
 
   bench('patchfork – setIn', () => {
-    result = edit(data).a(Math.random())
+    result = fork(data).a(Math.random())
   })
 
   bench('patchfork - edit.batch', () => {
-    result = edit.batch(data)((draft) => {
+    result = fork.do(data)((draft) => {
       draft.a = Math.random()
     })
   })
@@ -86,11 +86,11 @@ describe('shallow object clone with 10 properties', () => {
   })
 
   bench('patchfork – setIn', () => {
-    result = edit(data).a(Math.random())
+    result = fork(data).a(Math.random())
   })
 
   bench('patchfork - edit.batch', () => {
-    result = edit.batch(data)((draft) => {
+    result = fork.do(data)((draft) => {
       draft.a = Math.random()
     })
   })
@@ -119,11 +119,11 @@ describe('shallow array clone with 10 items', () => {
   })
 
   bench('patchfork – setIn', () => {
-    result = edit(data)[4](Math.random())
+    result = fork(data)[4](Math.random())
   })
 
   bench('patchfork - edit.batch', () => {
-    result = edit.batch(data)((draft) => {
+    result = fork.do(data)((draft) => {
       draft[4] = Math.random()
     })
   })
@@ -152,11 +152,11 @@ describe('shallow array clone with 10_000 items', () => {
   })
 
   bench('patchfork – setIn', () => {
-    result = edit(data)[4](Math.random())
+    result = fork(data)[4](Math.random())
   })
 
   bench('patchfork - edit.batch', () => {
-    result = edit.batch(data)((draft) => {
+    result = fork.do(data)((draft) => {
       draft[4] = Math.random()
     })
   })
@@ -217,11 +217,11 @@ describe('deep object clone', () => {
   })
 
   bench('patchfork – setIn', () => {
-    result = edit(data).a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p(Math.random())
+    result = fork(data).a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p(Math.random())
   })
 
   bench('patchfork - edit.batch', () => {
-    result = edit.batch(data).a.b.c.d.e.f.g.h.i.j.k.l.m.n.o((draft) => {
+    result = fork.do(data).a.b.c.d.e.f.g.h.i.j.k.l.m.n.o((draft) => {
       draft.p = Math.random()
     })
   })
@@ -253,11 +253,11 @@ describe('marking a todo as completed', () => {
   let result = data
 
   bench('patchfork – setIn', () => {
-    result = edit(data).todos[0].completed(true)
+    result = fork(data).todos[0].completed(true)
   })
 
   bench('patchfork - edit.batch', () => {
-    result = edit.batch(data).todos[0]((draft) => {
+    result = fork.do(data).todos[0]((draft) => {
       draft.completed = true
     })
   })
@@ -299,27 +299,27 @@ describe('marking four todos as completed and changing the filter', () => {
   })
 
   bench('patchfork – setIn', () => {
-    result = edit.batch(data, (data) => {
-      edit(data).todos[0].completed(true)
-      edit(data).todos[1].completed(true)
-      edit(data).todos[2].completed(true)
-      edit(data).todos[3].completed(true)
-      edit(data).filter('completed')
+    result = fork.do(data, (data) => {
+      patch(data).todos[0].completed(true)
+      patch(data).todos[1].completed(true)
+      patch(data).todos[2].completed(true)
+      patch(data).todos[3].completed(true)
+      patch(data).filter('completed')
     })
   })
 
   bench('patchfork - edit.batch', () => {
-    result = edit.batch(data, (data) => {
-      edit.batch(data).todos[0]((draft) => {
+    result = fork.do(data, (data) => {
+      patch.do(data).todos[0]((draft) => {
         draft.completed = true
       })
-      edit.batch(data).todos[1]((draft) => {
+      patch.do(data).todos[1]((draft) => {
         draft.completed = true
       })
-      edit.batch(data).todos[2]((draft) => {
+      patch.do(data).todos[2]((draft) => {
         draft.completed = true
       })
-      edit.batch(data).todos[3]((draft) => {
+      patch.do(data).todos[3]((draft) => {
         draft.completed = true
       })
 
@@ -365,11 +365,11 @@ describe('shallow Map clone with 5 elements', () => {
   })
 
   bench('patchfork – setIn', () => {
-    result = edit(data)[key]('a')(Math.random())
+    result = fork(data)[key]('a')(Math.random())
   })
 
   bench('patchfork - edit.batch', () => {
-    result = edit.batch(data)((draft) => {
+    result = fork.do(data)((draft) => {
       draft.set('a', Math.random())
     })
   })
@@ -398,11 +398,11 @@ describe('shallow Map clone with 10,000 elements', () => {
   })
 
   bench('patchfork – setIn', () => {
-    result = edit(data)[key]('key0')(Math.random())
+    result = fork(data)[key]('key0')(Math.random())
   })
 
   bench('patchfork - edit.batch', () => {
-    result = edit.batch(data)((draft) => {
+    result = fork.do(data)((draft) => {
       draft.set('key0', Math.random())
     })
   })
@@ -431,7 +431,7 @@ describe('shallow Set clone with 5 elements', () => {
   })
 
   bench('patchfork - edit.batch', () => {
-    result = edit.batch(data)((draft) => {
+    result = fork.do(data)((draft) => {
       draft.add('f')
     })
   })
@@ -460,7 +460,7 @@ describe('shallow Set clone with 10,000 elements', () => {
   })
 
   bench('patchfork - edit.batch', () => {
-    result = edit.batch(data)((draft) => {
+    result = fork.do(data)((draft) => {
       draft.add('newItem')
     })
   })
@@ -549,36 +549,36 @@ describe('complex nested structure with Maps and Sets using mutate', () => {
   })
 
   bench('patchfork', () => {
-    result = edit.batch(data, (draft) => {
+    result = fork.do(data, (draft) => {
       // Update user1's name
-      edit(draft).users[key]('user1').name('John Doe')
+      patch(draft).users[key]('user1').name('John Doe')
       // Add a new tag to user1
-      edit
-        .batch(draft)
+      patch
+        .do(draft)
         .users[key]('user1')
         .tags((tags) => {
           tags.add('vip')
         })
       // Add a like to user1's first post
-      edit
-        .batch(draft)
+      patch
+        .do(draft)
         .users[key]('user1')
         .posts[0].likes((likes) => {
           likes.add('user5')
         })
       // Update user2's theme preference
-      edit(draft).users[key]('user2').preferences.theme('auto')
+      patch(draft).users[key]('user2').preferences.theme('auto')
       // Add a new subscriber to tech category
-      edit
-        .batch(draft)
+      patch
+        .do(draft)
         .categories[key]('tech')
         .subscribers((subs) => {
           subs.add('user3')
         })
       // Update global post limit
-      edit(draft).settings.global.limits[key]('posts_per_day')(15)
+      patch(draft).settings.global.limits[key]('posts_per_day')(15)
       // Add a new global feature
-      edit.batch(draft).settings.global.features((features) => {
+      patch.do(draft).settings.global.features((features) => {
         features.add('analytics')
       })
     })
