@@ -37,8 +37,7 @@ So it's kinda like Immer's `produce` function, but with a wacky API optimized fo
 
 `patch` has the same interface as `fork`, but it operates on a state container to immutably update it.
 
-> [!NOTE]
-> Any state container with 'get' and 'set' operations can be adapted to work with `patch`. We provide adapters for [Zustand](./docs/zustand.md), [React useState](./docs/react.md), and [Jotai](./docs/jotai.md) (PRs welcome for others!).
+Any state container with 'get' and 'set' operations [can be adapted to work with `patch`](./docs/custom-state-containers.md). We provide minimal adapters for [React useState](./docs/react.md), [Zustand](./docs/zustand.md), and [Jotai](./docs/jotai.md) (PRs welcome for others!).
 
 ```tsx
 import { patch } from 'patchfork'
@@ -92,7 +91,10 @@ const nextState = fork.do({ user: { name: 'Nick Cave', age: 50 } }, (state) => {
   patch(state).user.age(51)
 
   // TypeScript will prevent you from doing unsafe mutation.
-  state.user.age = 52 // ❌ Error: Property 'age' is readonly
+  // ❌ Error: Property 'age' is readonly
+  state.user.age = 52
+  // ❌ Error: state.user not patchable
+  patch(state.user).name('Nicholas Cage')
 })
 ```
 
@@ -110,17 +112,17 @@ interface User {
 const user: User = {}
 
 // 'assignment' operations on optional properties always execute.
-const x = fork(user).name('Joe')
+fork(user).name('Joe')
 // => { name: 'Joe' }
 // TS type: User
 
 // 'update' operations on optional properties will only execute if the property is not undefined.
-const y = fork(user).name((name) => name.toUpperCase())
+fork(user).name((name) => name.toUpperCase())
 // => undefined
 // TS type: User | undefined
 
 // Collection methods will only succeed if the collection is not undefined or null.
-const z = fork(user).settings.set('theme', 'dark')
+fork(user).settings.set('theme', 'dark')
 // => undefined
 // TS type: User | undefined
 ```
@@ -150,6 +152,21 @@ const nextState = fork(state).users[key]('user1').name('Wilberforce')
 // => { users: new Map([['user1', { name: 'Wilberforce', age: 30 }]]) }
 ```
 
+### Async operations
+
+`patch` operations on `AsyncPatchable` (e.g. the [React useState](./docs/react.md) adapter) stores will always return a promise.
+
+Additionally, `patch.do` and `fork.do` will return a promise if the callback is async.
+
+If you are checking whether the return value is undefined to perform a fallback operation, remember to await the promise.
+
+```ts
+const updateTodo = async (title: string) => {
+  ;(await patch.do(store).todos[0].title(title)) ??
+    patch.do(store).todos.push({ title, completed: false })
+}
+```
+
 ## Advanced Usage
 
 You can also use `fork.do` and `patch.do` on nested paths.
@@ -172,7 +189,7 @@ const nextState = fork.do(state).user.settings((settings) => {
 })
 ```
 
-## Freezing objects at development time
+### Freezing objects at development time
 
 TypeScript should prevent unsafely mutating data within patchfork's draft functions if your data is well-typed and you don't use `as any` ! But who knows what might happen later, in the outside world. Shit's crazy out there.
 
@@ -186,6 +203,10 @@ if (process.env.NODE_ENV === 'development') {
   setDevMode(true)
 }
 ```
+
+### Custom State Container Integration
+
+See [Custom State Container Integration docs](./docs/custom-state-containers.md) for implementation details and examples.
 
 ## Performance
 
@@ -209,7 +230,7 @@ https://github.com/ds300/patchfork/tree/main/bench
 ## Limitations
 
 - 🩹 No support for patch generation/application.
-- 👭 Works only with data supported by [`structuredClone`](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm) (So yes ✅ to `Map`, `Set`, plain objects, and arrays. And no ❌ to custom classes, objects with symbol keys or getters/setters, etc)
+- 👭 It currently only with data supported by [`structuredClone`](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm) (So yes ✅ to `Map`, `Set`, plain objects, and arrays. And no ❌ to custom classes, objects with symbol keys or getters/setters, etc)
 - It currently returns a new object even if an edit is ineffectual, e.g.
 
   ```ts
@@ -219,9 +240,3 @@ https://github.com/ds300/patchfork/tree/main/bench
   ```
 
   This could be fixed partially for certain usage patterns (PRs welcome).
-
-## Custom State Container Integration
-
-You can integrate patchfork with any state containers that support `get` and `set` operations by implementing the `Patchable` or `AsyncPatchable` interface. This allows patchfork functions to work directly with your store.
-
-See [Custom State Container Integration docs](./docs/custom-state-containers.md) for implementation details and examples.

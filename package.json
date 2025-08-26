@@ -1,7 +1,7 @@
 {
   "name": "patchfork",
-  "version": "0.0.0",
-  "description": "A tiny immutable state utility for TypeScript.",
+  "version": "0.0.1",
+  "description": "A clever (derogatory) immutable state utility for TypeScript.",
   "main": "dist/patchfork.mjs",
   "files": [
     "dist",
@@ -16,6 +16,14 @@
     "./zustand": {
       "production": "./dist/zustand.mjs",
       "default": "./dist/zustand.mjs"
+    },
+    "./jotai": {
+      "production": "./dist/jotai.mjs",
+      "default": "./dist/jotai.mjs"
+    },
+    "./react": {
+      "production": "./dist/react.mjs",
+      "default": "./dist/react.mjs"
     },
     "./symbols": {
       "production": "./dist/symbols.mjs",

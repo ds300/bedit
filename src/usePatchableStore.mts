@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
-import { $asyncPatchable } from './symbols.mjs'
+import { $asyncPatchable, AsyncPatchable } from './symbols.mjs'
 
-export function usePatchableStore(
+export function usePatchableStore<T extends object>(
   setState: (updater: (value: any) => any) => void,
-) {
+): AsyncPatchable<T> {
   return useMemo(() => {
     return {
       [$asyncPatchable]: {

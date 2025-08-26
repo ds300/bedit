@@ -1,6 +1,6 @@
 # Custom State Container Integration
 
-You can integrate patchfork with any state container by implementing the `Patchable` interface. This allows patchfork functions to work directly with your store:
+You can integrate patchfork with any state container by implementing the `Patchable` interface. This allows the `patch` function to work directly with your store:
 
 ```ts
 import { $patchable, Patchable } from 'patchfork/symbols'
