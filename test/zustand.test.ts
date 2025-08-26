@@ -15,7 +15,7 @@ interface TestState {
   users: Array<{ id: number; name: string }>
 }
 
-describe('patchforkify', () => {
+describe('patchable', () => {
   const createInitialState = (): TestState => ({
     count: 0,
     nested: {

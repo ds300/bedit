@@ -5,7 +5,7 @@ patchfork integrates with [Zustand](https://zustand-demo.pmnd.rs/) stores by mak
 ## Usage
 
 ```typescript
-import { patchforkify } from 'patchfork/zustand'
+import { patchable } from 'patchfork/zustand'
 import { create } from 'zustand'
 
 const useStore = create(() => ({
@@ -14,8 +14,8 @@ const useStore = create(() => ({
   todos: [],
 }))
 
-// Patchforkify the store to use patchfork functions
-const store = patchforkify(useStore)
+// Make the store patchable to use patchfork functions
+const store = patchable(useStore)
 ```
 
 You can now use patchfork functions directly on the store:

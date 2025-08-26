@@ -12,6 +12,17 @@ import {
   Patchable,
 } from './symbols.mjs'
 
+/**
+ * Symbol used for accessing Map values in patchfork operations.
+ *
+ * Use this symbol to access and update values in Map objects:
+ * ```ts
+ * import { key, fork } from 'patchfork'
+ *
+ * const state = { users: new Map([['user1', { name: 'John' }]]) }
+ * const newState = fork(state).users[key]('user1').name('Jane')
+ * ```
+ */
 export const key = Symbol.for('__patchfork_key__')
 
 export type DeepReadonly<T> = T extends PrimitiveOrImmutableBuiltin
@@ -654,12 +665,12 @@ function releaseBatchFrame(frame: BatchFrame) {
  * @example
  * ```typescript
  * const user = { name: 'John', age: 30 }
- * const newUser = updateIn(user).name(name => name.toUpperCase())
+ * const newUser = fork(user).name(name => name.toUpperCase())
  * // Result: { name: 'JOHN', age: 30 }
  *
  * // Nested objects with complex transformations
  * const state = { user: { profile: { name: 'John Doe' } } }
- * const newState = updateIn(state).user.profile.name(name => {
+ * const newState = fork(state).user.profile.name(name => {
  *   const [firstName, lastName] = name.split(' ')
  *   return `${lastName}, ${firstName}`
  * })
@@ -667,12 +678,12 @@ function releaseBatchFrame(frame: BatchFrame) {
  *
  * // Arrays with transformations
  * const users = [{ name: 'John', age: 30 }]
- * const newUsers = updateIn(users)[0].age(age => age + 1)
+ * const newUsers = fork(users)[0].age(age => age + 1)
  * // Result: [{ name: 'John', age: 31 }]
  *
  * // Maps with transformations
  * const config = new Map([['theme', 'dark']])
- * const newConfig = updateIn(config)[key]('theme')(theme => theme.toUpperCase())
+ * const newConfig = fork(config)[key]('theme')(theme => theme.toUpperCase())
  * // Result: Map([['theme', 'DARK']])
  * ```
  */
@@ -692,6 +703,17 @@ export const fork: (<T extends object & { [$editable]?: never }>(
   do: (t: any, f?: any) => (f ? fork.do(t)(f) : getFrame(t, BATCH).$),
 })
 
+/**
+ * Updates state containers immutably using the same interface as `fork`.
+ *
+ * Unlike `fork` which creates a new object, `patch` operates on state containers
+ * that implement the `Patchable` or `AsyncPatchable` interface. It provides the
+ * same fluent API for updating nested properties, arrays, maps, and sets.
+ *
+ * @template T - The type of the state container's value
+ * @param t - A state container that implements Patchable, AsyncPatchable, or Editable
+ * @returns An updater object that allows updating properties at any depth
+ */
 export const patch: {
   <T extends object>(t: Editable<T>): Updatable<T>
   <T extends object>(t: AsyncPatchable<T>): AsyncUpdatable<T>
