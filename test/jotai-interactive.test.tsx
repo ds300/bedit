@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { atom } from 'jotai'
-import { usePatchableAtom } from '../src/jotai.mjs'
+import { usePatchable, usePatchableAtom } from '../src/jotai.mjs'
 import { patch, setDevMode } from '../src/patchfork.mjs'
 
 setDevMode(true)
@@ -12,7 +12,7 @@ describe('Jotai + patchfork - Interactive Tests', () => {
     const counterAtom = atom({ count: 0 })
 
     function Counter() {
-      const [state, store] = usePatchableAtom(counterAtom)
+      const [state, store] = usePatchable(counterAtom)
 
       const increment = () => {
         patch(store).count((count) => count + 1)
@@ -72,7 +72,7 @@ describe('Jotai + patchfork - Interactive Tests', () => {
     })
 
     function UserProfile() {
-      const [state, store] = usePatchableAtom(userProfileAtom)
+      const [state, store] = usePatchable(userProfileAtom)
 
       const updateName = (newName: string) => {
         patch(store).user.name(newName)
@@ -174,7 +174,7 @@ describe('Jotai + patchfork - Interactive Tests', () => {
     })
 
     function TodoList() {
-      const [state, store] = usePatchableAtom(todoAtom)
+      const [state, store] = usePatchable(todoAtom)
 
       const addTodo = (text: string) => {
         patch(store).todos.push(text)
@@ -259,7 +259,7 @@ describe('Jotai + patchfork - Interactive Tests', () => {
     })
 
     function BatchUpdater() {
-      const [state, store] = usePatchableAtom(batchUpdateAtom)
+      const [state, store] = usePatchable(batchUpdateAtom)
 
       const updateProfile = () => {
         patch.do(store, (draft) => {
@@ -352,5 +352,185 @@ describe('Jotai + patchfork - Interactive Tests', () => {
     expect(screen.getByTestId('posts')).toHaveTextContent('0')
     expect(screen.getByTestId('likes')).toHaveTextContent('0')
     expect(screen.getByTestId('comments')).toHaveTextContent('0')
+  })
+
+  it('should work with usePatchableAtom for store-only operations', async () => {
+    const counterAtom = atom({ count: 0, name: 'Counter' })
+
+    function CounterActions() {
+      const store = usePatchableAtom(counterAtom)
+
+      const increment = () => {
+        patch(store).count((count) => count + 1)
+      }
+
+      const decrement = () => {
+        patch(store).count((count) => count - 1)
+      }
+
+      const reset = () => {
+        patch(store).count(0)
+      }
+
+      const changeName = () => {
+        patch(store).name('Updated Counter')
+      }
+
+      return (
+        <div data-testid="counter-actions">
+          <button data-testid="increment" onClick={increment}>
+            +
+          </button>
+          <button data-testid="decrement" onClick={decrement}>
+            -
+          </button>
+          <button data-testid="reset" onClick={reset}>
+            Reset
+          </button>
+          <button data-testid="change-name" onClick={changeName}>
+            Change Name
+          </button>
+        </div>
+      )
+    }
+
+    // We need a separate component to read the state since usePatchableAtom doesn't return it
+    function CounterDisplay() {
+      const [state] = usePatchable(counterAtom)
+      return (
+        <div data-testid="counter-display">
+          <span data-testid="count">{state.count}</span>
+          <span data-testid="name">{state.name}</span>
+        </div>
+      )
+    }
+
+    const user = userEvent.setup()
+    render(
+      <div>
+        <CounterDisplay />
+        <CounterActions />
+      </div>,
+    )
+
+    // Initial state
+    expect(screen.getByTestId('count')).toHaveTextContent('0')
+    expect(screen.getByTestId('name')).toHaveTextContent('Counter')
+
+    // Test increment
+    await user.click(screen.getByTestId('increment'))
+    expect(screen.getByTestId('count')).toHaveTextContent('1')
+
+    // Test decrement
+    await user.click(screen.getByTestId('decrement'))
+    expect(screen.getByTestId('count')).toHaveTextContent('0')
+
+    // Test reset
+    await user.click(screen.getByTestId('increment'))
+    await user.click(screen.getByTestId('increment'))
+    expect(screen.getByTestId('count')).toHaveTextContent('2')
+    await user.click(screen.getByTestId('reset'))
+    expect(screen.getByTestId('count')).toHaveTextContent('0')
+
+    // Test name change
+    await user.click(screen.getByTestId('change-name'))
+    expect(screen.getByTestId('name')).toHaveTextContent('Updated Counter')
+  })
+
+  it('should handle nested updates with usePatchableAtom', async () => {
+    const userAtom = atom({
+      profile: { name: 'John', age: 25 },
+      settings: { theme: 'dark', notifications: true },
+    })
+
+    function UserActions() {
+      const store = usePatchableAtom(userAtom)
+
+      const updateName = () => {
+        patch(store).profile.name('Jane')
+      }
+
+      const incrementAge = () => {
+        patch(store).profile.age((age) => age + 1)
+      }
+
+      const toggleTheme = () => {
+        patch(store).settings.theme((theme) =>
+          theme === 'dark' ? 'light' : 'dark',
+        )
+      }
+
+      const toggleNotifications = () => {
+        patch(store).settings.notifications((notifications) => !notifications)
+      }
+
+      return (
+        <div data-testid="user-actions">
+          <button data-testid="update-name" onClick={updateName}>
+            Update Name
+          </button>
+          <button data-testid="increment-age" onClick={incrementAge}>
+            Age++
+          </button>
+          <button data-testid="toggle-theme" onClick={toggleTheme}>
+            Toggle Theme
+          </button>
+          <button
+            data-testid="toggle-notifications"
+            onClick={toggleNotifications}
+          >
+            Toggle Notifications
+          </button>
+        </div>
+      )
+    }
+
+    function UserDisplay() {
+      const [state] = usePatchable(userAtom)
+      return (
+        <div data-testid="user-display">
+          <span data-testid="name">{state.profile.name}</span>
+          <span data-testid="age">{state.profile.age}</span>
+          <span data-testid="theme">{state.settings.theme}</span>
+          <span data-testid="notifications">
+            {String(state.settings.notifications)}
+          </span>
+        </div>
+      )
+    }
+
+    const user = userEvent.setup()
+    render(
+      <div>
+        <UserDisplay />
+        <UserActions />
+      </div>,
+    )
+
+    // Initial state
+    expect(screen.getByTestId('name')).toHaveTextContent('John')
+    expect(screen.getByTestId('age')).toHaveTextContent('25')
+    expect(screen.getByTestId('theme')).toHaveTextContent('dark')
+    expect(screen.getByTestId('notifications')).toHaveTextContent('true')
+
+    // Test name update
+    await user.click(screen.getByTestId('update-name'))
+    expect(screen.getByTestId('name')).toHaveTextContent('Jane')
+
+    // Test age increment
+    await user.click(screen.getByTestId('increment-age'))
+    expect(screen.getByTestId('age')).toHaveTextContent('26')
+
+    // Test theme toggle
+    await user.click(screen.getByTestId('toggle-theme'))
+    expect(screen.getByTestId('theme')).toHaveTextContent('light')
+    await user.click(screen.getByTestId('toggle-theme'))
+    expect(screen.getByTestId('theme')).toHaveTextContent('dark')
+
+    // Test notifications toggle
+    await user.click(screen.getByTestId('toggle-notifications'))
+    expect(screen.getByTestId('notifications')).toHaveTextContent('false')
+    await user.click(screen.getByTestId('toggle-notifications'))
+    expect(screen.getByTestId('notifications')).toHaveTextContent('true')
   })
 })
