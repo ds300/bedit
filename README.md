@@ -230,7 +230,7 @@ https://github.com/ds300/patchfork/tree/main/bench
 ## Limitations
 
 - 🩹 No support for patch generation/application.
-- 👭 It currently only with data supported by [`structuredClone`](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm) (So yes ✅ to `Map`, `Set`, plain objects, and arrays. And no ❌ to custom classes, objects with symbol keys or getters/setters, etc)
+- 👭 It currently only works with data supported by [`structuredClone`](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm) (So yes ✅ to `Map`, `Set`, plain objects, and arrays. And no ❌ to custom classes, objects with symbol keys or getters/setters, etc)
 - It currently returns a new object even if an edit is ineffectual, e.g.
 
   ```ts
